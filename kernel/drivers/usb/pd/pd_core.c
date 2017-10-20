@@ -248,20 +248,26 @@ static int dpm_alt_rtdc_parse_svid_data(
 
 static void pd_core_parse_svid_data(pd_port_t *pd_port)
 {
-	int i = 0;
+	int ret, i = 0;
 
 	/* TODO: dynamic allocate svid_data from DTS */
 
 #ifdef CONFIG_USB_PD_ALT_MODE
-	dpm_alt_mode_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
+	ret = dpm_alt_mode_parse_svid_data(pd_port, &pd_port->svid_data[i]);
+	if (ret == 0)
+		i++;
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_RICHTEK_UVDM
-	dpm_richtek_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
+	ret = dpm_richtek_parse_svid_data(pd_port, &pd_port->svid_data[i]);
+	if (ret == 0)
+		i++;
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
 #ifdef CONFIG_USB_PD_ALT_MODE_RTDC
-	dpm_alt_rtdc_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
+	ret = dpm_alt_rtdc_parse_svid_data(pd_port, &pd_port->svid_data[i]);
+	if (ret == 0)
+		i++;
 #endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 	pd_port->svid_data_cnt = i;
@@ -508,6 +514,10 @@ int pd_reset_protocol_layer(pd_port_t *pd_port)
 	pd_port->remote_selected_cap = 0;
 	pd_port->during_swap = 0;
 	pd_port->dpm_ack_immediately = 0;
+
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_RESET
+	pd_port->dpm_dfp_flow_delay_done = 0;
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_RESET */
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	pd_port->vconn_return = false;
@@ -796,7 +806,8 @@ int pd_disable_bist_mode2(pd_port_t *pd_port)
 
 int pd_send_svdm_request(pd_port_t *pd_port,
 		uint8_t sop_type, uint16_t svid, uint8_t vdm_cmd,
-		uint8_t obj_pos, uint8_t cnt, uint32_t *data_obj)
+		uint8_t obj_pos, uint8_t cnt, uint32_t *data_obj,
+		uint32_t timer_id)
 {
 	int ret;
 	uint32_t payload[VDO_MAX_SIZE];
@@ -809,8 +820,8 @@ int pd_send_svdm_request(pd_port_t *pd_port,
 	ret = pd_send_data_msg(
 			pd_port, sop_type, PD_DATA_VENDOR_DEF, 1+cnt, payload);
 
-	if (ret == 0 && (vdm_cmd != CMD_ATTENTION))
-		pd_enable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	if (ret == 0 && timer_id != 0)
+		pd_enable_timer(pd_port, timer_id);
 
 	return ret;
 }

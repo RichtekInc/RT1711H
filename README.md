@@ -2,6 +2,17 @@
 
 ## Changelog
 
+### v011
+- [TypeC] Notify Rp-Level Change during Attached.SNK
+- [SRC] Add PD VSafe0V timeout for Compatibility
+- [VDM] Using Enter/Exit Mode & UVDM timer
+- [DPM] Implement auto pr_swap & dr_swap
+- [DPM] Fixed ateemp discover ID bug
+- [DPM] Option for DFP flow delay
+- [PE] Support Custom DBGACC
+- [PE] Only enable INTRST & WatchDog in Source Mode 	
+- [RT1711] Modify clock gating flow.
+
 ### v010
 - Change License & fix coding style
 - [PE] Add retry DFP flow

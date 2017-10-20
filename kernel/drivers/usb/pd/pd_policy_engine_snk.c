@@ -60,6 +60,7 @@ void pe_snk_discovery_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 #ifdef CONFIG_USB_PD_FAST_RESP_TYPEC_SRC
 		pd_disable_timer(pd_port, PD_TIMER_SRC_RECOVER);
 #endif	/* CONFIG_USB_PD_FAST_RESP_TYPEC_SRC */
+
 	pd_enable_vbus_valid_detection(pd_port, true);
 }
 
@@ -92,6 +93,7 @@ void pe_snk_evaluate_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	pd_port->recv_hard_reset_count = 0;
 #endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
 	pd_dpm_snk_evaluate_caps(pd_port, pd_event);
 	pd_free_pd_event(pd_port, pd_event);
 }

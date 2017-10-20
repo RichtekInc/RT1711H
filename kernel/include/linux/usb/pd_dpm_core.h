@@ -127,6 +127,10 @@ int pd_dpm_notify_pe_startup(pd_port_t *pd_port);
 int pd_dpm_notify_pe_hardreset(pd_port_t *pd_port);
 int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event);
 
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
+int pd_dpm_notify_dfp_delay_done(
+	pd_port_t *pd_port, pd_event_t *pd_event);
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
 /* TCPCI - VBUS Control */
 
@@ -196,9 +200,9 @@ extern bool dp_reset_state(
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_RICHTEK_UVDM
-bool richtek_dfp_notify_uvdm(pd_port_t *pd_port,
+extern bool richtek_dfp_notify_uvdm(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, bool ack);
-bool richtek_ufp_notify_uvdm(pd_port_t *pd_port,
+extern bool richtek_ufp_notify_uvdm(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data);
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
@@ -227,7 +231,8 @@ extern int dc_dfp_notify_pe_ready(pd_port_t *pd_port,
 
 extern bool dc_dfp_notify_uvdm(pd_port_t *pd_port,
 			svdm_svid_data_t *svid_data, bool ack);
-extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port, svdm_svid_data_t *svid_data);
+extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port, 
+			svdm_svid_data_t *svid_data);
 
 #endif /* CONFIG_USB_PD_ALT_MODE_RTDC */
 

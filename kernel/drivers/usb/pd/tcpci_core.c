@@ -28,7 +28,7 @@
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.0_G"
+#define TCPC_CORE_VERSION		"1.1.1_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -353,7 +353,7 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 	mutex_init(&tcpc->typec_lock);
 	mutex_init(&tcpc->timer_lock);
 	sema_init(&tcpc->timer_enable_mask_lock, 1);
-	sema_init(&tcpc->timer_tick_lock, 1);
+	spin_lock_init(&tcpc->timer_tick_lock);
 
 	/* If system support "WAKE_LOCK_IDLE",
 	 * please use it instead of "WAKE_LOCK_SUSPEND" */
@@ -425,6 +425,8 @@ int tcpc_schedule_init_work(struct tcpc_device *tcpc)
 {
 	if (tcpc->desc.notifier_supply_num == 0)
 		return tcpc_device_irq_enable(tcpc);
+
+	pr_info("%s wait %d num\n", __func__, tcpc->desc.notifier_supply_num);
 
 	schedule_delayed_work(
 		&tcpc->init_work, msecs_to_jiffies(30*1000));

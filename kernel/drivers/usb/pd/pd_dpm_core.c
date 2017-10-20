@@ -1166,7 +1166,7 @@ void pd_dpm_dfp_send_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port->uvdm_svid = PD_VDO_VID(pd_port->uvdm_data[0]);
 
 	if (pd_port->uvdm_wait_resp)
-		pd_enable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+		pd_enable_timer(pd_port, PD_TIMER_UVDM_RESPONSE);
 }
 
 void pd_dpm_dfp_inform_uvdm(
@@ -1273,6 +1273,12 @@ void pd_dpm_drs_change_role(pd_port_t *pd_port, uint8_t role)
 
 	/* pd_put_dpm_ack_event(pd_port); */
 	pd_port->dpm_ack_immediately = true;
+
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_DRSWAP
+	pd_port->dpm_dfp_flow_delay_done = false;
+#else
+	pd_port->dpm_dfp_flow_delay_done = true;	
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_DRSWAP */	
 }
 
 /*
@@ -1411,6 +1417,60 @@ void pd_dpm_vcs_enable_vconn(pd_port_t *pd_port, bool en)
  * PE : Notify DPM
  */
 
+static inline int pd_dpm_ready_power_role_swap(pd_port_t *pd_port)
+{
+	bool do_swap = false;
+	uint32_t prefer_role;
+
+	if (!(pd_port->dpm_flags & DPM_FLAGS_CHECK_PR_ROLE))
+		return 0;
+	
+	pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_PR_ROLE;
+	prefer_role = DPM_CAP_EXTRACT_PR_CHECK(pd_port->dpm_caps);
+	
+	if (pd_port->power_role == PD_ROLE_SOURCE
+		&& prefer_role == DPM_CAP_PR_CHECK_PREFER_SNK)
+		do_swap = true;
+	
+	if (pd_port->power_role == PD_ROLE_SINK
+		&& prefer_role == DPM_CAP_PR_CHECK_PREFER_SRC)
+		do_swap = true;
+
+	if (do_swap) {
+		pd_put_dpm_pd_request_event(
+			pd_port, PD_DPM_PD_REQUEST_DR_SWAP);
+	}
+
+	return do_swap;
+}
+
+static inline int pd_dpm_ready_data_role_swap(pd_port_t *pd_port)
+{
+	bool do_swap = false;
+	uint32_t prefer_role;
+
+	if (!(pd_port->dpm_flags & DPM_FLAGS_CHECK_DR_ROLE))
+		return 0;
+
+	pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_DR_ROLE;
+	prefer_role = DPM_CAP_EXTRACT_DR_CHECK(pd_port->dpm_caps);
+
+	if (pd_port->data_role == PD_ROLE_DFP
+		&& prefer_role == DPM_CAP_DR_CHECK_PREFER_UFP)
+		do_swap = true;
+	
+	if (pd_port->data_role == PD_ROLE_UFP
+		&& prefer_role == DPM_CAP_DR_CHECK_PREFER_DFP)
+		do_swap = true;
+
+	if (do_swap) {
+		pd_put_dpm_pd_request_event(
+			pd_port, PD_DPM_PD_REQUEST_DR_SWAP);
+	}
+
+	return do_swap;
+}
+
 static inline int pd_dpm_ready_get_sink_cap(pd_port_t *pd_port)
 {
 	if (!(pd_port->dpm_flags & DPM_FLAGS_CHECK_SINK_CAP))
@@ -1467,24 +1527,28 @@ static inline int pd_dpm_notify_pe_src_ready(
 	return pd_dpm_ready_attempt_get_extbit(pd_port);
 }
 
-static inline int pd_dpm_notify_pe_dfp_ready(
-	pd_port_t *pd_port, pd_event_t *pd_event)
-{
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
+static inline int pd_dpm_ready_attempt_discover_cable(
+	pd_port_t* pd_port, pd_event_t* pd_event)
+{
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID_DFP) {
 		if (pd_is_auto_discover_cable_id(pd_port)) {
+
+#ifdef CONFIG_USB_PD_DISCOVER_CABLE_REQUEST_VCONN			
 			if (!pd_port->vconn_source) {
 				pd_port->vconn_return = true;
 				pd_put_dpm_pd_request_event(pd_port,
 					PD_DPM_PD_REQUEST_VCONN_SWAP);
 				return 1;
 			}
+#endif	/* CONFIG_USB_PD_DISCOVER_CABLE_REQUEST_VCONN */
 
 			pd_restart_timer(pd_port, PD_TIMER_DISCOVER_ID);
 			return 1;
 		}
 	}
 
+#ifdef CONFIG_USB_PD_DISCOVER_CABLE_RETURN_VCONN
 	if (pd_port->vconn_return) {
 		DPM_DBG("VconnReturn\r\n");
 		pd_port->vconn_return = false;
@@ -1494,17 +1558,36 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 			return 1;
 		}
 	}
-#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+#endif	/* CONFIG_USB_PD_DISCOVER_CABLE_RETURN_VCONN */
+
+	return 0;
+}
+#endif	/* #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+static inline int pd_dpm_notify_pe_dfp_ready(
+	pd_port_t *pd_port, pd_event_t *pd_event)
+{
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
+	if (!pd_port->dpm_dfp_flow_delay_done) {
+		DPM_DBG("Delay DFP Flow\r\n");
+		pd_restart_timer(pd_port, PD_TIMER_DFP_FLOW_DELAY);
+		return 1;
+	}
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
-	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID_DFP) {
-		if (pd_is_auto_discover_cable_id(pd_port)) {
-			pd_disable_timer(pd_port, PD_TIMER_DISCOVER_ID);
-			pd_enable_timer(pd_port, PD_TIMER_DISCOVER_ID);
-			return 0;
-		}
-	}
+	if (pd_dpm_ready_attempt_discover_cable(pd_port, pd_event))
+		return 1;	
 #endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+#ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_ID
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_ID) {
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_ID;
+		if (vdm_put_dpm_vdm_request_event(
+			pd_port, PD_DPM_VDM_REQUEST_DISCOVER_ID))
+			return 1;
+	}
+#endif	/* CONFIG_USB_PD_ATTEMP_DISCOVER_ID */
 
 #ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_SVID
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_SVID) {
@@ -1611,6 +1694,12 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	int ret = 0;
 
+	if (pd_dpm_ready_power_role_swap(pd_port))
+		return 1;
+
+	if (pd_dpm_ready_data_role_swap(pd_port))
+		return 1;
+
 	if (pd_dpm_ready_get_source_cap(pd_port))
 		return 1;
 
@@ -1636,6 +1725,19 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	return 0;
 }
+
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
+int pd_dpm_notify_dfp_delay_done(
+	pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	if (pd_port->data_role == PD_ROLE_DFP) {		
+		pd_port->dpm_dfp_flow_delay_done = true;
+		pd_dpm_notify_pe_dfp_ready(pd_port, pd_event);
+	}
+
+	return 0;
+}
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
 /*
  * dpm_core_init

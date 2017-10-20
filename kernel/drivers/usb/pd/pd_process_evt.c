@@ -212,6 +212,7 @@ bool pd_make_pe_state_transit_virt(pd_port_t *pd_port,
 			break;
 		}
 	}
+
 	return ret;
 }
 
@@ -276,6 +277,7 @@ bool pd_process_protocol_error(
 		PE_TRANSIT_HARD_RESET_STATE(pd_port);
 	else
 		PE_TRANSIT_SEND_SOFT_RESET_STATE(pd_port);
+
 	return true;
 }
 
@@ -803,6 +805,12 @@ static inline bool pe_exit_idle_state(
 	pd_port->modal_operation = false;
 	pd_port->during_swap = false;
 	pd_port->dpm_ack_immediately = false;
+
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP
+	pd_port->dpm_dfp_flow_delay_done = false;
+#else
+	pd_port->dpm_dfp_flow_delay_done = true;	
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP */
 
 	pd_port->remote_src_cap.nr = 0;
 	pd_port->remote_snk_cap.nr = 0;

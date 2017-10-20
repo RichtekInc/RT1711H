@@ -165,15 +165,18 @@ void pe_ufp_vdm_dp_configure_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_free_pd_event(pd_port, pd_event);
 }
 
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 /*
  * UVDM
  */
+
 #ifdef CONFIG_USB_PD_UVDM
+
 void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_dpm_ufp_recv_uvdm(pd_port, pd_event);
 	pd_free_pd_event(pd_port, pd_event);
 }
-#endif
+
+#endif	/* CONFIG_USB_PD_UVDM */

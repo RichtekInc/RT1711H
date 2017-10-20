@@ -529,6 +529,10 @@ void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev, bool from_ic)
 
 void pd_put_vbus_safe0v_event(struct tcpc_device *tcpc_dev)
 {
+#ifdef CONFIG_USB_PD_SAFE0V_TIMEOUT
+	tcpc_disable_timer(tcpc_dev, PD_TIMER_VSAFE0V_TOUT);
+#endif	/* CONFIG_USB_PD_SAFE0V_TIMEOUT */
+
 	mutex_lock(&tcpc_dev->access_lock);
 	if (tcpc_dev->pd_wait_vbus_once == PD_WAIT_VBUS_SAFE0V_ONCE) {
 		tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
@@ -601,11 +605,17 @@ void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt)
 		break;
 	case PD_WAIT_VBUS_SAFE0V_ONCE:
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT
-		if (tcpci_check_vsafe0v(tcpc_dev, true))
+		if (tcpci_check_vsafe0v(tcpc_dev, true)) {
 			pd_put_vbus_safe0v_event(tcpc_dev);
+			break;
+		}
 #else
-		pd_enable_timer(pd_port, PD_TIMER_VSAFE0V);
-#endif
+		pd_enable_timer(pd_port, PD_TIMER_VSAFE0V_DELAY);
+#endif	/* CONFIG_TCPC_VSAFE0V_DETECT */
+
+#ifdef CONFIG_USB_PD_SAFE0V_TIMEOUT
+		pd_enable_timer(pd_port, PD_TIMER_VSAFE0V_TOUT);
+#endif	/* CONFIG_USB_PD_SAFE0V_TIMEOUT */
 		break;
 	}
 }

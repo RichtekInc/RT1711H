@@ -21,6 +21,7 @@
 #include <linux/wakelock.h>
 #include <linux/notifier.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
 
 #include <linux/usb/tcpm.h>
 #include <linux/usb/tcpci_timer.h>
@@ -42,7 +43,7 @@
 #define DPM_DBG_ENABLE		1
 #define PD_ERR_ENABLE		1
 #define PE_DBG_ENABLE		0
-#define TYPEC_DBG_ENABLE	0
+#define TYPEC_DBG_ENABLE	1
 
 #define DP_INFO_ENABLE		1
 #define DP_DBG_ENABLE		1
@@ -62,6 +63,8 @@
 		TYPEC_INFO_ENABLE|\
 		DP_INFO_ENABLE|DP_DBG_ENABLE|UVDM_INFO_ENABLE)
 
+/* Disable VDM DBG Msg */
+#define PE_STATE_INFO_VDM_DIS	0
 #define PE_EVT_INFO_VDM_DIS		0
 #define PE_DBG_RESET_VDM_DIS	1
 
@@ -172,6 +175,10 @@ struct tcpc_ops {
 	int (*set_watchdog)(struct tcpc_device *tcpc, bool en);
 #endif /* CONFIG_TCPC_WATCHDOG_EN */
 
+#ifdef CONFIG_TCPC_INTRST_EN
+	int (*set_intrst)(struct tcpc_device *tcpc, bool en);
+#endif /* CONFIG_TCPC_INTRST_EN */
+
 #ifdef CONFIG_USB_POWER_DELIVERY
 	int (*set_msg_header)(struct tcpc_device *tcpc,
 					int power_role, int data_role);
@@ -196,7 +203,7 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
 
-#define TCPC_LEGACY_CABLE_CONFIRM	20
+#define TCPC_LEGACY_CABLE_CONFIRM	50
 
 struct tcpc_device {
 	struct i2c_client *client;
@@ -217,7 +224,7 @@ struct tcpc_device {
 	struct mutex typec_lock;
 	struct mutex timer_lock;
 	struct semaphore timer_enable_mask_lock;
-	struct semaphore timer_tick_lock;
+	struct spinlock timer_tick_lock;
 	atomic_t pending_event;
 	uint64_t timer_tick;
 	uint64_t timer_enable_mask;
@@ -245,6 +252,7 @@ struct tcpc_device {
 	bool typec_drp_try_timeout;
 	bool typec_lpm;
 	bool typec_cable_only;
+	bool typec_power_ctrl;
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	bool typec_legacy_cable;

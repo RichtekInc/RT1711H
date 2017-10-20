@@ -140,7 +140,7 @@ void pe_dfp_vdm_mode_entry_request_entry(
 void pe_dfp_vdm_mode_entry_acked_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_disable_timer(pd_port, PD_TIMER_VDM_MODE_ENTRY);
 	pd_dpm_dfp_inform_enter_mode(pd_port, pd_event, true);
 	pd_free_pd_event(pd_port, pd_event);
 
@@ -148,7 +148,7 @@ void pe_dfp_vdm_mode_entry_acked_entry(
 
 void pe_dfp_vdm_mode_entry_naked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_disable_timer(pd_port, PD_TIMER_VDM_MODE_ENTRY);
 	pd_dpm_dfp_inform_enter_mode(pd_port, pd_event, false);
 	pd_free_pd_event(pd_port, pd_event);
 }
@@ -167,7 +167,7 @@ void pe_dfp_vdm_mode_exit_request_entry(
 void pe_dfp_vdm_mode_exit_acked_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_disable_timer(pd_port, PD_TIMER_VDM_MODE_EXIT);
 	pd_dpm_dfp_inform_exit_mode(pd_port, pd_event);
 	pd_free_pd_event(pd_port, pd_event);
 }
@@ -249,15 +249,16 @@ void pe_dfp_uvdm_send_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_dfp_uvdm_acked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_disable_timer(pd_port, PD_TIMER_UVDM_RESPONSE);
 	pd_dpm_dfp_inform_uvdm(pd_port, pd_event, true);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_dfp_uvdm_naked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_disable_timer(pd_port, PD_TIMER_UVDM_RESPONSE);
 	pd_dpm_dfp_inform_uvdm(pd_port, pd_event, false);
 	pd_free_pd_event(pd_port, pd_event);
 }
+
 #endif      /* CONFIG_USB_PD_UVDM */

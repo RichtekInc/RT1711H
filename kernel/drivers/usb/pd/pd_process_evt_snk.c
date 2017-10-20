@@ -121,6 +121,7 @@ DECL_PE_STATE_TRANSITION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT) = {
 	{ PE_SNK_TRANSITION_TO_DEFAULT, PE_SNK_STARTUP },
 };
 DECL_PE_STATE_REACTION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
+
 DECL_PE_STATE_TRANSITION(PD_PE_MSG_IDLE) = {
 	{ PE_IDLE1, PE_IDLE2 },
 };
@@ -182,6 +183,7 @@ static inline bool pd_process_ctrl_msg_get_source_cap(
 		PE_TRANSIT_STATE(pd_port, PE_DR_SNK_GIVE_SOURCE_CAP);
 		return true;
 	}
+
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
 	return false;
 }
@@ -230,10 +232,10 @@ static inline bool pd_process_ctrl_msg(
 		if (pd_port->pe_state_curr == PE_SNK_SELECT_CAPABILITY) {
 			if (pd_port->explicit_contract)
 				PE_TRANSIT_STATE(pd_port, PE_SNK_READY);
-			else
+			else {
 				PE_TRANSIT_STATE(pd_port,
 					PE_SNK_WAIT_FOR_CAPABILITIES);
-
+			}
 			return true;
 		}
 		break;
@@ -262,6 +264,7 @@ static inline bool pd_process_ctrl_msg(
 
 	if (!ret)
 		ret = pd_process_protocol_error(pd_port, pd_event);
+
 	return ret;
 }
 
@@ -294,6 +297,7 @@ static inline bool pd_process_data_msg(
 
 	if (!ret)
 		ret = pd_process_protocol_error(pd_port, pd_event);
+
 	return ret;
 }
 
@@ -439,28 +443,36 @@ static inline bool pd_process_timer_msg(
 		break;
 #endif	/* CONFIG_USB_PD_FAST_RESP_TYPEC_SRC */
 
-
 	case PD_TIMER_NO_RESPONSE:
 		if (!pd_dpm_check_vbus_valid(pd_port)) {
 			PE_DBG("NoResp&VBUS=0\r\n");
 			PE_TRANSIT_STATE(pd_port, PE_ERROR_RECOVERY);
-			ret = true;
+			return true;
 		} else if (pd_port->hard_reset_counter <= PD_HARD_RESET_COUNT) {
 			PE_TRANSIT_STATE(pd_port, PE_SNK_HARD_RESET);
-			ret = true;
-		} else if (pd_port->pd_prev_connected) {
+			return true;
+		} else if(pd_port->pd_prev_connected) {
 			PE_TRANSIT_STATE(pd_port, PE_ERROR_RECOVERY);
-			ret = true;
-		} else
+			return true;
+		} else {
 			pd_report_typec_only_charger(pd_port);
+		}
 		break;
-#endif
+#endif	/* CONFIG_USB_PD_DBG_IGRONE_TIMEOUT */
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	case PD_TIMER_DISCOVER_ID:
 		vdm_put_dpm_discover_cable_event(pd_port);
 		break;
-#endif
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
+		case PD_TIMER_DFP_FLOW_DELAY:
+			if (pd_port->pe_state_curr == PE_SNK_READY)
+				pd_dpm_notify_dfp_delay_done(pd_port, pd_event);
+			break;
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
+
 	}
 
 	return ret;
