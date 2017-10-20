@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/tcpci_core.h
- *  Include header file for Richtek TypeC Port Controller Device
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_RT_TCPCI_CORE_H
@@ -47,6 +48,11 @@
 #define DP_DBG_ENABLE		1
 
 #define UVDM_INFO_ENABLE		1
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+#define DC_INFO_ENABLE			1
+#define DC_DBG_ENABLE			1
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #define TCPC_ENABLE_ANYMSG	(TCPC_DBG_ENABLE | DPM_DBG_ENABLE|\
 		PD_ERR_ENABLE|PE_INFO_ENABLE|TCPC_TIMER_INFO_EN\
@@ -190,7 +196,7 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
 
-#define TCPC_LEGACY_CABLE_CONFIRM	7
+#define TCPC_LEGACY_CABLE_CONFIRM	20
 
 struct tcpc_device {
 	struct i2c_client *client;
@@ -262,6 +268,7 @@ struct tcpc_device {
 
 	uint8_t pd_last_vdm_msg_id;
 	bool pd_pending_vdm_event;
+	bool pd_pending_vdm_good_crc;
 	bool pd_postpone_vdm_timeout;
 
 	pd_msg_t pd_last_vdm_msg;
@@ -397,5 +404,23 @@ struct tcpc_device {
 #else
 #define UVDM_INFO(format, args...)
 #endif
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+
+#if DC_INFO_ENABLE
+#define DC_INFO(format, args...)	\
+	RT_DBG_INFO("DC> " format, ## args)
+#else
+#define DC_INFO(format, args...)
+#endif
+
+#if DC_DBG_ENABLE
+#define DC_DBG(format, args...)	\
+	RT_DBG_INFO("DC> " format, ## args)
+#else
+#define DC_DBG(format, args...)
+#endif
+
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #endif /* #ifndef __LINUX_RT_TCPCI_CORE_H */

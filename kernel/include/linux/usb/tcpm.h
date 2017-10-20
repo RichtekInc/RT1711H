@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/tcpm.h
- *  Include header file for Type-C Port Manager
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef TCPM_H_
@@ -31,14 +32,14 @@ enum typec_attach_type {
 	TYPEC_ATTACHED_SRC,
 	TYPEC_ATTACHED_AUDIO,
 	TYPEC_ATTACHED_DEBUG,
-	
-#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK	
+
+#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
 	TYPEC_ATTACHED_DBGACC_SNK,		/* Rp, Rp */
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
 
 #ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
 	TYPEC_ATTACHED_CUSTOM_SRC,		/* Same Rp */
-#endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */	
+#endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
 };
 
 enum pd_connect_result {
@@ -50,11 +51,11 @@ enum pd_connect_result {
 	PD_CONNECT_PE_READY,	/* Internal Only */
 	PD_CONNECT_PE_READY_SNK,
 	PD_CONNECT_PE_READY_SRC,
-	
-#ifdef CONFIG_USB_PD_CUSTOM_DBGACC	
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	PD_CONNECT_PE_READY_DBGACC_UFP,
 	PD_CONNECT_PE_READY_DBGACC_DFP,
-#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */	
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 };
 
 enum dpm_request_state {
@@ -105,6 +106,8 @@ enum {
 	TCP_NOTIFY_PR_SWAP,
 	TCP_NOTIFY_DR_SWAP,
 	TCP_NOTIFY_VCONN_SWAP,
+	TCP_NOTIFY_ENTER_MODE,
+	TCP_NOTIFY_EXIT_MODE,
 	TCP_NOTIFY_AMA_DP_STATE,
 	TCP_NOTIFY_AMA_DP_ATTENTION,
 	TCP_NOTIFY_AMA_DP_HPD_STATE,
@@ -114,7 +117,12 @@ enum {
 
 #ifdef CONFIG_USB_PD_UVDM
 	TCP_NOTIFY_UVDM,
-#endif /* CONFIG_USB_PD_UVDM */	
+#endif /* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	TCP_NOTIFY_DC_EN_UNLOCK,
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
 };
 
 struct tcp_ny_pd_state {
@@ -163,6 +171,12 @@ struct tcp_ny_vbus_state {
 	uint8_t type;
 };
 
+struct tcp_ny_mode_ctrl {
+	uint16_t svid;
+	uint8_t ops;
+	uint32_t mode;
+};
+
 enum {
 	SW_USB = 0,
 	SW_DFP_D,
@@ -199,7 +213,7 @@ struct tcp_ny_uvdm {
 	bool ack;
 	uint8_t uvdm_cnt;
 	uint16_t uvdm_svid;
-	uint32_t* uvdm_data;	
+	uint32_t *uvdm_data;
 };
 
 struct tcp_notify {
@@ -209,6 +223,7 @@ struct tcp_notify {
 		struct tcp_ny_typec_state typec_state;
 		struct tcp_ny_swap_state swap_state;
 		struct tcp_ny_pd_state pd_state;
+		struct tcp_ny_mode_ctrl mode_ctrl;
 		struct tcp_ny_ama_dp_state ama_dp_state;
 		struct tcp_ny_ama_dp_attention ama_dp_attention;
 		struct tcp_ny_ama_dp_hpd_state ama_dp_hpd_state;
@@ -323,6 +338,7 @@ extern int tcpm_get_source_cap(
 	struct tcpc_device *tcpc_dev, struct tcpm_power_cap *cap);
 extern int tcpm_get_sink_cap(
 	struct tcpc_device *tcpc_dev, struct tcpm_power_cap *cap);
+extern int tcpm_bist_cm2(struct tcpc_device *tcpc_dev);
 extern int tcpm_request(
 	struct tcpc_device *tcpc_dev, int mv, int ma);
 extern int tcpm_error_recovery(struct tcpc_device *tcpc_dev);
@@ -355,8 +371,6 @@ extern int tcpm_dp_configuration(
 
 extern int tcpm_notify_vbus_stable(struct tcpc_device *tcpc_dev);
 
-
-
 #ifdef CONFIG_USB_PD_UVDM
 
 #define PD_UVDM_HDR(vid, custom)	\
@@ -365,7 +379,7 @@ extern int tcpm_notify_vbus_stable(struct tcpc_device *tcpc_dev);
 #define PD_UVDM_HDR_CMD(hdr)	\
 	(hdr & 0x7FFF)
 
-extern int tcpm_send_uvdm(struct tcpc_device *tcpc_dev, 
+extern int tcpm_send_uvdm(struct tcpc_device *tcpc_dev,
 	uint8_t cnt, uint32_t *data, bool wait_resp);
 #endif	/* CONFIG_USB_PD_UVDM */
 

@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/pd_core.h
- *  Include header file for Power Delivery Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef PD_CORE_H_
@@ -27,6 +28,15 @@
 #undef CONFIG_PD_DISCOVER_CABLE_ID
 #define CONFIG_PD_DISCOVER_CABLE_ID
 #endif /* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+#ifdef CONFIG_USB_PD_ALT_MODE
+#define CONFIG_USB_PD_MODE_OPERATION
+#endif	/* CONFIG_USB_PD_ALT_MODE */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+#undef CONFIG_USB_PD_MODE_OPERATION
+#define CONFIG_USB_PD_MODE_OPERATION
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #define PD_SOP_NR	3
 
@@ -634,7 +644,8 @@
 /* USB-IF SIDs */
 #define USB_SID_PD		0xff00	/* power delivery */
 #define USB_SID_DISPLAYPORT	0xff01	/* display port */
-#define USB_SID_RICHTEK    	0x29cf  /* direct charge */
+#define USB_SID_RICHTEK	0x29cf  /* demo uvdm */
+#define USB_SID_DIRECTCHARGE	0x29cf  /* direct charge */
 
 
 /* DPM Flags */
@@ -654,6 +665,8 @@
 	(DPM_FLAGS_PARTNER_DR_POWER | DPM_FLAGS_PARTNER_DR_DATA|\
 	DPM_FLAGS_PARTNER_EXTPOWER | DPM_FLAGS_PARTNER_USB_COMM)
 
+#define DPM_FLAGS_CHECK_DC_MODE			(1<<20)
+#define DPM_FLAGS_CHECK_UFP_SVID		(1<<21)
 #define DPM_FLAGS_CHECK_EXT_POWER		(1<<22)
 #define DPM_FLAGS_CHECK_DP_MODE			(1<<23)
 #define DPM_FLAGS_CHECK_SINK_CAP		(1<<24)
@@ -676,6 +689,7 @@
 #define DPM_CAP_LOCAL_NO_SUSPEND		(1<<7)
 #define DPM_CAP_LOCAL_VCONN_SUPPLY		(1<<8)
 
+#define DPM_CAP_ATTEMP_ENTER_DC_MODE		(1<<11)
 #define DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP	(1<<12)
 #define DPM_CAP_ATTEMP_ENTER_DP_MODE		(1<<13)
 #define DPM_CAP_ATTEMP_DISCOVER_CABLE		(1<<14)
@@ -732,7 +746,7 @@ typedef struct __pd_port_power_cababilities {
 	uint32_t pdos[7];
 } pd_port_power_caps;
 
-#define PD_SVID_DATA_NR		1		/* must < 11 */
+#define PD_SVID_DATA_NR		2	/* must < 11 */
 
 typedef struct __svdm_mode {
 	uint8_t mode_cnt;
@@ -762,6 +776,10 @@ typedef struct __pd_port {
 	bool explicit_contract;
 	bool invalid_contract;
 	bool vconn_source;
+
+#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
+	bool vconn_return;
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
 
 	bool pe_ready;
 	bool pd_connected;
@@ -837,6 +855,7 @@ typedef struct __pd_port {
 	uint32_t dpm_flags;
 	uint32_t dpm_init_flags;
 	uint32_t dpm_caps;
+	uint32_t dpm_dfp_retry_cnt;
 
 /* ALT Mode */
 #ifdef CONFIG_USB_PD_ALT_MODE
@@ -846,14 +865,14 @@ typedef struct __pd_port {
 	uint32_t remote_dp_config;
 	uint8_t dp_ufp_u_attention;
 	uint8_t dp_dfp_u_state;
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 
 	uint32_t dp_status;
 	uint8_t dp_ufp_u_state;
 
 	uint8_t dp_first_connected;
 	uint8_t dp_second_connected;
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_UVDM
 	bool uvdm_wait_resp;
@@ -861,6 +880,11 @@ typedef struct __pd_port {
 	uint16_t uvdm_svid;
 	uint32_t uvdm_data[VDO_MAX_SIZE];
 #endif	/* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	uint8_t dc_dfp_state;
+	uint32_t dc_pass_code;
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	bool custom_dbgacc;
@@ -1258,15 +1282,15 @@ static inline int pd_reply_svdm_request_simply(
 static inline int pd_send_uvdm(pd_port_t *pd_port, uint8_t sop_type)
 {
 	return pd_send_data_msg(
-			pd_port, sop_type, PD_DATA_VENDOR_DEF, 
+			pd_port, sop_type, PD_DATA_VENDOR_DEF,
 			pd_port->uvdm_cnt, pd_port->uvdm_data);
 }
 
 static inline int pd_reply_uvdm(pd_port_t *pd_port, uint8_t sop_type,
-	uint8_t cnt, uint32_t* payload)
+	uint8_t cnt, uint32_t *payload)
 {
 	return pd_send_data_msg(
-			pd_port, sop_type, PD_DATA_VENDOR_DEF, 
+			pd_port, sop_type, PD_DATA_VENDOR_DEF,
 			cnt, payload);
 }
 #endif	/* CONFIG_USB_PD_UVDM */

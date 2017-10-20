@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_policy_engine_ufp.c
- * Power Delvery Policy Engine for UFP
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Power Delivery Policy Engine for UFP
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/usb/pd_core.h>
@@ -167,9 +170,8 @@ void pe_ufp_vdm_dp_configure_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 /*
  * UVDM
  */
- 
 #ifdef CONFIG_USB_PD_UVDM
-void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t* pd_event)
+void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_dpm_ufp_recv_uvdm(pd_port, pd_event);
 	pd_free_pd_event(pd_port, pd_event);

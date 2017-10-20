@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_dpm_cor.c
- * Power Delvery Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * PD Device Policy Manager Core Driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -60,6 +63,26 @@ static const svdm_svid_ops_t svdm_svid_ops[] = {
 		.ufp_notify_uvdm = richtek_ufp_notify_uvdm,
 	},
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	{
+		.name = "Direct Charge",
+		.svid = USB_SID_DIRECTCHARGE,
+
+		.dfp_inform_id = dc_dfp_notify_discover_id,
+		.dfp_inform_svids = dc_dfp_notify_discover_svid,
+		.dfp_inform_modes = dc_dfp_notify_discover_modes,
+
+		.dfp_inform_enter_mode = dc_dfp_notify_enter_mode,
+		.dfp_inform_exit_mode = dc_dfp_notify_exit_mode,
+
+		.notify_pe_startup = dc_dfp_notify_pe_startup,
+		.notify_pe_ready = dc_dfp_notify_pe_ready,
+
+		.dfp_notify_uvdm = dc_dfp_notify_uvdm,
+		.ufp_notify_uvdm = dc_ufp_notify_uvdm,
+	},
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 };
 
 int dpm_check_supported_modes(void)
@@ -134,7 +157,7 @@ int pd_dpm_send_source_caps(pd_port_t *pd_port)
 	if (pd_port->power_cable_present) {
 		cable_curr =
 			pd_extract_cable_curr(
-				pd_port->cable_vdos[IDH_PTYPE_ACABLE]);
+				pd_port->cable_vdos[VDO_INDEX_CABLE]);
 		DPM_DBG("cable_limit: %dmA\r\n", cable_curr);
 	}
 
@@ -376,7 +399,6 @@ static bool dpm_build_request_info(
 				req_info->pos, req_info->mismatch ?
 					"Mismatch" : "Match", max_uw/1000);
 			pd_port->local_selected_cap = i + 1;
-			pd_port->remote_selected_cap = req_info->pos;
 		}
 	}
 
@@ -391,7 +413,6 @@ static bool dpm_build_default_request_info(
 	pd_port_power_caps *src_cap = &pd_port->remote_src_cap;
 
 	pd_port->local_selected_cap = 1;
-	pd_port->remote_selected_cap = 1;
 
 	dpm_extract_pdo_info(snk_cap->pdos[0], &sink);
 	dpm_extract_pdo_info(src_cap->pdos[0], &source);
@@ -602,7 +623,7 @@ void pd_dpm_src_evaluate_request(pd_port_t *pd_port, pd_event_t *pd_event)
 			pd_port->request_i_new = op_curr;
 		else
 			pd_port->request_i_new = max_curr;
-		
+
 		pd_port->request_v_new = source_vmin;
 		pd_put_dpm_notify_event(pd_port, rdo_pos);
 	} else {
@@ -610,7 +631,7 @@ void pd_dpm_src_evaluate_request(pd_port_t *pd_port, pd_event_t *pd_event)
 		/*
 		 * "Contract Invalid" means that the previously
 		 * negotiated Voltage and Current values
-		 * are no longer included in the Source��s new Capabilities.
+		 * are no longer included in the Sources new Capabilities.
 		 * If the Sink fails to make a valid Request in this case
 		 * then Power Delivery operation is no longer possible
 		 * and Power Delivery mode is exited with a Hard Reset.
@@ -645,15 +666,13 @@ void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_event->pd_msg)
 		memcpy(pd_port->cable_vdos, pd_event->pd_msg->payload, size);
-	else
-		memset(pd_port->cable_vdos, 0, size);
 
 	pd_put_dpm_ack_event(pd_port);
 }
 
 void pd_dpm_src_hard_reset(pd_port_t *pd_port)
 {
-	tcpci_source_vbus(pd_port->tcpc_dev, 
+	tcpci_source_vbus(pd_port->tcpc_dev,
 		TCP_VBUS_CTRL_HRESET, TCPC_VBUS_SOURCE_0V, 0);
 	pd_enable_vbus_safe0v_detection(pd_port);
 }
@@ -720,12 +739,7 @@ static inline bool dpm_ufp_update_svid_data_exit_mode(
 		}
 
 		pd_port->modal_operation = modal_operation;
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE
-	if (svid == USB_SID_DISPLAYPORT)
-		dp_ufp_u_request_exit_mode(pd_port);
-#endif
-*/
+
 		svdm_ufp_request_exit_mode(pd_port, svid, ops);
 		tcpci_exit_mode(pd_port->tcpc_dev, svid);
 		return true;
@@ -1119,8 +1133,6 @@ void pd_dpm_dfp_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_event->pd_msg)
 		memcpy(pd_port->cable_vdos, pd_event->pd_msg->payload, size);
-	else
-		memset(pd_port->cable_vdos, 0, size);
 
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1129,43 +1141,43 @@ void pd_dpm_dfp_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 #ifdef CONFIG_USB_PD_UVDM
 
-void pd_dpm_ufp_recv_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+void pd_dpm_ufp_recv_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_msg_t *pd_msg;
 	svdm_svid_data_t *svid_data;
 	uint16_t svid = dpm_vdm_get_svid(pd_event);
-	svid_data = dpm_get_svdm_svid_data(pd_port, svid);
 
+	svid_data = dpm_get_svdm_svid_data(pd_port, svid);
 	pd_msg = pd_event->pd_msg;
 	pd_port->uvdm_svid = svid;
 	pd_port->uvdm_cnt = PD_HEADER_CNT(pd_msg->msg_hdr);
-	memcpy(pd_port->uvdm_data, 
-		pd_msg->payload, pd_port->uvdm_cnt * sizeof(uint32_t));	
+	memcpy(pd_port->uvdm_data,
+		pd_msg->payload, pd_port->uvdm_cnt * sizeof(uint32_t));
 
 	if (svid_data && svid_data->ops->ufp_notify_uvdm)
-		svid_data->ops->ufp_notify_uvdm(pd_port, svid_data);		
+		svid_data->ops->ufp_notify_uvdm(pd_port, svid_data);
 
 	tcpci_notify_uvdm(pd_port->tcpc_dev, true);
 }
 
-void pd_dpm_dfp_send_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+void pd_dpm_dfp_send_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_send_uvdm(pd_port, TCPC_TX_SOP);
 	pd_port->uvdm_svid = PD_VDO_VID(pd_port->uvdm_data[0]);
-	
+
 	if (pd_port->uvdm_wait_resp)
 		pd_enable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
 }
 
 void pd_dpm_dfp_inform_uvdm(
-	pd_port_t* pd_port, pd_event_t* pd_event, bool ack)
+	pd_port_t *pd_port, pd_event_t *pd_event, bool ack)
 {
 	uint16_t svid;
 	pd_msg_t *pd_msg = pd_event->pd_msg;
 	uint16_t expected_svid = pd_port->uvdm_svid;
-	svdm_svid_data_t *svid_data = 
+	svdm_svid_data_t *svid_data =
 		dpm_get_svdm_svid_data(pd_port, expected_svid);
-	
+
 	if (ack && pd_port->uvdm_wait_resp) {
 		svid = dpm_vdm_get_svid(pd_event);
 
@@ -1175,18 +1187,19 @@ void pd_dpm_dfp_inform_uvdm(
 				svid, expected_svid);
 		} else {
 			pd_port->uvdm_cnt = PD_HEADER_CNT(pd_msg->msg_hdr);
-			memcpy(pd_port->uvdm_data, 
-				pd_msg->payload, pd_port->uvdm_cnt * sizeof(uint32_t));
+			memcpy(pd_port->uvdm_data,
+				pd_msg->payload,
+				pd_port->uvdm_cnt * sizeof(uint32_t));
 		}
 	}
 
 	if (svid_data && svid_data->ops->dfp_notify_uvdm)
 		svid_data->ops->dfp_notify_uvdm(pd_port, svid_data, ack);
 
-	pd_update_dpm_request_state(pd_port, 
+	pd_update_dpm_request_state(pd_port,
 		ack ? DPM_REQ_E_UVDM_ACK : DPM_REQ_E_UVDM_NAK);
 
-	tcpci_notify_uvdm(pd_port->tcpc_dev, ack);	
+	tcpci_notify_uvdm(pd_port->tcpc_dev, ack);
 }
 
 #endif	/* CONFIG_USB_PD_UVDM */
@@ -1457,21 +1470,31 @@ static inline int pd_dpm_notify_pe_src_ready(
 static inline int pd_dpm_notify_pe_dfp_ready(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	if (svdm_notify_pe_ready(pd_port, pd_event))
-		return 1;
-#else
+#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID_DFP) {
+		if (pd_is_auto_discover_cable_id(pd_port)) {
+			if (!pd_port->vconn_source) {
+				pd_port->vconn_return = true;
+				pd_put_dpm_pd_request_event(pd_port,
+					PD_DPM_PD_REQUEST_VCONN_SWAP);
+				return 1;
+			}
 
-#ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_ID
-	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_ID) {
-		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_ID;
-		if (vdm_put_dpm_vdm_request_event(
-			pd_port, PD_DPM_VDM_REQUEST_DISCOVER_ID))
+			pd_restart_timer(pd_port, PD_TIMER_DISCOVER_ID);
 			return 1;
+		}
 	}
-#endif
 
-#endif
+	if (pd_port->vconn_return) {
+		DPM_DBG("VconnReturn\r\n");
+		pd_port->vconn_return = false;
+		if (pd_port->vconn_source) {
+			pd_put_dpm_pd_request_event(pd_port,
+				PD_DPM_PD_REQUEST_VCONN_SWAP);
+			return 1;
+		}
+	}
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID_DFP) {
@@ -1481,7 +1504,21 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 			return 0;
 		}
 	}
-#endif
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+#ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_SVID
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_SVID) {
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_SVID;
+		if (vdm_put_dpm_vdm_request_event(
+			pd_port, PD_DPM_VDM_REQUEST_DISCOVER_SVIDS))
+			return 1;
+	}
+#endif	/* CONFIG_USB_PD_ATTEMP_DISCOVER_SVID */
+
+#ifdef CONFIG_USB_PD_MODE_OPERATION
+	if (svdm_notify_pe_ready(pd_port, pd_event))
+		return 1;
+#endif	/* CONFIG_USB_PD_MODE_OPERATION */
 
 	return 0;
 }
@@ -1513,16 +1550,60 @@ int pd_dpm_notify_pe_startup(pd_port_t *pd_port)
 	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP)
 		flags |= DPM_FLAGS_CHECK_CABLE_ID_DFP;
 
-	/* If try to enter DP, then skip normal discover_id flow */
-
-	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DP_MODE)
+#ifdef CONFIG_USB_PD_ALT_MODE_DFP
+	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DP_MODE) {
 		flags |= DPM_FLAGS_CHECK_DP_MODE;
-	else if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_ID)
+		flags |= DPM_FLAGS_CHECK_UFP_ID;
+		flags |= DPM_FLAGS_CHECK_UFP_SVID;
+	}
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DC_MODE) {
+		flags |= DPM_FLAGS_CHECK_DC_MODE;
+		flags |= DPM_FLAGS_CHECK_UFP_ID;
+		flags |= DPM_FLAGS_CHECK_UFP_SVID;
+	}
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
+	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_ID)
 		flags |= DPM_FLAGS_CHECK_UFP_ID;
 
 	pd_port->dpm_flags = flags;
+	pd_port->dpm_dfp_retry_cnt = 2;
 
 	svdm_notify_pe_startup(pd_port);
+	return 0;
+
+}
+
+int pd_dpm_notify_pe_hardreset(pd_port_t *pd_port)
+{
+	uint32_t flags = 0;
+
+	if (pd_port->dpm_dfp_retry_cnt) {
+		pd_port->dpm_dfp_retry_cnt--;
+
+#ifdef CONFIG_USB_PD_ALT_MODE_DFP
+		if (pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DP_MODE) {
+			flags |= DPM_FLAGS_CHECK_DP_MODE;
+			flags |= DPM_FLAGS_CHECK_UFP_ID;
+			flags |= DPM_FLAGS_CHECK_UFP_SVID;
+		}
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+		if (pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DC_MODE) {
+			flags |= DPM_FLAGS_CHECK_DC_MODE;
+			flags |= DPM_FLAGS_CHECK_UFP_ID;
+			flags |= DPM_FLAGS_CHECK_UFP_SVID;
+		}
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
+		pd_port->dpm_flags |= flags;
+		svdm_notify_pe_startup(pd_port);
+	}
+
 	return 0;
 }
 

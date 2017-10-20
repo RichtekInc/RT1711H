@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_process_vdm.c
- * Power Delvery Process Event For VDM
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Power Delivery Process Event For VDM
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/usb/pd_core.h>
@@ -231,7 +234,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 #ifdef CONFIG_USB_PD_ALT_MODE
 #ifdef CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION
 	if (pd_port->pe_state_curr == PE_UFP_VDM_DP_CONFIGURE) {
-		PE_TRANSIT_STATE(pd_port, 
+		PE_TRANSIT_STATE(pd_port,
 			PE_UFP_VDM_ATTENTION_REQUEST);
 		return true;
 	}
@@ -261,15 +264,12 @@ static inline bool pd_process_ctrl_msg_good_crc(
 #ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
 	case PE_SRC_VDM_IDENTITY_REQUEST:
 		pd_port->power_cable_present = true;
-		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_CABLE_ID;
 		return false;
 #endif
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	case PE_DFP_CBL_VDM_IDENTITY_REQUEST:
 		pd_port->power_cable_present = true;
-		pd_port->dpm_flags &= ~(DPM_FLAGS_CHECK_CABLE_ID |
-					DPM_FLAGS_CHECK_CABLE_ID_DFP);
 		return false;
 #endif
 	}
@@ -299,7 +299,7 @@ static inline bool pd_process_ctrl_msg(
 
 #ifdef CONFIG_USB_PD_UVDM
 
-static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+static inline bool pd_process_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	/* support sop only */
 	if (pd_event->pd_msg->frame_type != TCPC_TX_SOP)
@@ -309,10 +309,10 @@ static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
 
 		pd_port->pe_vdm_state = pd_port->pe_pd_state;
 		pd_port->pe_state_curr = pd_port->pe_pd_state;
-		
-#if PE_DBG_RESET_VDM_DIS == 0		
+
+#if PE_DBG_RESET_VDM_DIS == 0
 		PE_DBG("reset vdm_state\r\n");
-#endif	
+#endif
 
 		if (pd_check_pe_state_ready(pd_port)) {
 			PE_TRANSIT_STATE(pd_port, PE_UFP_UVDM_RECV);
@@ -329,9 +329,9 @@ static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
 	return false;
 }
 #else
-static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+static inline bool pd_process_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	return false;	
+	return false;
 }
 #endif	/* CONFIG_USB_PD_UVDM */
 
@@ -575,17 +575,18 @@ static inline bool pd_process_dpm_msg_vdm_request(
 {
 	bool is_dfp;
 	bool is_attention;
-	
+
 	if (!pd_check_pe_state_ready(pd_port)) {
 		pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_NOT_READY);
-		PE_DBG("skip vdm_request, not ready_state (%d)\r\n", pd_port->pe_state_curr);
+		PE_DBG("skip vdm_request, not ready_state (%d)\r\n",
+					pd_port->pe_state_curr);
 		return false;
 	}
 
 	is_dfp = pd_port->data_role == PD_ROLE_DFP;
 	is_attention = pd_event->msg_sec == PD_DPM_VDM_REQUEST_ATTENTION;
 
-	if ((is_dfp && is_attention) || (!is_dfp && !is_attention)){
+	if ((is_dfp && is_attention) || (!is_dfp && !is_attention)) {
 		pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_WRONG_ROLE);
 		PE_DBG("skip vdm_request, not dfp\r\n");
 		return false;

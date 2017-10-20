@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/pd_dpm_core.h
- *  Include header file for Power Delivery DPM Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef PD_DPM_CORE_H
@@ -91,9 +92,9 @@ void pd_dpm_dfp_inform_dp_configuration(
 
 #ifdef CONFIG_USB_PD_UVDM
 
-void pd_dpm_ufp_recv_uvdm(pd_port_t* pd_port, pd_event_t* pd_event);
-void pd_dpm_dfp_send_uvdm(pd_port_t* pd_port, pd_event_t* pd_event);
-void pd_dpm_dfp_inform_uvdm(pd_port_t* pd_port, pd_event_t* pd_event, bool ack);
+void pd_dpm_ufp_recv_uvdm(pd_port_t *pd_port, pd_event_t *pd_event);
+void pd_dpm_dfp_send_uvdm(pd_port_t *pd_port, pd_event_t *pd_event);
+void pd_dpm_dfp_inform_uvdm(pd_port_t *pd_port, pd_event_t *pd_event, bool ack);
 
 #endif     /* CONFIG_USB_PD_UVDM */
 
@@ -123,6 +124,7 @@ void pd_dpm_vcs_enable_vconn(pd_port_t *pd_port, bool en);
 /* PE : Notify DPM */
 
 int pd_dpm_notify_pe_startup(pd_port_t *pd_port);
+int pd_dpm_notify_pe_hardreset(pd_port_t *pd_port);
 int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event);
 
 
@@ -148,6 +150,8 @@ static inline int pd_dpm_source_vbus(pd_port_t *pd_port, bool en)
 	return tcpci_source_vbus(pd_port->tcpc_dev,
 				TCP_VBUS_CTRL_REQUEST, mv, -1);
 }
+
+/* Mode Operations */
 
 #ifdef CONFIG_USB_PD_ALT_MODE
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
@@ -192,10 +196,39 @@ extern bool dp_reset_state(
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_RICHTEK_UVDM
-bool richtek_dfp_notify_uvdm(pd_port_t* pd_port, 
-				svdm_svid_data_t *svid_data, bool ack);
-bool richtek_ufp_notify_uvdm(pd_port_t* pd_port,
-				svdm_svid_data_t *svid_data);
+bool richtek_dfp_notify_uvdm(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data, bool ack);
+bool richtek_ufp_notify_uvdm(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data);
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
+
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+extern bool dc_dfp_notify_discover_id(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data, pd_event_t *pd_event, bool ack);
+
+extern bool dc_dfp_notify_discover_svid(
+		pd_port_t *pd_port, svdm_svid_data_t *svid_data, bool ack);
+
+extern bool dc_dfp_notify_discover_modes(
+		pd_port_t *pd_port, svdm_svid_data_t *svid_data, bool ack);
+
+extern bool dc_dfp_notify_enter_mode(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data, uint8_t ops, bool ack);
+
+extern bool dc_dfp_notify_exit_mode(
+		pd_port_t *pd_port, svdm_svid_data_t *svid_data, uint8_t ops);
+
+extern bool dc_dfp_notify_pe_startup(
+		pd_port_t *pd_port, svdm_svid_data_t *svid_data);
+
+extern int dc_dfp_notify_pe_ready(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data, pd_event_t *pd_event);
+
+extern bool dc_dfp_notify_uvdm(pd_port_t *pd_port,
+			svdm_svid_data_t *svid_data, bool ack);
+extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port, svdm_svid_data_t *svid_data);
+
+#endif /* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #endif /* PD_DPM_CORE_H */

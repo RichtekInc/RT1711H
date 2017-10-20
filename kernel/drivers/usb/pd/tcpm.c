@@ -1,13 +1,17 @@
-/* drives/usb/phy/tcpm.c
- * Richtek TypeC Port Manager Driver
+/*
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Power Delivery Managert Driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/usb/tcpm.h>
@@ -280,6 +284,22 @@ int tcpm_get_sink_cap(
 }
 EXPORT_SYMBOL(tcpm_get_sink_cap);
 
+int tcpm_bist_cm2(struct tcpc_device *tcpc_dev)
+{
+	bool ret;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	ret = pd_put_dpm_pd_request_event(pd_port,
+				PD_DPM_PD_REQUEST_BIST_CM2);
+	if (!ret)
+		return TCPM_ERROR_PUT_EVENT;
+
+	/* TODO: Finish it later */
+
+	return TCPM_SUCCESS;
+}
+EXPORT_SYMBOL(tcpm_bist_cm2);
+
 int tcpm_request(struct tcpc_device *tcpc_dev, int mv, int ma)
 {
 	bool ret;
@@ -424,7 +444,7 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_UVDM
-int tcpm_send_uvdm(struct tcpc_device *tcpc_dev, 
+int tcpm_send_uvdm(struct tcpc_device *tcpc_dev,
 	uint8_t cnt, uint32_t *data, bool wait_resp)
 {
 	bool ret = false;
@@ -441,7 +461,7 @@ int tcpm_send_uvdm(struct tcpc_device *tcpc_dev,
 	pd_port->uvdm_cnt = cnt;
 	pd_port->uvdm_wait_resp = wait_resp;
 	memcpy(pd_port->uvdm_data, data, sizeof(uint32_t) * cnt);
-	
+
 	ret = vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_UVDM);
 

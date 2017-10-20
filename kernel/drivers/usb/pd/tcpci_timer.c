@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/tcpci_timer.c
- * TCPC Interface for timer function
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * TCPC Interface for timer handler
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -122,8 +125,8 @@ const char *tcpc_timer_name[] = {
 	"PD_PE_VDM_POSTPONE",
 
 	"TYPEC_RT_TIMER_PE_IDLE",
-	"TYPEC_RT_TIMER_SAFE0V_DELAY", 
-	"TYPEC_RT_TIMER_SAFE0V_TOUT", 
+	"TYPEC_RT_TIMER_SAFE0V_DELAY",
+	"TYPEC_RT_TIMER_SAFE0V_TOUT",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -134,8 +137,8 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_TIMER_WAKEUP_TOUT",
 	"TYPEC_TIMER_DRP_SRC_TOGGLE",
 #else
-	"TYPEC_RT_TIMER_SAFE0V_DELAY", 
-	"TYPEC_RT_TIMER_SAFE0V_TOUT", 
+	"TYPEC_RT_TIMER_SAFE0V_DELAY",
+	"TYPEC_RT_TIMER_SAFE0V_TOUT",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -183,7 +186,7 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(24, 30),		/* PD_TIMER_VDM_RESPONSE */
 	TIMEOUT_RANGE(25, 35),		/* PD_TIMER_SOURCE_TRANSITION */
 	TIMEOUT_RANGE(660, 1000),	/* PD_TIMER_SRC_RECOVER */
-	
+
 	/* PD_TIMER (out of spec) */
 	PD_TIMER_VSAFE0V_TOUT,		/* PD_TIMER_VSAFE0V */
 	TIMEOUT_VAL(3),			/* PD_TIMER_DISCARD */
@@ -194,9 +197,9 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL_US(1500),       /* PD_PE_VDM_POSTPONE */
 
 	/* TYPEC-RT-TIMER */
-	TIMEOUT_VAL(1),					/* TYPEC_RT_TIMER_PE_IDLE */
-	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,		/* TYPEC_RT_TIMER_SAFE0V_DELAY */
-	TIMEOUT_VAL(650),				/* TYPEC_RT_TIMER_SAFE0V_TOUT */
+	TIMEOUT_VAL(1),				/* TYPEC_RT_TIMER_PE_IDLE */
+	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
+	TIMEOUT_VAL(650),		/* TYPEC_RT_TIMER_SAFE0V_TOUT */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -211,13 +214,13 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(60),		/* TYPEC_TIMER_DRP_SRC_TOGGLE */
 #else
 	/* TYPEC-RT-TIMER */
-	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,		/* TYPEC_RT_TIMER_SAFE0V_DELAY */
-	TIMEOUT_VAL(650),				/* TYPEC_RT_TIMER_SAFE0V_TOUT */
+	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
+	TIMEOUT_VAL(650),			/* TYPEC_RT_TIMER_SAFE0V_TOUT */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
 	TIMEOUT_RANGE(400, 800),	/* TYPEC_TRY_TIMER_DRP_TRYWAIT */
-	
+
 	TIMEOUT_RANGE(100, 200),	/* TYPEC_TIMER_CCDEBOUNCE */
 	TIMEOUT_RANGE(10, 10),		/* TYPEC_TIMER_PDDEBOUNCE */
 	TYPEC_TIMER_SAFE0V_TOUT,	/* TYPEC_TIMER_SAFE0V (out of spec) */
@@ -678,9 +681,9 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[PD_TIMER_VSAFE0V] = tcpc_timer_vsafe0v,
 	[PD_TIMER_DISCARD] = tcpc_timer_pd_discard,
 	[PD_TIMER_VBUS_STABLE] = tcpc_timer_vbus_stable,
-	[PD_TIMER_VBUS_PRESENT] = tcpc_timer_vbus_present, 
+	[PD_TIMER_VBUS_PRESENT] = tcpc_timer_vbus_present,
 	[PD_PE_VDM_POSTPONE] = pd_pe_vdm_postpone_timeout,
-	
+
 	[TYPEC_RT_TIMER_PE_IDLE] = tcpc_timer_rt_pe_idle,
 	[TYPEC_RT_TIMER_SAFE0V_DELAY] = tcpc_timer_rt_vsafe0v_delay,
 	[TYPEC_RT_TIMER_SAFE0V_TOUT] = tcpc_timer_rt_vsafe0v_tout,

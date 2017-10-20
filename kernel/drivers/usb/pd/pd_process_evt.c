@@ -1,16 +1,18 @@
 /*
- * drives/usb/pd/pd_process_evt.c
- * Power Delvery Process Event
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Power Delivery Process Event
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
-
 
 #include <linux/usb/pd_core.h>
 #include <linux/usb/tcpci_event.h>
@@ -131,6 +133,7 @@ const char *const pd_dpm_pd_request_name[] = {
 	"get_src_cap",
 	"get_snk_cap",
 	"request",
+	"bist_cm2",
 };
 
 static inline void print_dpm_pd_request(uint8_t msg)
@@ -494,6 +497,18 @@ bool pd_process_dpm_msg_pw_request(
 	return true;
 }
 
+bool pd_process_dpm_msg_bist_cm2(
+	pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	uint32_t bist = BDO_MODE_CARRIER2;
+
+	if (!pd_check_pe_state_ready(pd_port))
+		return false;
+
+	pd_send_data_msg(pd_port, TCPC_TX_SOP, PD_DATA_BIST, 1, &bist);
+	return false;
+}
+
 bool pd_process_dpm_msg_gotomin(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
@@ -607,8 +622,12 @@ bool pd_process_event_dpm_pd_request(
 		ret = pd_process_dpm_msg_pw_request(pd_port, pd_event);
 		break;
 
+	case PD_DPM_PD_REQUEST_BIST_CM2:
+		ret = pd_process_dpm_msg_bist_cm2(pd_port, pd_event);
+		break;
+
 	default:
-		PE_DBG("Unknow PD_Request\r\n");
+		PE_DBG("Unknown PD_Request\r\n");
 		return false;
 	}
 
@@ -749,13 +768,13 @@ static inline bool pe_exit_idle_state(
 		pd_init_role(pd_port,
 			PD_ROLE_SOURCE, PD_ROLE_DFP, PD_ROLE_VCONN_ON);
 		break;
-		
+
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
-	case TYPEC_ATTACHED_DBGACC_SNK:	
+	case TYPEC_ATTACHED_DBGACC_SNK:
 		pd_port->custom_dbgacc = true;
 		pd_init_role(pd_port,
 			PD_ROLE_SINK, PD_ROLE_UFP, PD_ROLE_VCONN_OFF);
-		break;		
+		break;
 #endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 	default:
@@ -787,6 +806,8 @@ static inline bool pe_exit_idle_state(
 
 	pd_port->remote_src_cap.nr = 0;
 	pd_port->remote_snk_cap.nr = 0;
+
+	memset(pd_port->cable_vdos, 0, sizeof(uint32_t) * VDO_MAX_SIZE);
 
 	pd_dpm_notify_pe_startup(pd_port);
 	return true;

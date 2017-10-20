@@ -1,10 +1,9 @@
 /*
  * Copyright (C) 2016 Richtek Technology Corp.
  *
- * drivers/misc/mediatek/pd/tcpci_typec.c
  * TCPC Type-C Driver for Richtek
  *
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Author: TH <tsunghan_tsai@richtek.com>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -63,7 +62,7 @@ static inline void typec_wait_ps_change(struct tcpc_device *tcpc_dev,
 		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_SAFE0V_DELAY);
 		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_SAFE0V_TOUT);
 	}
-	
+
 	tcpc_dev->typec_wait_ps_change = (uint8_t) state;
 }
 
@@ -165,7 +164,7 @@ enum TYPEC_CONNECTION_STATE {
 #ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
 	typec_attached_dbgacc_snk,
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
-	
+
 #ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
 	typec_attached_custom_src,
 #endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
@@ -197,18 +196,18 @@ static const char *const typec_state_name[] = {
 	"TryWait.SRC",
 	"TryWait.SRC.PE",
 #endif	/* CONFIG_TYPEC_CAP_TRY_SINK */
-	
+
 	"AudioAccessory",
 	"DebugAccessory",
-	
+
 #ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
 	"DBGACC.SNK",
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
-		
+
 #ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
 	"Custom.SRC",
 #endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
-	
+
 	"UnattachWait.PE",
 };
 
@@ -233,13 +232,13 @@ static const char *const typec_attach_name[] = {
 	"AUDIO",
 	"DEBUG",
 
-#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK	
+#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
 	"DBGACC_SNK",
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
-	
+
 #ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
 	"CUSTOM_SRC",
-#endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */	
+#endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
 };
 
 static int typec_alert_attach_state_change(struct tcpc_device *tcpc_dev)
@@ -273,7 +272,7 @@ static inline int typec_enable_low_power_mode(
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	if (tcpc_dev->typec_legacy_cable) {
-		TYPEC_DBG("LegacyCable\r\n");
+		TYPEC_DBG("LPM_LCOnly\r\n");
 		return 0;
 	}
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
@@ -415,7 +414,7 @@ static inline void typec_sink_attached_entry(struct tcpc_device *tcpc_dev)
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	tcpc_dev->typec_legacy_cable = false;
 	tcpc_dev->typec_legacy_cable_suspect = 0;
-#endif
+#endif /* CONFIG_TYPEC_CHECK_LEGAY_CABLE */
 
 	tcpc_dev->typec_attach_new = TYPEC_ATTACHED_SNK;
 
@@ -466,7 +465,7 @@ static inline uint8_t typec_get_sink_dbg_acc_rp_level(
 static inline void typec_sink_dbg_acc_attached_entry(
 	struct tcpc_device *tcpc_dev)
 {
-	bool polarity;	
+	bool polarity;
 	uint8_t rp_level;
 
 	int cc1 = typec_get_cc1();
@@ -491,14 +490,13 @@ static inline void typec_sink_dbg_acc_attached_entry(
 	typec_set_plug_orient(tcpc_dev, TYPEC_CC_RD, polarity);
 	tcpc_dev->typec_remote_rp_level = rp_level;
 
-	tcpci_sink_vbus(tcpc_dev, TCP_VBUS_CTRL_TYPEC, TCPC_VBUS_SINK_5V, -1);	
+	tcpci_sink_vbus(tcpc_dev, TCP_VBUS_CTRL_TYPEC, TCPC_VBUS_SINK_5V, -1);
 }
 #else
 static inline void typec_sink_dbg_acc_attached_entry(
 	struct tcpc_device *tcpc_dev)
 {
 	typec_custom_src_attached_entry(tcpc_dev);
-	return;
 }
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
 
@@ -807,18 +805,18 @@ static inline bool typec_check_legacy_cable(
 		tcpc_dev->typec_legacy_cable_suspect >=
 					TCPC_LEGACY_CABLE_CONFIRM) {
 
-		TYPEC_INFO("Suspect Legacy\r\n");
+		TYPEC_INFO("LC->Suspect\r\n");
 		tcpci_set_cc(tcpc_dev, TYPEC_CC_RP_1_5);
 		mdelay(1);
 
 		if (tcpci_get_cc(tcpc_dev) != 0) {
-			TYPEC_INFO("Confirm Legacy\r\n");
+			TYPEC_INFO("LC->Confirm\r\n");
 			tcpc_dev->typec_legacy_cable = true;
 			tcpc_dev->typec_legacy_cable_suspect =
 						TCPC_LEGACY_CABLE_CONFIRM;
 			return true;
 		}
-		
+
 		tcpc_dev->typec_legacy_cable = false;
 		tcpc_dev->typec_legacy_cable_suspect = 0;
 		tcpci_set_cc(tcpc_dev, TYPEC_CC_RP);
@@ -953,6 +951,7 @@ static inline void typec_attach_wait_entry(struct tcpc_device *tcpc_dev)
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	case typec_unattachwait_pe:
+		TYPEC_INFO("Force PE Idle\r\n");
 		tcpc_dev->pd_wait_pe_idle = false;
 		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_PE_IDLE);
 		typec_unattached_power_entry(tcpc_dev);
@@ -1006,7 +1005,7 @@ static inline int typec_attached_snk_cc_detach(struct tcpc_device *tcpc_dev)
 static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 {
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	bool suspect_legacy = false; 
+	bool suspect_legacy = false;
 
 	if (tcpc_dev->typec_state == typec_attachwait_src)
 		suspect_legacy = true;
@@ -1021,7 +1020,7 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 
 	if (suspect_legacy) {
 		tcpc_dev->typec_legacy_cable_suspect++;
-		TYPEC_DBG("legacy_suspect: %d\r\n", 
+		TYPEC_DBG("LC_suspect: %d\r\n",
 			tcpc_dev->typec_legacy_cable_suspect);
 	}
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
@@ -1031,7 +1030,7 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 	case typec_attached_snk:
 		typec_attached_snk_cc_detach(tcpc_dev);
 		break;
-#endif
+#endif /* TYPEC_EXIT_ATTACHED_SNK_VIA_VBUS */
 
 	case typec_audioaccessory:
 		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_CCDEBOUNCE);
@@ -1048,28 +1047,29 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 		typec_cc_src_remove_entry(tcpc_dev);
 		typec_alert_attach_state_change(tcpc_dev);
 		break;
-#endif
-
-#ifdef CONFIG_TYPEC_CAP_TRY_STATE
+#endif /* TYPEC_EXIT_ATTACHED_SRC_NO_DEBOUNCE */
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SOURCE
 	case typec_try_src:
+		if (tcpc_dev->typec_drp_try_timeout)
+			tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
+		else {
+			tcpc_reset_typec_debounce_timer(tcpc_dev);
+			TYPEC_DBG("[Try] Igrone cc_detach\r\n");
+		}
+		break;
 #endif	/* CONFIG_TYPEC_CAP_TRY_SOURCE */
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SINK
 	case typec_trywait_src:
+		if (tcpc_dev->typec_drp_try_timeout)
+			tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
+		else {
+			tcpc_reset_typec_debounce_timer(tcpc_dev);
+			TYPEC_DBG("[Try] Igrone cc_detach\r\n");
+		}
+		break;
 #endif	/* CONFIG_TYPEC_CAP_TRY_SINK */
-
-	if (tcpc_dev->typec_drp_try_timeout)
-		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
-	else {
-		tcpc_reset_typec_debounce_timer(tcpc_dev);
-		TYPEC_DBG("[Try] Igrone cc_detach\r\n");
-	}
-	break;
-
-#endif /* CONFIG_TYPEC_CAP_TRY_STATE */
-
 	default:
 		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
 		break;
@@ -1427,6 +1427,22 @@ static inline int typec_handle_vbus_absent(struct tcpc_device *tcpc_dev)
 
 int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc_dev, int vbus_level)
 {
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	if (tcpc_dev->typec_legacy_cable) {
+		if (vbus_level) {
+			TYPEC_INFO("LC->Attached\r\n");
+			tcpc_dev->typec_legacy_cable = false;
+			tcpci_set_cc(tcpc_dev, TYPEC_CC_RD);
+		} else {
+			TYPEC_INFO("LC->Detached\r\n");
+			tcpc_dev->typec_legacy_cable = false;
+			tcpci_set_cc(tcpc_dev, TYPEC_CC_DRP);
+			typec_enable_low_power_mode(tcpc_dev, TYPEC_CC_DRP);
+		}
+		return 0;
+	}
+#endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
+
 	if (typec_is_drp_toggling()) {
 		TYPEC_DBG("[Waring] DRP Toggling\r\n");
 		return 0;
@@ -1574,10 +1590,10 @@ int tcpc_typec_change_role(
 	}
 
 	mutex_lock(&tcpc_dev->access_lock);
-	
+
 	tcpc_dev->typec_role = typec_role;
 	TYPEC_INFO("typec_new_role: %s\r\n", typec_role_name[typec_role]);
-	
+
 	local_cc = tcpc_dev->typec_local_cc & 0x07;
 
 	if (typec_role == TYPEC_ROLE_SNK && local_cc == TYPEC_CC_RP)
@@ -1595,7 +1611,7 @@ int tcpc_typec_change_role(
 		typec_unattached_entry(tcpc_dev);
 	}
 
-	mutex_unlock(&tcpc_dev->access_lock);		
+	mutex_unlock(&tcpc_dev->access_lock);
 	return 0;
 }
 
@@ -1603,12 +1619,13 @@ int tcpc_typec_change_role(
 static int typec_init_power_off_charge(struct tcpc_device *tcpc_dev)
 {
 	int ret = tcpci_get_cc(tcpc_dev);
+
 	if (ret < 0)
 		return ret;
 
 	if (tcpc_dev->typec_role == TYPEC_ROLE_SRC)
 		return 0;
-	
+
 	if (typec_is_cc_open())
 		return 0;
 
@@ -1630,7 +1647,7 @@ static int typec_init_power_off_charge(struct tcpc_device *tcpc_dev)
 int tcpc_typec_init(struct tcpc_device *tcpc_dev, uint8_t typec_role)
 {
 	int ret;
-	
+
 	if (typec_role >= TYPEC_ROLE_NR) {
 		TYPEC_INFO("Wrong TypeC-Role: %d\r\n", typec_role);
 		return -2;

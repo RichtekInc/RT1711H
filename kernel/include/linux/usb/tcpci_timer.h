@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/tcpci_timer.h
- *  Include header file for TCPCI Interface Timer Function
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef TCPC_TIMER_H_INCLUDED
@@ -46,12 +47,12 @@ enum {
 	PD_TIMER_VBUS_PRESENT,
 	PD_PE_VDM_POSTPONE,
 	PD_PE_TIMER_END_ID,
-	
+
 	/* TYPEC-RT-TIMER */
-	TYPEC_RT_TIMER_START_ID = PD_PE_TIMER_END_ID, 
+	TYPEC_RT_TIMER_START_ID = PD_PE_TIMER_END_ID,
 	TYPEC_RT_TIMER_PE_IDLE = TYPEC_RT_TIMER_START_ID,
-	TYPEC_RT_TIMER_SAFE0V_DELAY, 
-	TYPEC_RT_TIMER_SAFE0V_TOUT, 
+	TYPEC_RT_TIMER_SAFE0V_DELAY,
+	TYPEC_RT_TIMER_SAFE0V_TOUT,
 
 	/* TYPEC-TRY-TIMER */
 	TYPEC_TRY_TIMER_START_ID,
@@ -66,9 +67,9 @@ enum {
 	TYPEC_TIMER_WAKEUP,
 	TYPEC_TIMER_DRP_SRC_TOGGLE,
 #else
-	TYPEC_RT_TIMER_START_ID = 0, 
-	TYPEC_RT_TIMER_SAFE0V_DELAY = TYPEC_RT_TIMER_START_ID, 
-	TYPEC_RT_TIMER_SAFE0V_TOUT, 
+	TYPEC_RT_TIMER_START_ID = 0,
+	TYPEC_RT_TIMER_SAFE0V_DELAY = TYPEC_RT_TIMER_START_ID,
+	TYPEC_RT_TIMER_SAFE0V_TOUT,
 
 	TYPEC_TRY_TIMER_START_ID,
 	TYPEC_TRY_TIMER_DRP_TRY = TYPEC_TRY_TIMER_START_ID,

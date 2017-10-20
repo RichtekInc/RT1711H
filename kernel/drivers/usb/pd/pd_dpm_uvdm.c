@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_dpm_uvdm.c
- * Power Delvery Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
+ * PD Device Policy Manager for UVDM
+ *
  * Author: TH <tsunghan_tsai@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
  
 #include <linux/usb/tcpci.h>
@@ -18,7 +21,7 @@
 
 #ifdef CONFIG_USB_PD_RICHTEK_UVDM
 
-bool richtek_dfp_notify_uvdm(pd_port_t* pd_port, 
+bool richtek_dfp_notify_uvdm(pd_port_t *pd_port,
 				svdm_svid_data_t *svid_data, bool ack)
 {
 	uint32_t resp_cmd = 0;
@@ -26,15 +29,15 @@ bool richtek_dfp_notify_uvdm(pd_port_t* pd_port,
 	if (ack) {
 		if (pd_port->uvdm_wait_resp)
 			resp_cmd = PD_UVDM_HDR_CMD(pd_port->uvdm_data[0]);
-		
+
 		UVDM_INFO("dfp_notify: ACK (0x%x)\r\n");
 	} else
 		UVDM_INFO("dfp_notify: NAK\r\n");
-	
+
 	return true;
 }
 
-bool richtek_ufp_notify_uvdm(pd_port_t* pd_port,
+bool richtek_ufp_notify_uvdm(pd_port_t *pd_port,
 				svdm_svid_data_t *svid_data)
 {
 	uint32_t hdr = PD_UVDM_HDR(0x29cf, 0x1234);
@@ -44,7 +47,7 @@ bool richtek_ufp_notify_uvdm(pd_port_t* pd_port,
 
 	if (cmd == 0)
 		pd_reply_uvdm(pd_port, TCPC_TX_SOP, 1, &hdr);
-	
+
 	return true;
 }
 

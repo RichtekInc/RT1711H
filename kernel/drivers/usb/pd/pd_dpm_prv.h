@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2016 Richtek Technology Corp.
+ *
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 #ifndef PD_DPM_PRV_H_INCLUDED
 #define PD_DPM_PRV_H_INCLUDED
 
@@ -82,12 +96,12 @@ typedef struct __svdm_svid_ops {
 		svdm_svid_data_t *svid_data);
 	int (*notify_pe_ready)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, pd_event_t *pd_event);
-	
+
 #ifdef CONFIG_USB_PD_UVDM
-	bool (*dfp_notify_uvdm)(pd_port_t* pd_port, 
+	bool (*dfp_notify_uvdm)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, bool ack);
-		
-	bool (*ufp_notify_uvdm)(pd_port_t* pd_port,
+
+	bool (*ufp_notify_uvdm)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data);
 #endif
 

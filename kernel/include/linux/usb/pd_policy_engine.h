@@ -1,14 +1,15 @@
 /*
- *  include/linux/usb/pd_policy_engine.h
- *  Include header file for Richtek Power Delivery Policy Engine Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- *  Copyright (C) 2015 Richtek Technology Corp.
- *  Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #ifndef PD_POLICY_ENGINE_H_
@@ -422,7 +423,7 @@ void pe_ufp_vdm_dp_configure_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_UVDM
-void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 #endif	/* CONFIG_USB_PD_UVDM */
 
 /* ---- Policy Engine (DFP) ---- */
@@ -480,15 +481,15 @@ void pe_dfp_vdm_dp_configuration_naked_entry(
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 
 #ifdef CONFIG_USB_PD_UVDM
-void pe_dfp_uvdm_send_entry(pd_port_t *pd_port, pd_event_t* pd_event);
-void pe_dfp_uvdm_acked_entry(pd_port_t *pd_port, pd_event_t* pd_event);
-void pe_dfp_uvdm_naked_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_dfp_uvdm_send_entry(pd_port_t *pd_port, pd_event_t *pd_event);
+void pe_dfp_uvdm_acked_entry(pd_port_t *pd_port, pd_event_t *pd_event);
+void pe_dfp_uvdm_naked_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 #endif	/* CONFIG_USB_PD_UVDM */
 
 /* ---- Policy Engine (DBG) ---- */
 
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
-void pe_dbg_ready_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_dbg_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 #endif /* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #endif /* PD_POLICY_ENGINE_H_ */

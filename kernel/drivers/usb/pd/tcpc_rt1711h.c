@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/tcpc_rt1711h.c
+ * Copyright (C) 2016 Richtek Technology Corp.
+ *
  * Richtek RT1711H Type-C Port Control Driver
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -467,14 +470,13 @@ static int rt1711_init_fault_mask(struct tcpc_device *tcpc)
 
 static int rt1711_init_rt_mask(struct tcpc_device *tcpc)
 {
-	uint8_t rt_mask = 0
+	uint8_t rt_mask = 0;
 #ifdef CONFIG_TCPC_WATCHDOG_EN
-		| RT1711H_REG_M_WATCHDOG
+	rt_mask |= RT1711H_REG_M_WATCHDOG;
 #endif /* CONFIG_TCPC_WATCHDOG_EN */
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT_IC
-		| RT1711H_REG_M_VBUS_80
+	rt_mask |= RT1711H_REG_M_VBUS_80;
 #endif /* CONFIG_TCPC_VSAFE0V_DETECT_IC */
-		;
 
 #ifdef CONFIG_TYPEC_CAP_RA_DETACH
 	if (tcpc->tcpc_flags & TCPC_FLAGS_CHECK_RA_DETACHE)
@@ -549,8 +551,6 @@ static irqreturn_t rt1711_intr_handler(int irq, void *data)
 #ifdef DEBUG_GPIO
 	gpio_set_value(DEBUG_GPIO, 0);
 #endif
-
-
 	queue_kthread_work(&chip->irq_worker, &chip->irq_work);
 	return IRQ_HANDLED;
 }
@@ -891,7 +891,7 @@ static int rt1711_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
 	if (*cc2 != TYPEC_CC_VOLT_OPEN)
 		*cc2 |= (act_as_sink << 2);
 
-	rt1711h_init_cc_params(tcpc, 
+	rt1711h_init_cc_params(tcpc,
 		(uint8_t)tcpc->typec_polarity ? *cc2 : *cc1);
 
 	return 0;
@@ -926,7 +926,7 @@ static int rt1711_set_polarity(struct tcpc_device *tcpc, int polarity)
 {
 	int data;
 
-	data = rt1711h_init_cc_params(tcpc, 
+	data = rt1711h_init_cc_params(tcpc,
 		tcpc->typec_remote_cc[polarity]);
 	if (data)
 		return data;

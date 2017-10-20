@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_dpm_cor.c
- * Power Delvery Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * PD Device Policy Manager for DisplayPort
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -72,7 +75,6 @@ static inline bool dp_update_dp_connected_both(
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 enum pd_dfp_u_state {
 	DP_DFP_U_NONE = 0,
-	DP_DFP_U_STARTUP,
 	DP_DFP_U_DISCOVER_ID,
 	DP_DFP_U_DISCOVER_SVIDS,
 	DP_DFP_U_DISCOVER_MODES,
@@ -85,7 +87,7 @@ enum pd_dfp_u_state {
 
 	DP_DFP_U_ERR = 0X10,
 
-	DP_DFP_U_ERR_DISCOVER_ID_AMA_TYPE,
+	DP_DFP_U_ERR_DISCOVER_ID_TYPE,
 	DP_DFP_U_ERR_DISCOVER_ID_NAK_TIMEOUT,
 
 	DP_DFP_U_ERR_DISCOVER_SVID_DP_SID,
@@ -111,7 +113,6 @@ enum pd_dfp_u_state {
 #if DP_DBG_ENABLE
 static const char * const dp_dfp_u_state_name[] = {
 	"dp_dfp_u_none",
-	"dp_dfp_u_startup",
 	"dp_dfp_u_discover_id",
 	"dp_dfp_u_discover_svids",
 	"dp_dfp_u_discover_modes",
@@ -133,24 +134,11 @@ void dp_dfp_u_set_state(pd_port_t *pd_port, uint8_t state)
 		DP_DBG("dp_dfp_u_stop (%d)\r\n", state);
 }
 
-bool pd_dpm_request_enter_dp_mode(pd_port_t *pd_port)
-{
-	if (pd_port->data_role == PD_ROLE_DFP) {
-		dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_ID);
-		return vdm_put_dpm_vdm_request_event(
-			pd_port, PD_DPM_VDM_REQUEST_DISCOVER_ID);
-	} else {
-		/* TODO: If we only support DFP_D, should we send PR_SWAP? */
-	}
-
-	return false;
-}
-
 bool dp_dfp_u_notify_pe_startup(
 		pd_port_t *pd_port, svdm_svid_data_t *svid_data)
 {
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_DP_MODE) {
-		dp_dfp_u_set_state(pd_port, DP_DFP_U_STARTUP);
+		dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_ID);
 		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_DP_MODE;
 	}
 
@@ -163,10 +151,14 @@ int dp_dfp_u_notify_pe_ready(
 	DPM_DBG("dp_dfp_u_notify_pe_ready\r\n");
 	BUG_ON(pd_port->data_role != PD_ROLE_DFP);
 
-	if (pd_port->dp_dfp_u_state != DP_DFP_U_STARTUP)
+	if (pd_port->dp_dfp_u_state != DP_DFP_U_DISCOVER_MODES)
 		return 0;
 
-	return pd_dpm_request_enter_dp_mode(pd_port);
+	/* Check Cable later */
+	pd_port->mode_svid = USB_SID_DISPLAYPORT;
+	vdm_put_dpm_vdm_request_event(
+		pd_port, PD_DPM_VDM_REQUEST_DISCOVER_MODES);
+	return 1;
 }
 
 bool dp_dfp_u_notify_discover_id(pd_port_t *pd_port,
@@ -185,13 +177,13 @@ bool dp_dfp_u_notify_discover_id(pd_port_t *pd_port,
 
 	switch (PD_IDH_PTYPE(pd_msg->payload[VDO_INDEX_IDH])) {
 	case IDH_PTYPE_AMA:
+	case IDH_PTYPE_HUB:
+	case IDH_PTYPE_PERIPH:
 		dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_SVIDS);
-		vdm_put_dpm_vdm_request_event(pd_port,
-				PD_DPM_VDM_REQUEST_DISCOVER_SVIDS);
 		break;
 
 	default:
-		dp_dfp_u_set_state(pd_port, DP_DFP_U_ERR_DISCOVER_ID_AMA_TYPE);
+		dp_dfp_u_set_state(pd_port, DP_DFP_U_ERR_DISCOVER_ID_TYPE);
 		break;
 	}
 
@@ -210,11 +202,12 @@ bool dp_dfp_u_notify_discover_svid(
 		return false;
 	}
 
-	dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_MODES);
-	pd_port->mode_svid = USB_SID_DISPLAYPORT;
-	vdm_put_dpm_vdm_request_event(
-		pd_port, PD_DPM_VDM_REQUEST_DISCOVER_MODES);
+	if (!svid_data->exist) {
+		dp_dfp_u_set_state(pd_port, DP_DFP_U_ERR_DISCOVER_SVID_DP_SID);
+		return false;
+	}
 
+	dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_MODES);
 	return true;
 }
 static inline bool is_dp_v1_cap_valid(uint32_t dp_cap)
@@ -807,15 +800,15 @@ bool dp_ufp_u_is_valid_dp_config(pd_port_t *pd_port, uint32_t dp_config)
 	case DP_CONFIG_USB:
 		retval = true;
 		break;
-		
+
 	case DP_CONFIG_DFP_D:
 		local_pin = PD_DP_DFP_D_PIN_CAPS(local_mode);
 		if ((local_pin & remote_pin) &&
 			(MODE_DP_PORT_CAP(local_mode) & MODE_DP_SRC))
 			retval = true;
 		break;
-		
-	case DP_CONFIG_UFP_D:		
+
+	case DP_CONFIG_UFP_D:
 		local_pin = PD_DP_UFP_D_PIN_CAPS(local_mode);
 		if ((local_pin & remote_pin) &&
 			(MODE_DP_PORT_CAP(local_mode) & MODE_DP_SNK))
@@ -826,13 +819,13 @@ bool dp_ufp_u_is_valid_dp_config(pd_port_t *pd_port, uint32_t dp_config)
 	return retval;
 }
 
-static inline void dp_ufp_u_auto_attention(pd_port_t* pd_port)
+static inline void dp_ufp_u_auto_attention(pd_port_t *pd_port)
 {
 #ifdef CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION
 	pd_port->mode_svid = USB_SID_DISPLAYPORT;
-	pd_port->dp_status |= 
+	pd_port->dp_status |=
 		DPSTS_DP_ENABLED | DPSTS_DP_HPD_STATUS;
-#endif	/* CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION */	
+#endif	/* CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION */
 }
 
 int dp_ufp_u_request_dp_config(pd_port_t *pd_port, pd_event_t *pd_event)

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### v010
+- Change License & fix coding style
+- [PE] Add retry DFP flow
+- [PE] Modify Discover Cable flow
+- [PE] Miss process VDM GoodCRC
+
 ### v009
 - [TYPEC] Support DebugACC-SNK
 - [TYPEC] Support Custom-SRC

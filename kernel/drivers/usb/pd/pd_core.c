@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_core.c
- * Power Delvery Core Driver
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
+ * Power Delivery Core Driver
+ *
  * Author: TH <tsunghan_tsai@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/of.h>
@@ -220,11 +223,28 @@ static int dpm_alt_mode_parse_svid_data(
 static int dpm_richtek_parse_svid_data(
 	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
 {
-	svid_data->svid = USB_SID_RICHTEK;
+	svid_data->svid = USB_SID_DIRECTCHARGE;
 	return 0;
 }
 
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+
+static int dpm_alt_rtdc_parse_svid_data(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
+{
+	svid_data->svid = USB_SID_DIRECTCHARGE;
+
+	svid_data->local_mode.mode_cnt = 1;
+	svid_data->local_mode.mode_vdo[0] = 0x00;
+	
+	pd_port->dpm_caps |= DPM_CAP_ATTEMP_ENTER_DC_MODE;
+	return 0;
+}
+
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
 
 static void pd_core_parse_svid_data(pd_port_t *pd_port)
 {
@@ -240,7 +260,13 @@ static void pd_core_parse_svid_data(pd_port_t *pd_port)
 	dpm_richtek_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	dpm_alt_rtdc_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
 	pd_port->svid_data_cnt = i;
+
+	BUG_ON(i > PD_SVID_DATA_NR);
 }
 
 static const struct {
@@ -483,6 +509,10 @@ int pd_reset_protocol_layer(pd_port_t *pd_port)
 	pd_port->during_swap = 0;
 	pd_port->dpm_ack_immediately = 0;
 
+#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
+	pd_port->vconn_return = false;
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
 	for (i = 0; i < PD_SOP_NR; i++) {
 		pd_port->msg_id_tx[i] = 0;
 		pd_port->msg_id_rx[i] = 0;
@@ -626,6 +656,7 @@ int pd_reset_local_hw(pd_port_t *pd_port)
 		pd_set_data_role(pd_port, PD_ROLE_DFP);
 	}
 
+	pd_dpm_notify_pe_hardreset(pd_port);
 	PE_DBG("reset_local_hw\r\n");
 
 	return 0;
@@ -713,7 +744,8 @@ int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
 int pd_send_hard_reset(pd_port_t *pd_port)
 {
 	int ret;
-	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev; 
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+
 	PE_DBG("Send HARD Reset\r\n");
 
 	pd_port->hard_reset_counter++;
@@ -861,56 +893,5 @@ int pd_update_connect_state(pd_port_t *pd_port, uint8_t state)
 
 void pd_update_dpm_request_state(pd_port_t *pd_port, uint8_t state)
 {
-#if 0
-	uint8_t pd_req;
-	uint8_t vdm_req;
-
-	/* No request or finished */
-	if (pd_port->dpm_req_state == DPM_REQ_NULL ||
-		pd_port->dpm_req_state >= DPM_REQ_SUCCESS)
-		return;
-
-	pd_req = pd_port->dpm_req_cmd & 0x0f;
-	vdm_req = (pd_port->dpm_req_cmd & 0xf0) >> 4;
-		
-	if (state >= DPM_REQ_SUCCESS_CODE) {
-
-	} else {
-
-		switch(state) {
-		case DPM_REQ_ERR_SEND_HRESET:
-			if (pd_req == PD_DPM_PD_REQUEST_HARDRESET)
-				state = DPM_REQ_SUCCESS;
-			break;
-				
-		case DPM_REQ_ERR_SEND_SRESET:
-			if (pd_req == PD_DPM_PD_REQUEST_SOFTRESET)
-				state = DPM_REQ_SUCCESS;
-			break;
-
-		default:
-		}
-	}
-
-	if (state < )
-
-	enum pd_dpm_pd_request_type {
-		PD_DPM_PD_REQUEST_PR_SWAP = 0,
-		PD_DPM_PD_REQUEST_DR_SWAP,
-		PD_DPM_PD_REQUEST_VCONN_SWAP,
-		PD_DPM_PD_REQUEST_GOTOMIN,
-
-		PD_DPM_PD_REQUEST_GET_SOURCE_CAP,
-		PD_DPM_PD_REQUEST_GET_SINK_CAP,
-	
-		PD_DPM_PD_REQUEST_PW_REQUEST,
-		PD_DPM_PD_REQUEST_NR,
-	};
-
-	
-	
-
-	DPM_REQ_ERR_RECV_SRESET
-	// pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_RECV_SRESET);
-#endif
+	/* TODO */
 }

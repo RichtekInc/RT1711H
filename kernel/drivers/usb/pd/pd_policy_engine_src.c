@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/pd_policy_engine_src.c
- * Power Delvery Policy Engine for SRC
+ * Copyright (C) 2016 Richtek Technology Corp.
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Power Delivery Policy Engine for SRC
  *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -189,7 +192,7 @@ void pe_src_get_sink_cap_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 void pe_src_wait_new_capabilities_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	/* Wait for new Source Capabilites */
+	/* Wait for new Source Capabilities */
 }
 
 void pe_src_send_soft_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event)
@@ -230,6 +233,8 @@ void pe_src_vdm_identity_request_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_src_vdm_identity_acked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_CABLE_ID;
+
 	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
 	pd_dpm_src_inform_cable_vdo(pd_port, pd_event);
 

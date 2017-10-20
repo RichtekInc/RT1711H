@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/tcpci_event.c
+ * Copyright (C) 2016 Richtek Technology Corp.
+ *
  * TCPC Interface for event handler
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/kthread.h>
@@ -179,6 +182,12 @@ bool pd_put_event(struct tcpc_device *tcpc_dev, const pd_event_t *pd_event,
 
 bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event)
 {
+	pd_event_t delay_evt = {
+		.event_type = PD_EVT_CTRL_MSG,
+		.msg = PD_CTRL_GOOD_CRC,
+		.pd_msg = NULL,
+	};
+
 	pd_event_t *vdm_event = &tcpc_dev->pd_vdm_event;
 
 	if (tcpc_dev->pd_pending_vdm_event) {
@@ -186,8 +195,13 @@ bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event)
 			return false;
 
 		mutex_lock(&tcpc_dev->access_lock);
-		*pd_event = *vdm_event;
-		tcpc_dev->pd_pending_vdm_event = false;
+		if (tcpc_dev->pd_pending_vdm_good_crc) {
+			*pd_event = delay_evt;
+			tcpc_dev->pd_pending_vdm_good_crc = false;
+		} else {
+			*pd_event = *vdm_event;
+			tcpc_dev->pd_pending_vdm_event = false;
+		}
 		mutex_unlock(&tcpc_dev->access_lock);
 		return true;
 	}
@@ -213,9 +227,15 @@ bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
 	if (tcpc_dev->pd_pending_vdm_event) {
 		/* If message from port partner, we have to overwrite it */
 
-		if (from_port_partner)
+		if (from_port_partner) {
+			if (pd_event_msg_match(&tcpc_dev->pd_vdm_event,
+					PD_EVT_CTRL_MSG, PD_CTRL_GOOD_CRC)) {
+				TCPC_DBG("PostponeVDM GoodCRC\r\n");
+				tcpc_dev->pd_pending_vdm_good_crc = true;
+			}
+
 			__pd_free_event(tcpc_dev, &tcpc_dev->pd_vdm_event);
-		else {
+		} else {
 			__pd_free_event(tcpc_dev, pd_event);
 			mutex_unlock(&tcpc_dev->access_lock);
 			return false;
@@ -296,6 +316,8 @@ static void __pd_event_buf_reset(struct tcpc_device *tcpc_dev)
 		__pd_free_event(tcpc_dev, &tcpc_dev->pd_vdm_event);
 		tcpc_dev->pd_pending_vdm_event = false;
 	}
+
+	tcpc_dev->pd_pending_vdm_good_crc = false;
 }
 
 void pd_event_buf_reset(struct tcpc_device *tcpc_dev)

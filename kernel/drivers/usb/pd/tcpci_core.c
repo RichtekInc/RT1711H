@@ -1,14 +1,17 @@
 /*
- * drives/usb/pd/tcpci_core.c
+ * Copyright (C) 2016 Richtek Technology Corp.
+ *
  * Richtek TypeC Port Control Interface Core Driver
  *
- * Copyright (C) 2015 Richtek Technology Corp.
- * Author: Jeff Chang <jeff_chang@richtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -25,7 +28,7 @@
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.0.9_G"
+#define TCPC_CORE_VERSION		"1.1.0_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -390,11 +393,11 @@ static int tcpc_device_irq_enable(struct tcpc_device *tcpc)
 		pr_err("%s tcpc init fail\n", __func__);
 		return ret;
 	}
-	
+
 	tcpci_lock_typec(tcpc);
 	ret = tcpc_typec_init(tcpc, tcpc->desc.role_def + 1);
 	tcpci_unlock_typec(tcpc);
-	
+
 	if (ret < 0) {
 		pr_err("%s : tcpc typec init fail\n", __func__);
 		return ret;

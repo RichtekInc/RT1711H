@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2016 Richtek Technology Corp.
+ *
+ * Author: TH <tsunghan_tsai@richtek.com>
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 #ifndef __LINUX_TCPC_CONFIG_H
 #define __LINUX_TCPC_CONFIG_H
 
@@ -37,12 +51,20 @@
 
 /* #define CONFIG_USB_PD_RICHTEK_UVDM */
 
+/* #define CONFIG_USB_PD_DP_CHECK_CABLE */
+/* #define CONFIG_USB_PD_RTDC_CHECK_CABLE */
+
 #define CONFIG_USB_PD_ALT_MODE
 #define CONFIG_USB_PD_ALT_MODE_DFP
+
+/* #define CONFIG_USB_PD_ALT_MODE_RTDC */
+
 #define CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
 #define CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 
-/* #define CONFIG_USB_PD_ATTEMP_DISCOVER_ID */
+#define CONFIG_USB_PD_ATTEMP_DISCOVER_ID
+#define CONFIG_USB_PD_ATTEMP_DISCOVER_SVID
+
 /* #define CONFIG_USB_PD_PR_SWAP_ERROR_RECOVERY */
 
 /* #define CONFIG_USB_PD_UVDM */
@@ -61,6 +83,10 @@
 #define CONFIG_USB_PD_POSTPONE_FIRST_VDM
 #define CONFIG_USB_PD_POSTPONE_OTHER_VDM
 #define CONFIG_USB_PD_SAFE0V_DELAY
+
+#ifndef CONFIG_USB_PD_DFP_FLOW_RETRY_MAX
+#define CONFIG_USB_PD_DFP_FLOW_RETRY_MAX 2
+#endif	/* CONFIG_USB_PD_DFP_FLOW_RETRY_MAX */
 
 #ifndef CONFIG_USB_PD_VBUS_STABLE_TOUT
 #define CONFIG_USB_PD_VBUS_STABLE_TOUT 125
