@@ -19,10 +19,13 @@
 #include <linux/list.h>
 
 #include <linux/usb/tcpci.h>
+#include <linux/usb/tcpci_typec.h>
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
+
+#define TCPC_CORE_VERSION		"1.0.8_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -202,6 +205,15 @@ static ssize_t tcpc_store_property(struct device *dev,
 	long int val;
 
 	switch (offset) {
+	case TCPC_DESC_ROLE_DEF:
+		ret = get_parameters((char *)buf, &val, 1);
+		if (ret < 0) {
+			dev_err(dev, "get parameters fail\n");
+			return -EINVAL;
+		}
+
+		tcpc_typec_change_role(tcpc, val);
+		break;
 	case TCPC_DESC_TIMER:
 		ret = get_parameters((char *)buf, &val, 1);
 		if (ret < 0) {
@@ -497,7 +509,7 @@ static void tcpc_init_attrs(struct device_type *dev_type)
 
 static int __init tcpc_class_init(void)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s (%s)\n", __func__, TCPC_CORE_VERSION);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	dpm_check_supported_modes();
@@ -528,5 +540,5 @@ module_exit(tcpc_class_exit);
 
 MODULE_DESCRIPTION("Richtek TypeC Port Control Core");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
-MODULE_VERSION("1.0.7_G");
+MODULE_VERSION(TCPC_CORE_VERSION);
 MODULE_LICENSE("GPL");

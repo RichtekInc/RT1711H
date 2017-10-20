@@ -198,6 +198,7 @@ static const char *const pe_state_name[] = {
 	"SRC_SEND_CAP",
 	"SRC_NEG_CAP",
 	"SRC_TRANS_SUPPLY",
+	"SRC_TRANS_SUPPLY2",
 	"SRC_READY",
 	"SRC_DISABLED",
 	"SRC_CAP_RESP",
@@ -337,12 +338,17 @@ static const char *const pe_state_name[] = {
 	"D_DP_CONFIG_NAK",
 #endif
 
-	"PE_ERROR_RECOVERY",
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	"OVER_HRESET_LIMIT",
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
+	"ERR_RECOVERY",
 
 	"BIST_TD",
 	"BIST_C2",
 
-	"IDLE",
+	"IDLE1",
+	"IDLE2",
 
 	"VIRT_HARD_RESET",
 	"VIRT_READY",
@@ -375,6 +381,8 @@ static void pe_idle_reset_data(pd_port_t *pd_port)
 {
 	pd_reset_pe_timer(pd_port);
 	pd_reset_svid_data(pd_port);
+
+	pd_port->pd_prev_connected = false;
 	pd_port->state_machine = PE_STATE_MACHINE_IDLE;
 
 	switch (pd_port->pe_state_curr) {

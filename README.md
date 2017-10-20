@@ -2,6 +2,16 @@
 
 ## Changelog
 
+### v008
+- [TCPCI] Add control type for VBUS Control.
+- [TCPCI] Add new VBUS Control : disable power path for Sink/Source 
+- [RT1711] Remove unused register.
+- [RT1711] Current Limit if Vconn OC
+- [RT1711] Init cc param for different case 
+- [PE] Add new event : VBUS Present 
+- [TYPEC] Update Legacy Cable detect flow 
+- [TCPCM] Add more i/f for custom
+
 ### v007
 - [PE] Remove busy wait for tx finish
 - [PE] Add a option for Receive HardReset over limit. <ESD?>

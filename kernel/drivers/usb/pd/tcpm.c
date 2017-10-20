@@ -1,5 +1,5 @@
 /* drives/usb/phy/tcpm.c
- * Power Delvery Managert Driver
+ * Richtek TypeC Port Manager Driver
  *
  * Copyright (C) 2015 Richtek Technology Corp.
  * Author: TH <tsunghan_tasi@richtek.com>
@@ -15,6 +15,150 @@
 #include <linux/usb/tcpci.h>
 #include <linux/usb/pd_policy_engine.h>
 #include <linux/usb/pd_dpm_core.h>
+#include <linux/usb/tcpci_typec.h>
+
+/* Inquire TCPC status */
+
+int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev,
+	uint8_t *cc1, uint8_t *cc2, bool from_ic)
+{
+	int rv = 0;
+
+	if (from_ic) {
+		rv = tcpci_get_cc(tcpc_dev);
+		if (rv < 0)
+			return rv;
+	}
+
+	*cc1 = tcpc_dev->typec_remote_cc[0];
+	*cc2 = tcpc_dev->typec_remote_cc[1];
+	return 0;
+}
+
+int tcpm_inquire_vbus_level(
+	struct tcpc_device *tcpc_dev, bool from_ic)
+{
+	int rv = 0;
+	uint16_t power_status = 0;
+
+	if (from_ic) {
+		rv = tcpci_get_power_status(tcpc_dev, &power_status);
+		if (rv < 0)
+			return rv;
+
+		tcpci_vbus_level_init(tcpc_dev, power_status);
+	}
+
+	return tcpc_dev->vbus_level;
+}
+
+bool tcpm_inquire_cc_polarity(
+	struct tcpc_device *tcpc_dev)
+{
+	return tcpc_dev->typec_polarity;
+}
+
+uint8_t tcpm_inquire_typec_attach_state(
+	struct tcpc_device *tcpc_dev)
+{
+	return tcpc_dev->typec_attach_new;
+}
+
+uint8_t tcpm_inquire_typec_role(
+	struct tcpc_device *tcpc_dev)
+{
+	return tcpc_dev->typec_role;
+}
+
+uint8_t tcpm_inquire_typec_local_rp(
+	struct tcpc_device *tcpc_dev)
+{
+	uint8_t level;
+
+	switch (tcpc_dev->typec_local_rp_level) {
+	case TYPEC_CC_RP_1_5:
+		level = 1;
+		break;
+
+	case TYPEC_CC_RP_3_0:
+		level = 2;
+		break;
+
+	default:
+	case TYPEC_CC_RP_DFT:
+		level = 0;
+		break;
+	}
+
+	return level;
+}
+
+int tcpm_typec_set_rp_level(
+	struct tcpc_device *tcpc_dev, uint8_t level)
+{
+	uint8_t res;
+
+	if (level == 2)
+		res = TYPEC_CC_RP_3_0;
+	else if (level == 1)
+		res = TYPEC_CC_RP_1_5;
+	else
+		res = TYPEC_CC_RP_DFT;
+
+	return tcpc_typec_set_rp_level(tcpc_dev, res);
+}
+
+int tcpm_typec_change_role(
+	struct tcpc_device *tcpc_dev, uint8_t typec_role)
+{
+	return tcpc_typec_change_role(tcpc_dev, typec_role);
+}
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+
+bool tcpm_inquire_pd_connected(
+	struct tcpc_device *tcpc_dev)
+{
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	return pd_port->pd_connected;
+}
+
+bool tcpm_inquire_pd_prev_connected(
+	struct tcpc_device *tcpc_dev)
+{
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	return pd_port->pd_prev_connected;
+}
+
+uint8_t tcpm_inquire_pd_data_role(
+	struct tcpc_device *tcpc_dev)
+{
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	return pd_port->data_role;
+}
+
+uint8_t tcpm_inquire_pd_power_role(
+	struct tcpc_device *tcpc_dev)
+{
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	return pd_port->power_role;
+}
+
+uint8_t tcpm_inquire_pd_vconn_role(
+	struct tcpc_device *tcpc_dev)
+{
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	return pd_port->vconn_source;
+}
+
+#endif	/* CONFIG_USB_POWER_DELIVERY */
+
+/* Request TCPC to send PD Request */
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 
@@ -209,7 +353,6 @@ int tcpm_dp_attention(
 
 	ret = vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_ATTENTION);
-
 
 	if (ret) {
 		pd_port->dp_status = dp_status;

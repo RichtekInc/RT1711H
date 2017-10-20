@@ -40,6 +40,8 @@
 #endif /* #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)) */
 
 /* #define DEBUG_GPIO	66 */
+#define RT1711_DRV_VERSION	"1.1.3_G" 
+
 #define RT1711_REDUCE_I2C_ACCESS_TIME_READ
 #define RT1711_REDUCE_I2C_ACCESS_TIME_WRITE
 
@@ -85,22 +87,15 @@ RT_REG_DECL(RT1711_REG_TRANSMIT, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_TRANSMITBYTECNT, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_TXHDR, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_TXDATA, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_PHYCTRL2, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_PHYCTRL3, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_PHYCTRL6, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_RXTXDBG, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_LOW_POWER_CTRL, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_BMCIO_RXDZSEL, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_CC_EXT_CTRL, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_SWRESET, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_TTCPCFILTER, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_DRPTOGGLECYCLE, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711_REG_DRPDUTYCTRL, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_UNLOCKPW2, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_UNLOCKPW1, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_RDCAL, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_OSC_FREQ, 1, RT_VOLATILE, {});
-RT_REG_DECL(RT1711_REG_TESTMODE, 1, RT_VOLATILE, {});
 
 static const rt_register_map_t rt1711_chip_regmap[] = {
 	RT_REG(RT1711_REG_VENDOR_ID),
@@ -122,22 +117,15 @@ static const rt_register_map_t rt1711_chip_regmap[] = {
 	RT_REG(RT1711_REG_TRANSMITBYTECNT),
 	RT_REG(RT1711_REG_TXHDR),
 	RT_REG(RT1711_REG_TXDATA),
-	RT_REG(RT1711_REG_PHYCTRL2),
 	RT_REG(RT1711_REG_PHYCTRL3),
 	RT_REG(RT1711_REG_PHYCTRL6),
 	RT_REG(RT1711_REG_RXTXDBG),
 	RT_REG(RT1711_REG_LOW_POWER_CTRL),
-	RT_REG(RT1711_REG_BMCIO_RXDZSEL),
 	RT_REG(RT1711_REG_CC_EXT_CTRL),
 	RT_REG(RT1711_REG_SWRESET),
 	RT_REG(RT1711_REG_TTCPCFILTER),
 	RT_REG(RT1711_REG_DRPTOGGLECYCLE),
 	RT_REG(RT1711_REG_DRPDUTYCTRL),
-	RT_REG(RT1711_REG_UNLOCKPW2),
-	RT_REG(RT1711_REG_UNLOCKPW1),
-	RT_REG(RT1711_REG_RDCAL),
-	RT_REG(RT1711_REG_OSC_FREQ),
-	RT_REG(RT1711_REG_TESTMODE),
 };
 #define RT1711_CHIP_REGMAP_SIZE ARRAY_SIZE(rt1711_chip_regmap)
 
@@ -315,7 +303,7 @@ static int rt1711_regmap_init(struct rt1711_chip *chip)
 	char name[32];
 	int len;
 
-	props = devm_kzalloc(chip->dev, sizeof(props), GFP_KERNEL);
+	props = devm_kzalloc(chip->dev, sizeof(*props), GFP_KERNEL);
 	if (!props)
 		return -ENOMEM;
 
@@ -350,23 +338,6 @@ static int rt1711_regmap_deinit(struct rt1711_chip *chip)
 	rt_regmap_device_unregister(chip->m_dev);
 #endif
 	return 0;
-}
-
-static int rt1711_init_testmode(struct tcpc_device *tcpc)
-{
-	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
-	int ret = 0;
-
-#if 0	/* Enable it unless you want to write locked register */
-	ret = rt1711_reg_write(chip->client, RT1711_REG_UNLOCKPW1, 0x62);
-	ret |= rt1711_reg_write(chip->client, RT1711_REG_UNLOCKPW2, 0x86);
-#endif
-
-	/* For MQP CC-Noise2 Case */
-	ret |= rt1711_reg_write(chip->client, RT1711_REG_PHYCTRL2, 0x3e);
-	ret |= rt1711_reg_write(chip->client, RT1711_REG_BMCIO_RXDZSEL, 0x81);
-
-	return ret;
 }
 
 static int rt1711_init_alert_mask(struct tcpc_device *tcpc)
@@ -547,7 +518,6 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 {
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
-	int ret;
 	int power_status;
 
 	RT1711_INFO("\n");
@@ -561,10 +531,6 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	/* if EC Success, power_status should be 0 */
 	if (power_status < 0)
 		return power_status;
-
-	ret = rt1711_init_testmode(tcpc);
-	if (ret < 0)
-		return ret;
 
 	/* UFP Both RD setting */
 	rt1711_reg_write(chip->client, RT1711_REG_ROLECTRL, 0x0a);
@@ -1090,7 +1056,7 @@ static int rt1711_tcpcdev_init(struct rt1711_chip *chip, struct device *dev)
 	u32 val, len;
 	const char *name = "default";
 
-	desc = devm_kzalloc(dev, sizeof(desc), GFP_KERNEL);
+	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 	if (of_property_read_u32(np, "rt-tcpc,role_def", &val) >= 0) {
@@ -1253,11 +1219,12 @@ static int rt1711_i2c_remove(struct i2c_client *client)
 {
 	struct rt1711_chip *chip = i2c_get_clientdata(client);
 
-	cancel_delayed_work_sync(&chip->poll_work);
+	if (chip) {
+		cancel_delayed_work_sync(&chip->poll_work);
 
-	tcpc_device_unregister(chip->dev, chip->tcpc);
-	rt1711_regmap_deinit(chip);
-
+		tcpc_device_unregister(chip->dev, chip->tcpc);
+		rt1711_regmap_deinit(chip);
+	}
 	return 0;
 }
 
@@ -1265,20 +1232,27 @@ static int rt1711_i2c_remove(struct i2c_client *client)
 static int rt1711_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct rt1711_chip *chip = i2c_get_clientdata(client);
+	struct rt1711_chip *chip;
 
-	RT1711_INFO("\n");
-	down(&chip->suspend_lock);
+	if (client) {
+		chip = i2c_get_clientdata(client);
+		if (chip)
+			down(&chip->suspend_lock);
+	}
 	return 0;
 }
 
 static int rt1711_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct rt1711_chip *chip = i2c_get_clientdata(client);
+	struct rt1711_chip *chip;
 
-	RT1711_INFO("\n");
-	up(&chip->suspend_lock);
+	if (client) {
+		chip = i2c_get_clientdata(client);
+		if (chip)
+			up(&chip->suspend_lock);
+	}
+
 	return 0;
 }
 
@@ -1348,7 +1322,7 @@ static int __init rt1711_init(void)
 {
 	struct device_node *np;
 
-	pr_info("rt1711_init() : initializing...\n");
+	pr_info("rt1711_init (%s) : initializing...\n", RT1711_DRV_VERSION);
 	np = of_find_node_by_name(NULL, "rt1711");
 	if (np != NULL)
 		pr_info("rt1711 node found...\n");
@@ -1369,4 +1343,4 @@ module_exit(rt1711_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
 MODULE_DESCRIPTION("RT1711 TCPC Driver");
-MODULE_VERSION("1.1.3_G");
+MODULE_VERSION(RT1711_DRV_VERSION);

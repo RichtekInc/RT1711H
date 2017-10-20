@@ -3,7 +3,7 @@
  * Power Delvery Core Driver
  *
  * Copyright (C) 2015 Richtek Technology Corp.
- * Author: TH <tsunghan_tasi@richtek.com>
+ * Author: TH <tsunghan_tsai@richtek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -737,14 +737,12 @@ int pd_send_bist_mode2(pd_port_t *pd_port)
 
 int pd_disable_bist_mode2(pd_port_t *pd_port)
 {
-	int ret = 0;
-
 #ifndef CONFIG_USB_PD_TRANSMIT_BIST2
-	ret = tcpci_set_bist_carrier_mode(
+	return tcpci_set_bist_carrier_mode(
 		pd_port->tcpc_dev, 0);
-#endif
-
+#else
 	return 0;
+#endif
 }
 
 /* ---- Send / Reply VDM Command ----*/

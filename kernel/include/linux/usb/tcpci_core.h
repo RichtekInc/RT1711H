@@ -34,14 +34,14 @@
 #define PE_EVENT_DBG_ENABLE	1
 #define PE_STATE_INFO_ENABLE	1
 #define TCPC_INFO_ENABLE	1
-#define TCPC_TIMER_DBG_EN	0
+#define TCPC_TIMER_DBG_EN	1
 #define TCPC_TIMER_INFO_EN	1
 #define PE_INFO_ENABLE		1
-#define TCPC_DBG_ENABLE		0
+#define TCPC_DBG_ENABLE		1
 #define DPM_DBG_ENABLE		1
 #define PD_ERR_ENABLE		1
-#define PE_DBG_ENABLE		0
-#define TYPEC_DBG_ENABLE	0
+#define PE_DBG_ENABLE		1
+#define TYPEC_DBG_ENABLE	1
 
 #define DP_INFO_ENABLE		1
 #define DP_DBG_ENABLE		1
@@ -99,18 +99,6 @@ struct tcpc_desc {
 #define TCPC_FLAGS_LPM_WAKEUP_WATCHDOG		(1<<3)
 #define TCPC_FLAGS_CHECK_RA_DETACHE		(1<<4)
 
-enum tcpc_cc_voltage_status {
-	TYPEC_CC_VOLT_OPEN = 0,
-	TYPEC_CC_VOLT_RA = 1,
-	TYPEC_CC_VOLT_RD = 2,
-
-	TYPEC_CC_VOLT_SNK_DFT = 5,
-	TYPEC_CC_VOLT_SNK_1_5 = 6,
-	TYPEC_CC_VOLT_SNK_3_0 = 7,
-
-	TYPEC_CC_DRP_TOGGLING = 15,
-};
-
 enum tcpc_cc_pull {
 	TYPEC_CC_RA = 0,
 	TYPEC_CC_RP = 1,
@@ -151,27 +139,6 @@ enum tcpm_rx_cap_type {
 	TCPC_RX_CAP_CABLE_RESET = 1 << 6,
 };
 
-/* role_def */
-enum typec_role_defination {
-	TYPEC_ROLE_UNKNOWN = 0,
-	TYPEC_ROLE_SNK,
-	TYPEC_ROLE_SRC,
-	TYPEC_ROLE_DRP,
-	TYPEC_ROLE_TRY_SRC,
-	TYPEC_ROLE_TRY_SNK,
-	TYPEC_ROLE_NR,
-};
-
-enum tcpm_vbus_level {
-#ifdef CONFIG_TCPC_VSAFE0V_DETECT
-	TCPC_VBUS_SAFE0V = 0,
-	TCPC_VBUS_INVALID,
-	TCPC_VBUS_VALID,
-#else
-	TCPC_VBUS_INVALID = 0,
-	TCPC_VBUS_VALID,
-#endif
-};
 
 struct tcpc_ops {
 	int (*init)(struct tcpc_device *tcpc, bool sw_reset);

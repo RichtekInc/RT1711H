@@ -93,7 +93,7 @@ static int tcpci_alert_power_status_changed(struct tcpc_device *tcpc_dev)
 		return rv;
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-	pd_put_vbus_changed_event(tcpc_dev);
+	pd_put_vbus_changed_event(tcpc_dev, true);
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT_IC
@@ -229,7 +229,10 @@ static int tcpci_alert_wakeup(struct tcpc_device *tcpc_dev)
 {
 	if (tcpc_dev->tcpc_flags & TCPC_FLAGS_LPM_WAKEUP_WATCHDOG) {
 		TCPC_DBG("Wakeup\r\n");
-		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_WAKEUP);
+
+		if (tcpc_dev->typec_remote_cc[0] == TYPEC_CC_DRP_TOGGLING &&
+			tcpc_dev->typec_remote_cc[1] == TYPEC_CC_DRP_TOGGLING)
+			tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_WAKEUP);
 	}
 
 	return 0;

@@ -18,6 +18,7 @@
 #include <linux/usb/pd_dpm_core.h>
 #include "pd_dpm_prv.h"
 
+
 typedef struct __pd_device_policy_manager {
 	uint8_t temp;
 } pd_device_policy_manager_t;
@@ -504,7 +505,7 @@ void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	tcpci_sink_vbus(pd_port->tcpc_dev,
+	tcpci_sink_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_REQUEST,
 		pd_port->request_v_new, pd_port->request_i_new);
 
 	pd_port->request_v = pd_port->request_v_new;
@@ -513,7 +514,8 @@ void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pd_dpm_snk_hard_reset(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	tcpci_sink_vbus(pd_port->tcpc_dev, 0, 0);
+	tcpci_sink_vbus(pd_port->tcpc_dev,
+		TCP_VBUS_CTRL_HRESET, TCPC_VBUS_SINK_0V, 0);
 	pd_put_pe_event(pd_port, PD_PE_POWER_ROLE_AT_DEFAULT);
 }
 
@@ -591,7 +593,7 @@ void pd_dpm_src_transition_power(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_enable_vbus_stable_detection(pd_port);
 
-	tcpci_source_vbus(pd_port->tcpc_dev,
+	tcpci_source_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_REQUEST,
 		pd_port->request_v_new, pd_port->request_i_new);
 
 	if (pd_port->request_v == pd_port->request_v_new)
@@ -619,7 +621,8 @@ void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pd_dpm_src_hard_reset(pd_port_t *pd_port)
 {
-	tcpci_source_vbus(pd_port->tcpc_dev, TCPC_VBUS_SOURCE_0V, 0);
+	tcpci_source_vbus(pd_port->tcpc_dev,
+		TCP_VBUS_CTRL_HRESET, TCPC_VBUS_SOURCE_0V, 0);
 	pd_enable_vbus_safe0v_detection(pd_port);
 }
 
@@ -728,6 +731,7 @@ void pd_dpm_ufp_request_svid_info(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_is_support_modal_operation(pd_port))
 		ack = (dpm_vdm_get_svid(pd_event) == USB_SID_PD);
+
 	pd_dpm_ufp_reply_request(pd_port, pd_event, ack);
 }
 
@@ -1226,6 +1230,7 @@ void pd_dpm_prs_evaluate_swap(pd_port_t *pd_port, uint8_t role)
 			if ((!sink) && (check_src || check_ext))
 				accept = false;
 			break;
+
 		case GOOD_PW_NONE:
 			accept = true;
 			break;
@@ -1246,14 +1251,16 @@ void pd_dpm_prs_evaluate_swap(pd_port_t *pd_port, uint8_t role)
 
 void pd_dpm_prs_turn_off_power_sink(pd_port_t *pd_port)
 {
-	tcpci_sink_vbus(pd_port->tcpc_dev, 0, 0);
+	tcpci_sink_vbus(pd_port->tcpc_dev,
+		TCP_VBUS_CTRL_PR_SWAP, TCPC_VBUS_SINK_0V, 0);
 }
 
 void pd_dpm_prs_enable_power_source(pd_port_t *pd_port, bool en)
 {
 	int vbus_level = en ? TCPC_VBUS_SOURCE_5V : TCPC_VBUS_SOURCE_0V;
 
-	tcpci_source_vbus(pd_port->tcpc_dev, vbus_level, -1);
+	tcpci_source_vbus(pd_port->tcpc_dev,
+		TCP_VBUS_CTRL_PR_SWAP, vbus_level, -1);
 
 	if (en)
 		pd_enable_vbus_valid_detection(pd_port, en);
@@ -1401,6 +1408,7 @@ int pd_dpm_notify_pe_startup(pd_port_t *pd_port)
 
 	if (pd_port->dpm_caps & DPM_CAP_LOCAL_EXT_POWER)
 		flags |= DPM_FLAGS_CHECK_EXT_POWER;
+
 	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_CABLE)
 		flags |= DPM_FLAGS_CHECK_CABLE_ID;
 
@@ -1460,5 +1468,6 @@ int pd_dpm_core_init(pd_port_t *pd_port)
 
 	for (i = 0; i < ARRAY_SIZE(svdm_svid_ops); i++)
 		dpm_register_svdm_ops(pd_port, &svdm_svid_ops[i]);
+
 	return 0;
 }

@@ -26,10 +26,8 @@
 #include <linux/usb/class-dual-role.h>
 #endif /* CONFIG_DUAL_ROLE_USB_INTF */
 
-#include <linux/usb/tcpci_event.h>
-#include <linux/usb/tcpci_timer.h>
 #include <linux/usb/tcpci_core.h>
-#include <linux/usb/tcpm.h>
+
 
 #ifdef CONFIG_PD_DBG_INFO
 #include <linux/usb/pd_dbg_info.h>
@@ -158,12 +156,19 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 		pull = tcpc->typec_local_rp_level;
 #endif /* CONFIG_USB_PD_DBG_ALWAYS_LOCAL_RP */
 
+	if (pull & TYPEC_CC_DRP) {
+		tcpc->typec_remote_cc[0] =
+		tcpc->typec_remote_cc[1] =
+			TYPEC_CC_DRP_TOGGLING;
+	}
+
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	if ((pull == TYPEC_CC_DRP) &&
 			(tcpc->typec_legacy_cable_suspect >=
 						TCPC_LEGACY_CABLE_CONFIRM))
 		pull = TYPEC_CC_DRP_1_5;
 #endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
+
 	tcpc->typec_local_cc = pull;
 	return tcpc->ops->set_cc(tcpc, pull);
 }
@@ -317,11 +322,16 @@ static inline int tcpci_notify_pd_state(
 		&tcpc->evt_nh, TCP_NOTIFY_PD_STATE, &tcp_noti);
 }
 
-static inline int tcpci_source_vbus(struct tcpc_device *tcpc, int mv, int ma)
+static inline int tcpci_source_vbus(
+	struct tcpc_device *tcpc, uint8_t type, int mv, int ma)
 {
 	struct tcp_notify tcp_noti;
 
-	/* Add a mutex .... */
+#ifdef CONFIG_USB_POWER_DELIVERY
+	if (type >= TCP_VBUS_CTRL_PD && tcpc->pd_port.pd_prev_connected)
+		type |= TCP_VBUS_CTRL_PD_DETECT;
+#endif
+
 	if (ma < 0) {
 		if (mv != 0) {
 			switch (tcpc->typec_local_rp_level) {
@@ -342,13 +352,20 @@ static inline int tcpci_source_vbus(struct tcpc_device *tcpc, int mv, int ma)
 
 	tcp_noti.vbus_state.ma = ma;
 	tcp_noti.vbus_state.mv = mv;
+	tcp_noti.vbus_state.type = type;
 	return srcu_notifier_call_chain(&tcpc->evt_nh,
 				TCP_NOTIFY_SOURCE_VBUS, &tcp_noti);
 }
 
-static inline int tcpci_sink_vbus(struct tcpc_device *tcpc, int mv, int ma)
+static inline int tcpci_sink_vbus(
+	struct tcpc_device *tcpc, uint8_t type, int mv, int ma)
 {
 	struct tcp_notify tcp_noti;
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+	if (type >= TCP_VBUS_CTRL_PD && tcpc->pd_port.pd_prev_connected)
+		type |= TCP_VBUS_CTRL_PD_DETECT;
+#endif
 
 	if (ma < 0) {
 		if (mv != 0) {
@@ -367,12 +384,27 @@ static inline int tcpci_sink_vbus(struct tcpc_device *tcpc, int mv, int ma)
 		} else
 			ma = 0;
 	}
+
 	tcp_noti.vbus_state.ma = ma;
 	tcp_noti.vbus_state.mv = mv;
+	tcp_noti.vbus_state.type = type;
 	return srcu_notifier_call_chain(&tcpc->evt_nh,
 				TCP_NOTIFY_SINK_VBUS, &tcp_noti);
 }
 
+static inline int tcpci_disable_vbus_control(struct tcpc_device *tcpc)
+{
+#ifdef CONFIG_TYPEC_USE_DIS_VBUS_CTRL
+	struct tcp_notify tcp_noti;
+
+	return srcu_notifier_call_chain(
+		&tcpc->evt_nh, TCP_NOTIFY_DIS_VBUS_CTRL, &tcp_noti);
+#else
+	tcpci_sink_vbus(tcpc, TCP_VBUS_CTRL_REMOVE, TCPC_VBUS_SINK_0V, 0);
+	tcpci_source_vbus(tcpc, TCP_VBUS_CTRL_REMOVE, TCPC_VBUS_SOURCE_0V, 0);
+	return 0;
+#endif
+}
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 

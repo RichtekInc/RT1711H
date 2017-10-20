@@ -204,7 +204,7 @@ static inline void reset_pe_vdm_state(pd_port_t *pd_port, uint32_t vdm_hdr)
 }
 
 bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
-		const pd_event_t *pd_event, bool from_port_partner)
+		pd_event_t *pd_event, bool from_port_partner)
 {
 	pd_msg_t *pd_msg = pd_event->pd_msg;
 
@@ -216,6 +216,7 @@ bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
 		if (from_port_partner)
 			__pd_free_event(tcpc_dev, &tcpc_dev->pd_vdm_event);
 		else {
+			__pd_free_event(tcpc_dev, pd_event);
 			mutex_unlock(&tcpc_dev->access_lock);
 			return false;
 		}
@@ -296,7 +297,6 @@ static void __pd_event_buf_reset(struct tcpc_device *tcpc_dev)
 		tcpc_dev->pd_pending_vdm_event = false;
 	}
 }
-
 
 void pd_event_buf_reset(struct tcpc_device *tcpc_dev)
 {
@@ -465,9 +465,16 @@ bool pd_put_pd_msg_event(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg)
 	return pd_put_event(tcpc_dev, &evt, true);
 }
 
-void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev)
+static void pd_report_vbus_present(struct tcpc_device *tcpc_dev)
+{
+	tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
+	__pd_put_hw_event(tcpc_dev, PD_HW_VBUS_PRESENT);
+}
+
+void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev, bool from_ic)
 {
 	int vbus_valid;
+	bool postpone_vbus_present = false;
 
 	mutex_lock(&tcpc_dev->access_lock);
 	vbus_valid = tcpci_check_vbus_valid(tcpc_dev);
@@ -475,8 +482,11 @@ void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev)
 	switch (tcpc_dev->pd_wait_vbus_once) {
 	case PD_WAIT_VBUS_VALID_ONCE:
 		if (vbus_valid) {
-			tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
-			__pd_put_hw_event(tcpc_dev, PD_HW_VBUS_PRESENT);
+#if CONFIG_USB_PD_VBUS_PRESENT_TOUT
+			postpone_vbus_present = from_ic;
+#endif	/* CONFIG_USB_PD_VBUS_PRESENT_TOUT */
+			if (!postpone_vbus_present)
+				pd_report_vbus_present(tcpc_dev);
 		}
 		break;
 
@@ -488,6 +498,11 @@ void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev)
 		break;
 	}
 	mutex_unlock(&tcpc_dev->access_lock);
+
+#if CONFIG_USB_PD_VBUS_PRESENT_TOUT
+	if (postpone_vbus_present)
+		tcpc_enable_timer(tcpc_dev, PD_TIMER_VBUS_PRESENT);
+#endif	/* CONFIG_USB_PD_VBUS_PRESENT_TOUT */
 }
 
 void pd_put_vbus_safe0v_event(struct tcpc_device *tcpc_dev)
@@ -507,6 +522,13 @@ void pd_put_vbus_stable_event(struct tcpc_device *tcpc_dev)
 		tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
 		__pd_put_hw_event(tcpc_dev, PD_HW_VBUS_STABLE);
 	}
+	mutex_unlock(&tcpc_dev->access_lock);
+}
+
+void pd_put_vbus_present_event(struct tcpc_device *tcpc_dev)
+{
+	mutex_lock(&tcpc_dev->access_lock);
+	pd_report_vbus_present(tcpc_dev);
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
@@ -553,7 +575,7 @@ void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt)
 	switch (wait_evt) {
 	case PD_WAIT_VBUS_VALID_ONCE:
 	case PD_WAIT_VBUS_INVALID_ONCE:
-		pd_put_vbus_changed_event(tcpc_dev);
+		pd_put_vbus_changed_event(tcpc_dev, false);
 		break;
 	case PD_WAIT_VBUS_SAFE0V_ONCE:
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT

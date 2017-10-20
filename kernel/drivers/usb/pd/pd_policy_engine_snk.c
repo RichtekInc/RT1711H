@@ -138,7 +138,9 @@ void pe_snk_transition_sink_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_snk_transition_sink_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_dpm_snk_transition_power(pd_port, pd_event);
+	if (pd_event_msg_match(pd_event, PD_EVT_CTRL_MSG, PD_CTRL_PS_RDY))
+		pd_dpm_snk_transition_power(pd_port, pd_event);
+
 	pd_disable_timer(pd_port, PD_TIMER_PS_TRANSITION);
 }
 

@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 
+#include <linux/usb/tcpci_config.h>
+
 struct tcpc_device;
 
 /*
@@ -55,6 +57,7 @@ enum pd_connect_result {
 #define PD_ROLE_VCONN_ON  1
 
 enum {
+	TCP_NOTIFY_DIS_VBUS_CTRL,
 	TCP_NOTIFY_SOURCE_VCONN,
 	TCP_NOTIFY_SOURCE_VBUS,
 	TCP_NOTIFY_SINK_VBUS,
@@ -88,9 +91,31 @@ struct tcp_ny_typec_state {
 	uint8_t new_state;
 };
 
+enum {
+	TCP_VBUS_CTRL_REMOVE = 0,
+	TCP_VBUS_CTRL_TYPEC = 1,
+	TCP_VBUS_CTRL_PD = 2,
+
+	TCP_VBUS_CTRL_HRESET = TCP_VBUS_CTRL_PD,
+	TCP_VBUS_CTRL_PR_SWAP = 3,
+	TCP_VBUS_CTRL_REQUEST = 4,
+
+	TCP_VBUS_CTRL_PD_DETECT = (1 << 7),
+
+	TCP_VBUS_CTRL_PD_HRESET =
+		TCP_VBUS_CTRL_HRESET | TCP_VBUS_CTRL_PD_DETECT,
+
+	TCP_VBUS_CTRL_PD_PR_SWAP =
+		TCP_VBUS_CTRL_PR_SWAP | TCP_VBUS_CTRL_PD_DETECT,
+
+	TCP_VBUS_CTRL_PD_REQUEST =
+		TCP_VBUS_CTRL_REQUEST | TCP_VBUS_CTRL_PD_DETECT,
+};
+
 struct tcp_ny_vbus_state {
 	int mv;
 	int ma;
+	uint8_t type;
 };
 
 enum {
@@ -162,6 +187,74 @@ struct tcpm_power_cap {
 	uint8_t cnt;
 	uint32_t pdos[TCPM_PDO_MAX_SIZE];
 };
+
+/* Inquire TCPM status */
+
+enum tcpc_cc_voltage_status {
+	TYPEC_CC_VOLT_OPEN = 0,
+	TYPEC_CC_VOLT_RA = 1,
+	TYPEC_CC_VOLT_RD = 2,
+
+	TYPEC_CC_VOLT_SNK_DFT = 5,
+	TYPEC_CC_VOLT_SNK_1_5 = 6,
+	TYPEC_CC_VOLT_SNK_3_0 = 7,
+
+	TYPEC_CC_DRP_TOGGLING = 15,
+};
+
+enum tcpm_vbus_level {
+#ifdef CONFIG_TCPC_VSAFE0V_DETECT
+	TCPC_VBUS_SAFE0V = 0,
+	TCPC_VBUS_INVALID,
+	TCPC_VBUS_VALID,
+#else
+	TCPC_VBUS_INVALID = 0,
+	TCPC_VBUS_VALID,
+#endif
+};
+
+enum typec_role_defination {
+	TYPEC_ROLE_UNKNOWN = 0,
+	TYPEC_ROLE_SNK,
+	TYPEC_ROLE_SRC,
+	TYPEC_ROLE_DRP,
+	TYPEC_ROLE_TRY_SRC,
+	TYPEC_ROLE_TRY_SNK,
+	TYPEC_ROLE_NR,
+};
+
+extern int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev,
+	uint8_t *cc1, uint8_t *cc2, bool from_ic);
+extern int tcpm_inquire_vbus_level(struct tcpc_device *tcpc_dev, bool from_ic);
+extern bool tcpm_inquire_cc_polarity(struct tcpc_device *tcpc_dev);
+extern uint8_t tcpm_inquire_typec_attach_state(struct tcpc_device *tcpc_dev);
+extern uint8_t tcpm_inquire_typec_role(struct tcpc_device *tcpc_dev);
+extern uint8_t tcpm_inquire_typec_local_rp(struct tcpc_device *tcpc_dev);
+
+extern int tcpm_typec_set_rp_level(
+	struct tcpc_device *tcpc_dev, uint8_t level);
+
+extern int tcpm_typec_change_role(
+	struct tcpc_device *tcpc_dev, uint8_t typec_role);
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+
+extern bool tcpm_inquire_pd_connected(
+	struct tcpc_device *tcpc_dev);
+
+extern bool tcpm_inquire_pd_prev_connected(
+	struct tcpc_device *tcpc_dev);
+
+extern uint8_t tcpm_inquire_pd_data_role(
+	struct tcpc_device *tcpc_dev);
+
+extern uint8_t tcpm_inquire_pd_power_role(
+	struct tcpc_device *tcpc_dev);
+
+extern uint8_t tcpm_inquire_pd_vconn_role(
+	struct tcpc_device *tcpc_dev);
+
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 
 /* Request TCPM to send PD Request */
 

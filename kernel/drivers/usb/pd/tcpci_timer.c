@@ -118,6 +118,7 @@ const char *tcpc_timer_name[] = {
 	"PD_TIMER_VSAFE0V",
 	"PD_TIMER_DISCARD",
 	"PD_TIMER_VBUS_STABLE",
+	"PD_TIMER_VBUS_PRESENT",
 	"PD_PE_VDM_POSTPONE",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
@@ -177,11 +178,15 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(24, 30),		/* PD_TIMER_VDM_RESPONSE */
 	TIMEOUT_RANGE(25, 35),		/* PD_TIMER_SOURCE_TRANSITION */
 	TIMEOUT_RANGE(660, 1000),	/* PD_TIMER_SRC_RECOVER */
-	PD_TIMER_VSAFE0V_TOUT,		/* PD_TIMER_VSAFE0V (out of spec) */
-	TIMEOUT_VAL(3),			/* PD_TIMER_DISCARD (out of spec) */
-	/* PD_TIMER_VBUS_STABLE (out of spec) */
+
+	/* PD_TIMER (out of spec) */
+	PD_TIMER_VSAFE0V_TOUT,		/* PD_TIMER_VSAFE0V */
+	TIMEOUT_VAL(3),			/* PD_TIMER_DISCARD */
+	/* PD_TIMER_VBUS_STABLE */
 	TIMEOUT_VAL(CONFIG_USB_PD_VBUS_STABLE_TOUT),
-	TIMEOUT_VAL_US(1500),       /* PD_PE_VDM_POSTPONE (out of spec) */
+	/* PD_TIMER_VBUS_PRESENT */
+	TIMEOUT_VAL(CONFIG_USB_PD_VBUS_PRESENT_TOUT),
+	TIMEOUT_VAL_US(1500),       /* PD_PE_VDM_POSTPONE */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -243,6 +248,13 @@ static inline void on_pe_timer_timeout(
 		pd_put_vbus_stable_event(tcpc_dev);
 		break;
 #endif	/* CONFIG_USB_PD_VBUS_STABLE_TOUT */
+
+#if CONFIG_USB_PD_VBUS_PRESENT_TOUT
+	case PD_TIMER_VBUS_PRESENT:
+		pd_put_vbus_present_event(tcpc_dev);
+		break;
+#endif	/* CONFIG_USB_PD_VBUS_PRESENT_TOUT */
+
 	case PD_PE_VDM_POSTPONE:
 		tcpc_dev->pd_postpone_vdm_timeout = true;
 		atomic_inc(&tcpc_dev->pending_event);
@@ -526,6 +538,15 @@ static enum hrtimer_restart tcpc_timer_vbus_stable(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_vbus_present(struct hrtimer *timer)
+{
+	int index = PD_TIMER_VBUS_PRESENT;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart pd_pe_vdm_postpone_timeout(struct hrtimer *timer)
 {
 	int index = PD_PE_VDM_POSTPONE;
@@ -633,6 +654,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[PD_TIMER_VSAFE0V] = tcpc_timer_vsafe0v,
 	[PD_TIMER_DISCARD] = tcpc_timer_pd_discard,
 	[PD_TIMER_VBUS_STABLE] = tcpc_timer_vbus_stable,
+	[PD_TIMER_VBUS_PRESENT] = tcpc_timer_vbus_present,
 	[PD_PE_VDM_POSTPONE] = pd_pe_vdm_postpone_timeout,
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,

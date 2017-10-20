@@ -34,7 +34,7 @@ void pd_event_buf_reset(struct tcpc_device *tcpc_dev);
 
 bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event);
 bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
-			const pd_event_t *pd_event, bool from_port_partner);
+			pd_event_t *pd_event, bool from_port_partner);
 
 bool pd_put_last_vdm_event(struct tcpc_device *tcpc_dev);
 
@@ -46,9 +46,10 @@ void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev);
 void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev);
 bool pd_put_pd_msg_event(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg);
 void pd_put_hard_reset_completed_event(struct tcpc_device *tcpc_dev);
-void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev);
+void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev, bool from_ic);
 void pd_put_vbus_safe0v_event(struct tcpc_device *tcpc_dev);
 void pd_put_vbus_stable_event(struct tcpc_device *tcpc_dev);
+void pd_put_vbus_present_event(struct tcpc_device *tcpc_dev);
 
 enum pd_event_type {
 	PD_EVT_PD_MSG = 0,	/* either ctrl msg or data msg */
