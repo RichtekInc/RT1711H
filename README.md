@@ -2,10 +2,20 @@
 
 ## Changelog
 
+### v020
+- [TCPM] HardReset Notifiy
+- [TYPEC] Implement Error Recovery
+- [TYPEC] Improve Legacy Cable Solution
+- [TYPEC] Modify CustomSRC
+- [PE] Remove CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER 
+- [PE] Fix Send HReset failed 
+- [PE] Invalid requests should not cause hard reset if explicit contract is in place.
+- [PE] Change RX_CAP first during pr_swap to SNK
+
+
 ### v019
 - [Linux] Fix Coding Style : remove typedef	
 - [PE] Discover Cable only if VconnSource just for PD30
-
 
 ### v018
 - [Linux] Remove dummy EXPORT_SYMBOL

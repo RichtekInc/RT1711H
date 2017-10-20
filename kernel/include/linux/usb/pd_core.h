@@ -975,7 +975,7 @@ static inline int pd_is_auto_discover_cable_id(struct pd_port *pd_port)
 
 #ifdef CONFIG_USB_PD_REV30
 		if ((!pd_port->vconn_source) &&
-			(pd_port->pd_revision[0] == PD_REV30)
+			(pd_port->pd_revision[0] == PD_REV30))
 			return false;
 #endif /* CONFIG_USB_PD_REV30 */
 		if (pd_port->discover_id_counter < PD_DISCOVER_ID_COUNT)

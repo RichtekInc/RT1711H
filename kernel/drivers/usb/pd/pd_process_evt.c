@@ -1188,6 +1188,7 @@ static inline bool pe_is_trap_in_idle_state(
 
 	switch (pd_port->pe_pd_state) {
 	case PE_IDLE1:
+	case PE_ERROR_RECOVERY:
 		if (pd_event_msg_match(pd_event, PD_EVT_PE_MSG, PD_PE_IDLE))
 			return false;
 		pd_try_put_pe_idle_event(pd_port);

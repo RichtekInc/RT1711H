@@ -716,7 +716,7 @@ void pd_dpm_src_evaluate_request(
 		 */
 
 		pd_port->local_selected_cap = 0;
-		pd_put_dpm_nak_event(pd_port, PD_DPM_NAK_REJECT_INVALID);
+		pd_put_dpm_nak_event(pd_port, PD_DPM_NAK_REJECT);
 	}
 }
 

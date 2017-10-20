@@ -44,7 +44,7 @@
 
 /* #define DEBUG_GPIO	66 */
 
-#define RT1711H_DRV_VERSION	"1.1.9_G"
+#define RT1711H_DRV_VERSION	"1.2.0_G"
 
 struct rt1711_chip {
 	struct i2c_client *client;
@@ -606,7 +606,6 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 		goto init_alert_err;
 	}
 
-	kfree(name);
 	enable_irq_wake(chip->irq);
 	return 0;
 init_alert_err:
@@ -1427,7 +1426,7 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 
 	chip_id = rt1711h_check_revision(client);
 	if (chip_id < 0)
-		return ret;
+		return chip_id;
 
 #if TCPC_ENABLE_ANYMSG
 	check_printk_performance();

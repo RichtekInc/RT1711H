@@ -7,15 +7,15 @@
 			rt-tcpc,name = "type_c_port0"; /* tcpc_device's name */
 			rt-tcpc,role_def = <4>; /* 0: SNK Only, 1: SRC Only, 2: DRP, 3: Try.SRC, 4: Try.SNK */
 			rt-tcpc,rp_level = <0>; /* 0: Default, 1: 1.5, 2: 3.0 */
+			rt-tcpc,vconn_supply  = <1>;  /* 0: Never, 1: Always, 2: EMarkOnly, 3: StartOnly */
 			rt-tcpc,notifier_supply_num = <1>; /* the number of notifier supply */
 			pd-data {
 				/*
-					VSAFE5V = 0, DIRECT_CHARGE = 1, CUSTOM = 2,
-					MAX_POWER = 0x03,
-					MAX_POWER_LV = 0x23, MAX_POWER_LVIC = 0x33
-					MAX_POWER_HV = 0x43, MAX_POWER_HVIC = 0x53
+					VSAFE5V = 0, MAX_POWER = 1, CUSTOM = 2,
+					MAX_POWER_LV = 0x21, MAX_POWER_LVIC = 0x31
+					MAX_POWER_HV = 0x41, MAX_POWER_HVIC = 0x51
 				*/
-				pd,charging_policy= <0x23>;
+				pd,charging_policy= <0x21>;
 
 				pd,source-pdo-size = <1>;
 				pd,source-pdo-data = <0x00019032>; /* 5V, 500 mA */

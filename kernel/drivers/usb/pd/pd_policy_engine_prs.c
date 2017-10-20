@@ -60,6 +60,8 @@ void pe_prs_src_snk_assert_rd_entry(
 void pe_prs_src_snk_wait_source_on_entry(
 		struct pd_port *pd_port, struct pd_event *pd_event)
 {
+	/* Change RX cap to UFP first for compliance */
+	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_UFP);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PS_RDY);
 }
 

@@ -239,6 +239,11 @@ int tcpm_typec_change_role(
 	return tcpc_typec_change_role(tcpc_dev, typec_role);
 }
 
+int tcpm_typec_error_recovery(struct tcpc_device *tcpc_dev)
+{
+	return tcpc_typec_error_recovery(tcpc_dev);
+}
+
 #ifdef CONFIG_USB_POWER_DELIVERY
 
 bool tcpm_inquire_pd_connected(
@@ -661,7 +666,10 @@ int tcpm_dpm_pd_error_recovery(struct tcpc_device *tcpc)
 		.event_id = TCP_DPM_EVT_ERROR_RECOVERY,
 	};
 
-	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
+	if (tcpm_put_tcp_dpm_event(tcpc, &tcp_event) != TCPM_SUCCESS)
+		tcpm_typec_error_recovery(tcpc);
+
+	return TCPM_SUCCESS;
 }
 
 int tcpm_dpm_vdm_discover_cable(

@@ -42,6 +42,8 @@ extern int tcpc_typec_handle_vsafe0v(struct tcpc_device *tcpc_dev);
 
 extern int tcpc_typec_set_rp_level(struct tcpc_device *tcpc_dev, uint8_t res);
 
+extern int tcpc_typec_error_recovery(struct tcpc_device *tcpc_dev);
+
 extern int tcpc_typec_change_role(
 	struct tcpc_device *tcpc_dev, uint8_t typec_role);
 

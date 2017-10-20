@@ -132,9 +132,18 @@ struct tcpc_desc {
 #define TCPC_REG_ALERT_RX_STATUS    (1<<2)
 #define TCPC_REG_ALERT_POWER_STATUS (1<<1)
 #define TCPC_REG_ALERT_CC_STATUS    (1<<0)
-#define TCPC_REG_ALERT_TX_COMPLETE  (TCPC_REG_ALERT_TX_SUCCESS | \
-		TCPC_REG_ALERT_TX_DISCARDED | \
-		TCPC_REG_ALERT_TX_FAILED)
+
+#define TCPC_REG_ALERT_RX_MASK	\
+	(TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF)
+
+#define TCPC_REG_ALERT_HRESET_SUCCESS	\
+	(TCPC_REG_ALERT_TX_SUCCESS | TCPC_REG_ALERT_TX_FAILED)
+
+#define TCPC_REG_ALERT_TX_MASK (TCPC_REG_ALERT_TX_SUCCESS | \
+	TCPC_REG_ALERT_TX_FAILED | TCPC_REG_ALERT_TX_DISCARDED)
+
+#define TCPC_REG_ALERT_TXRX_MASK	\
+	(TCPC_REG_ALERT_TX_MASK | TCPC_REG_ALERT_RX_MASK)
 
 /* TCPC Behavior Flags */
 #define TCPC_FLAGS_RETRY_CRC_DISCARD		(1<<0)
@@ -253,8 +262,20 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_5V		(5000)
 
 #define TCPC_LOW_POWER_MODE_RETRY	5
-#define TCPC_LEGACY_CABLE_CONFIRM	3
-#define TCPC_LEGACY_CABLE2_CONFIRM		3
+
+/*
+ * Confirm DUT is connected to legacy cable or not
+ *	after suupect_counter > this threshold (0 = always check)
+ */
+
+#define TCPC_LEGACY_CABLE_SUSPECT_THD	1
+
+/*
+ * Try another s/w workaround after retry_counter more than this value
+ * Try which soltuion first is determined by tcpc_flags
+ */
+
+#define TCPC_LEGACY_CABLE_RETRY_SOLUTION	2
 
 /*
  * tcpc device
@@ -323,11 +344,15 @@ struct tcpc_device {
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	uint8_t typec_legacy_cable;
+
+#if TCPC_LEGACY_CABLE_SUSPECT_THD
 	uint8_t typec_legacy_cable_suspect;
+#endif	/* TCPC_LEGACY_CABLE_SUSPECT_THD */
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE2
-	uint8_t typec_legacy_cable_once;
+	uint8_t typec_legacy_retry_wk;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE2 */
+
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 #ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
@@ -386,7 +411,6 @@ struct tcpc_device {
 	bool pd_hard_reset_event_pending;
 	bool pd_wait_hard_reset_complete;
 	bool pd_wait_pr_swap_complete;
-	bool pd_wait_error_recovery;
 	bool pd_ping_event_pending;
 	uint8_t pd_bist_mode;
 	uint8_t pd_transmit_state;

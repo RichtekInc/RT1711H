@@ -51,7 +51,7 @@ static const char *const pe_state_name[] = {
 	"PE_SRC_VDM_IDENTITY_REQUEST",
 	"PE_SRC_VDM_IDENTITY_ACKED",
 	"PE_SRC_VDM_IDENTITY_NAKED",
-#endif	/* PD_CAP_PE_SRC_STARTUP_DISCOVER_ID */
+#endif	/* CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID */
 #endif	/* CONFIG_USB_PD_PE_SOURCE */
 /******************* Sink *******************/
 #ifdef CONFIG_USB_PD_PE_SINK
@@ -432,8 +432,8 @@ void pe_error_recovery_entry(struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pe_idle_reset_data(pd_port);
 
-	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_IDLE);
 	pd_notify_pe_error_recovery(pd_port);
+	pd_try_put_pe_idle_event(pd_port);
 	pd_free_pd_event(pd_port, pd_event);
 }
 

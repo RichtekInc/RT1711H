@@ -175,7 +175,7 @@ static const char *const tcpc_timer_name[] = {
 	"TYPEC_RT_TIMER_SAFE0V_TOUT",
 	"TYPEC_RT_TIMER_ROLE_SWAP_START",
 	"TYPEC_RT_TIMER_ROLE_SWAP_STOP",
-	"TYPEC_RT_TIMER_LEGACY",
+	"TYPEC_RT_TIMER_STATE_CHANGE",
 	"TYPEC_RT_TIMER_NOT_LEGACY",
 	"TYPEC_RT_TIMER_LEGACY_STABLE",
 	"TYPEC_RT_TIMER_LEGACY_RECYCLE",
@@ -712,9 +712,9 @@ static enum hrtimer_restart tcpc_timer_rt_role_swap_stop(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static enum hrtimer_restart tcpc_timer_rt_legacy(struct hrtimer *timer)
+static enum hrtimer_restart tcpc_timer_rt_state_change(struct hrtimer *timer)
 {
-	int index = TYPEC_RT_TIMER_LEGACY;
+	int index = TYPEC_RT_TIMER_STATE_CHANGE;
 	struct tcpc_device *tcpc_dev =
 		container_of(timer, struct tcpc_device, tcpc_timer[index]);
 
@@ -827,7 +827,6 @@ static enum hrtimer_restart tcpc_timer_pddebounce(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-#ifdef CONFIG_USB_POWER_DELIVERY
 static enum hrtimer_restart tcpc_timer_error_recovery(struct hrtimer *timer)
 {
 	int index = TYPEC_TIMER_ERROR_RECOVERY;
@@ -837,8 +836,6 @@ static enum hrtimer_restart tcpc_timer_error_recovery(struct hrtimer *timer)
 	TCPC_TIMER_TRIGGER();
 	return HRTIMER_NORESTART;
 }
-
-#endif /* CONFIG_USB_POWER_DELIVERY */
 
 static enum hrtimer_restart tcpc_timer_wakeup(struct hrtimer *timer)
 {
@@ -901,7 +898,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	tcpc_timer_rt_vsafe0v_tout,
 	tcpc_timer_rt_role_swap_start,
 	tcpc_timer_rt_role_swap_stop,
-	tcpc_timer_rt_legacy,
+	tcpc_timer_rt_state_change,
 	tcpc_timer_rt_not_legacy,
 	tcpc_timer_rt_legacy_stable,
 	tcpc_timer_rt_legacy_recycle,
@@ -916,9 +913,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 /* TYPEC-DEBOUNCE-TIMER */
 	tcpc_timer_ccdebounce,
 	tcpc_timer_pddebounce,
-#ifdef CONFIG_USB_POWER_DELIVERY
 	tcpc_timer_error_recovery,
-#endif /* CONFIG_USB_POWER_DELIVERY */
 	tcpc_timer_wakeup,
 	tcpc_timer_drp_src_toggle,
 };

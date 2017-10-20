@@ -468,7 +468,6 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	sched_setscheduler(chip->irq_worker_task, SCHED_FIFO, &param);
 	init_kthread_work(&chip->irq_work, rt1711_irq_work_handler);
 
-	kfree(name);
 	enable_irq_wake(chip->irq);
 	return 0;
 init_alert_err:

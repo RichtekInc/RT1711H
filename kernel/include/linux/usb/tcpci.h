@@ -167,7 +167,7 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE2
 		if (tcpc->typec_legacy_cable == 2)
 			pull = TYPEC_CC_RP;
-		else if (tcpc->typec_legacy_cable_once > 1)
+		else if (tcpc->typec_legacy_retry_wk > 1)
 			pull = TYPEC_CC_RP_3_0;
 		else
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE2 */
@@ -602,6 +602,22 @@ static inline int tcpci_disable_force_discharge(
 }
 
 #ifdef CONFIG_USB_POWER_DELIVERY
+
+static inline int tcpci_notify_hard_reset_state(
+	struct tcpc_device *tcpc, uint8_t state)
+{
+	struct tcp_notify tcp_noti;
+
+	tcp_noti.hreset_state.state = state;
+
+	if (state >= TCP_HRESET_SIGNAL_SEND)
+		tcpc->pd_wait_hard_reset_complete = true;
+	else
+		tcpc->pd_wait_hard_reset_complete = false;
+
+	return srcu_notifier_call_chain(&tcpc->evt_nh,
+				TCP_NOTIFY_HARD_RESET_STATE, &tcp_noti);
+}
 
 static inline int tcpci_enter_mode(struct tcpc_device *tcpc,
 	uint16_t svid, uint8_t ops, uint32_t mode)
