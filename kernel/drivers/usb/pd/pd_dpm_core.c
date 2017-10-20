@@ -1082,7 +1082,11 @@ void pd_dpm_dfp_inform_id(struct pd_port *pd_port,
 		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_SVID;
 	}
 
-	svdm_dfp_inform_id(pd_port, pd_event, ack);
+	if (!pd_port->vdm_discard_retry_flag) {
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_ID;
+		svdm_dfp_inform_id(pd_port, pd_event, ack);
+	}
+
 	vdm_put_dpm_notified_event(pd_port);
 }
 
@@ -1139,7 +1143,11 @@ void pd_dpm_dfp_inform_svids(struct pd_port *pd_port,
 			return;
 	}
 
-	svdm_dfp_inform_svids(pd_port, ack);
+	if (!pd_port->vdm_discard_retry_flag) {
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_SVID;
+		svdm_dfp_inform_svids(pd_port, ack);
+	}
+
 	vdm_put_dpm_notified_event(pd_port);
 }
 
@@ -1857,7 +1865,6 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 
 #ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_ID
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_ID) {
-		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_ID;
 		if (pd_put_tcp_vdm_event(
 			pd_port, TCP_DPM_EVT_DISCOVER_ID))
 			return 1;
@@ -1866,7 +1873,6 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 
 #ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_SVID
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_SVID) {
-		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_SVID;
 		if (pd_put_tcp_vdm_event(
 			pd_port, TCP_DPM_EVT_DISCOVER_SVIDS))
 			return 1;

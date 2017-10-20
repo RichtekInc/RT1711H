@@ -810,6 +810,9 @@ struct pd_port {
 	uint8_t send_pr_swap_count;
 	uint8_t send_dr_swap_count;
 
+	bool vdm_discard_retry_flag;
+	uint8_t vdm_discard_retry_count;
+
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	uint8_t recv_hard_reset_count;
 #endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
@@ -1251,7 +1254,8 @@ static inline bool vdm_put_dpm_event(
 
 static inline bool vdm_put_dpm_notified_event(struct pd_port *pd_port)
 {
-	return vdm_put_dpm_event(pd_port, PD_DPM_NOTIFIED, NULL);
+	pd_port->dpm_ack_immediately = true;
+	return true;
 }
 
 static inline bool vdm_put_dpm_discover_cable_event(struct pd_port *pd_port)
@@ -1266,19 +1270,6 @@ static inline bool pd_put_hw_event(
 	struct pd_event evt = {
 		.event_type = PD_EVT_HW_MSG,
 		.msg = hw_event,
-		.pd_msg = NULL,
-	};
-
-	return pd_put_event(tcpc_dev, &evt, false);
-}
-
-static inline bool pd_put_cc_attached_event(
-		struct tcpc_device *tcpc_dev, uint8_t type)
-{
-	struct pd_event evt = {
-		.event_type = PD_EVT_HW_MSG,
-		.msg = PD_HW_CC_ATTACHED,
-		.msg_sec = type,
 		.pd_msg = NULL,
 	};
 

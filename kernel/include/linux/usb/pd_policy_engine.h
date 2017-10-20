@@ -162,6 +162,7 @@ enum pd_pe_state {
 	PE_DFP_VDM_MODE_EXIT_REQUEST,
 	PE_DFP_VDM_MODE_EXIT_ACKED,
 	PE_DFP_VDM_ATTENTION_REQUEST,
+	PE_DFP_VDM_UNKNOWN,
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 	PE_DFP_CBL_SEND_SOFT_RESET,
 	PE_DFP_CBL_SEND_CABLE_RESET,
@@ -490,6 +491,8 @@ void pe_dfp_vdm_mode_exit_request_entry(
 void pe_dfp_vdm_mode_exit_acked_entry(
 	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_attention_request_entry(
+	struct pd_port *pd_port, struct pd_event *pd_event);
+void pe_dfp_vdm_unknown_entry(
 	struct pd_port *pd_port, struct pd_event *pd_event);
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 void pe_dfp_cbl_send_soft_reset_entry(

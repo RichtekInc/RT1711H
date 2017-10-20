@@ -62,6 +62,7 @@ extern int tcpci_event_init(struct tcpc_device *tcpc_dev);
 extern int tcpci_event_deinit(struct tcpc_device *tcpc_dev);
 extern void pd_event_buf_reset(struct tcpc_device *tcpc_dev);
 
+bool pd_put_cc_attached_event(struct tcpc_device *tcpc_dev, uint8_t type);
 void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev);
 void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev);
 void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev);
@@ -172,7 +173,8 @@ enum pd_hw_msg_type {
 	PD_HW_VBUS_SAFE0V,
 	PD_HW_VBUS_STABLE,
 	PD_HW_TX_FAILED,	/* no good crc or discard */
-	PD_HW_RETRY_VDM,	/* discard vdm msg */
+	PD_HW_TX_DISCARD,	/* discard vdm msg */
+	PD_HW_RETRY_VDM,	/* discard vdm msg (retry) */
 	PD_HW_MSG_NR,
 };
 

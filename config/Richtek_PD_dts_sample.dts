@@ -83,8 +83,8 @@
 					//pin_assignment,mode_b;
 					pin_assignment,mode_c;
 					pin_assignment,mode_d;
-					//pin_assignment,mode_e;
-					//pin_assignment,mode_f;
+					pin_assignment,mode_e;
+					pin_assignment,mode_f;
 				};
 			};
 		};

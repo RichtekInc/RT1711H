@@ -269,7 +269,7 @@ static int tcpci_alert_ra_detach(struct tcpc_device *tcpc_dev)
 		TCPC_DBG("RA_DETACH\r\n");
 		if (tcpc_dev->typec_remote_cc[0] == TYPEC_CC_DRP_TOGGLING &&
 			tcpc_dev->typec_remote_cc[1] == TYPEC_CC_DRP_TOGGLING)
-			tcpc_typec_handle_ra_detach(tcpc_dev);
+			tcpc_typec_enter_lpm_again(tcpc_dev);
 	}
 
 	return 0;

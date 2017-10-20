@@ -55,6 +55,8 @@
 #define TCPC_TIMER_EN_DBG(format, args...)
 #endif /* TCPC_TIMER_INFO_EN */
 
+static inline void tcpc_clear_timer_tick(struct tcpc_device *tcpc, int nr);
+
 static inline uint64_t tcpc_get_timer_enable_mask(struct tcpc_device *tcpc)
 {
 	uint64_t data;
@@ -88,6 +90,11 @@ static inline void tcpc_clear_timer_enable_mask(
 	down(&tcpc->timer_enable_mask_lock);
 	raw_local_irq_save(flags);
 	tcpc->timer_enable_mask &= ~RT_MASK64(nr);
+
+	spin_lock(&tcpc->timer_tick_lock);
+	tcpc->timer_tick &= ~RT_MASK64(nr);
+	spin_unlock(&tcpc->timer_tick_lock);
+
 	raw_local_irq_restore(flags);
 	up(&tcpc->timer_enable_mask_lock);
 }
@@ -1032,16 +1039,19 @@ void tcpc_reset_typec_try_timer(struct tcpc_device *tcpc)
 
 static void tcpc_handle_timer_triggered(struct tcpc_device *tcpc_dev)
 {
+	uint64_t enable_mask;
 	uint64_t triggered_timer;
 	int i = 0;
 
 	triggered_timer = tcpc_get_timer_tick(tcpc_dev);
+	enable_mask = tcpc_get_timer_enable_mask(tcpc_dev);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	for (i = 0; i < PD_PE_TIMER_END_ID; i++) {
 		if (triggered_timer & RT_MASK64(i)) {
 			TCPC_TIMER_DBG(tcpc_dev, i);
-			on_pe_timer_timeout(tcpc_dev, i);
+			if (enable_mask & RT_MASK64(i))
+				on_pe_timer_timeout(tcpc_dev, i);
 			tcpc_clear_timer_tick(tcpc_dev, i);
 		}
 	}
@@ -1051,7 +1061,8 @@ static void tcpc_handle_timer_triggered(struct tcpc_device *tcpc_dev)
 	for (; i < PD_TIMER_NR; i++) {
 		if (triggered_timer & RT_MASK64(i)) {
 			TCPC_TIMER_DBG(tcpc_dev, i);
-			tcpc_typec_handle_timeout(tcpc_dev, i);
+			if (enable_mask & RT_MASK64(i))
+				tcpc_typec_handle_timeout(tcpc_dev, i);
 			tcpc_clear_timer_tick(tcpc_dev, i);
 		}
 	}

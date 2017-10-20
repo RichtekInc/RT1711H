@@ -191,6 +191,13 @@ void pe_dfp_vdm_attention_request_entry(
 	pd_free_pd_event(pd_port, pd_event);
 }
 
+void pe_dfp_vdm_unknown_entry(
+	struct pd_port *pd_port, struct pd_event *pd_event)
+{
+	pd_port->dpm_ack_immediately = true;
+	pd_free_pd_event(pd_port, pd_event);
+}
+
 /*
  * [PD2.0] Figure 8-83 DFP Cable Soft Reset or Cable Reset State Diagram
  */

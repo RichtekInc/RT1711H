@@ -2,6 +2,17 @@
 
 ## Changelog
 
+### v021
+- [DP] If the HPD state is already high after DP configuration, directly report HPD state to system
+- [DP] Handling Attention Command until Policy Engine is in the Ready/Idle State
+- [DP] DFP should re-send VDM command if it's discared by port partner
+- [TYPEC] Modify RaDetach/Wakeup flow
+- [TYPEC] Don't do DRP Toggling after Rd detect if VBUS not vsafe0v (new SPEC)
+- [TYPEC] Low Rp Duty for specical case (option).
+- [RT1711] Always enable wakeup watchdog. 
+- [RT1711] Wakelock during IRQ Task
+- [DUAL_ROLE] fixed mode operation for TYPEC_ONLY
+
 ### v020
 - [TCPM] HardReset Notifiy
 - [TYPEC] Implement Error Recovery

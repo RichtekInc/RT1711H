@@ -182,6 +182,41 @@ bool pd_put_event(struct tcpc_device *tcpc_dev, const struct pd_event *pd_event,
 
 /*----------------------------------------------------------------------------*/
 
+static inline void pd_get_attention_event(
+	struct tcpc_device *tcpc_dev, struct pd_event *pd_event)
+{
+	struct pd_event attention_evt = {
+		.event_type = PD_EVT_PD_MSG,
+		.msg = PD_DATA_VENDOR_DEF,
+		.pd_msg = NULL,
+	};
+
+	*pd_event = attention_evt;
+	pd_event->pd_msg = __pd_alloc_msg(tcpc_dev);
+
+	if (pd_event->pd_msg == NULL)
+		return;
+
+	tcpc_dev->pd_pending_vdm_attention = false;
+	*pd_event->pd_msg = tcpc_dev->pd_attention_vdm_msg;
+}
+
+static inline bool pd_check_vdm_state_ready(struct pd_port *pd_port)
+{
+	switch (pd_port->pe_vdm_state) {
+	case PE_SNK_READY:
+	case PE_SRC_READY:
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	case PE_DBG_READY:
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, struct pd_event *pd_event)
 {
 	struct pd_event delay_evt = {
@@ -196,7 +231,21 @@ bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, struct pd_event *pd_event)
 		.pd_msg = NULL,
 	};
 
+	struct pd_event discard_evt = {
+		.event_type = PD_EVT_HW_MSG,
+		.msg = PD_HW_TX_DISCARD,
+		.pd_msg = NULL,
+	};
+
 	struct pd_event *vdm_event = &tcpc_dev->pd_vdm_event;
+
+	if (tcpc_dev->pd_pending_vdm_discard) {
+		mutex_lock(&tcpc_dev->access_lock);
+		*pd_event = discard_evt;
+		tcpc_dev->pd_pending_vdm_discard = false;
+		mutex_unlock(&tcpc_dev->access_lock);
+		return true;
+	}
 
 	if (tcpc_dev->pd_pending_vdm_event) {
 		if (vdm_event->pd_msg && !tcpc_dev->pd_postpone_vdm_timeout)
@@ -218,10 +267,18 @@ bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, struct pd_event *pd_event)
 		return true;
 	}
 
+	if (tcpc_dev->pd_pending_vdm_attention
+		&& pd_check_vdm_state_ready(&tcpc_dev->pd_port)) {
+		mutex_lock(&tcpc_dev->access_lock);
+		pd_get_attention_event(tcpc_dev, pd_event);
+		mutex_unlock(&tcpc_dev->access_lock);
+		return true;
+	}
+
 	return false;
 }
 
-static inline void reset_pe_vdm_state(
+static inline bool reset_pe_vdm_state(
 		struct tcpc_device *tcpc_dev, uint32_t vdm_hdr)
 {
 	bool vdm_reset = false;
@@ -237,31 +294,65 @@ static inline void reset_pe_vdm_state(
 
 	if (vdm_reset)
 		tcpc_dev->pd_pending_vdm_reset = true;
+
+	return vdm_reset;
+}
+
+static inline bool pd_is_init_attention_event(
+	struct tcpc_device *tcpc_dev, struct pd_event *pd_event)
+{
+	uint32_t vdm_hdr = pd_event->pd_msg->payload[0];
+
+	if ((PD_VDO_CMDT(vdm_hdr) == CMDT_INIT) &&
+			PD_VDO_CMD(vdm_hdr) == CMD_ATTENTION) {
+		return true;
+	}
+
+	return false;
 }
 
 bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
 		struct pd_event *pd_event, bool from_port_partner)
 {
+	bool ignore_evt = false;
 	struct pd_msg *pd_msg = pd_event->pd_msg;
 
 	mutex_lock(&tcpc_dev->access_lock);
 
-	if (tcpc_dev->pd_pending_vdm_event) {
+	if (from_port_partner &&
+		pd_is_init_attention_event(tcpc_dev, pd_event)) {
+		TCPC_DBG("AttEvt\r\n");
+		ignore_evt = true;
+		tcpc_dev->pd_pending_vdm_attention = true;
+		tcpc_dev->pd_attention_vdm_msg = *pd_msg;
+
+		/* do not really wake up process*/
+		atomic_inc(&tcpc_dev->pending_event);
+		wake_up_interruptible(&tcpc_dev->event_loop_wait_que);
+	}
+
+	if (tcpc_dev->pd_pending_vdm_event && (!ignore_evt)) {
 		/* If message from port partner, we have to overwrite it */
+		/* If message from TCPM, we will reset_vdm later */
+		ignore_evt = !from_port_partner;
 
 		if (from_port_partner) {
-			if (pd_event_msg_match(&tcpc_dev->pd_vdm_event,
-					PD_EVT_CTRL_MSG, PD_CTRL_GOOD_CRC)) {
+			if (pd_event_msg_match(
+					&tcpc_dev->pd_vdm_event,
+					PD_EVT_CTRL_MSG,
+					PD_CTRL_GOOD_CRC)) {
 				TCPC_DBG2("PostponeVDM GoodCRC\r\n");
 				tcpc_dev->pd_pending_vdm_good_crc = true;
 			}
 
 			__pd_free_event(tcpc_dev, &tcpc_dev->pd_vdm_event);
-		} else {
-			__pd_free_event(tcpc_dev, pd_event);
-			mutex_unlock(&tcpc_dev->access_lock);
-			return false;
 		}
+	}
+
+	if (ignore_evt) {
+		__pd_free_event(tcpc_dev, pd_event);
+		mutex_unlock(&tcpc_dev->access_lock);
+		return false;
 	}
 
 	tcpc_dev->pd_vdm_event = *pd_event;
@@ -296,6 +387,16 @@ bool pd_put_last_vdm_event(struct tcpc_device *tcpc_dev)
 
 	mutex_lock(&tcpc_dev->access_lock);
 
+	tcpc_dev->pd_pending_vdm_discard = true;
+	atomic_inc(&tcpc_dev->pending_event); /* do not really wake up process*/
+	wake_up_interruptible(&tcpc_dev->event_loop_wait_que);
+
+	/* If the last VDM event isn't INIT event, don't put it again */
+	if (!reset_pe_vdm_state(tcpc_dev, pd_msg->payload[0])) {
+		mutex_unlock(&tcpc_dev->access_lock);
+		return true;
+	}
+
 	vdm_event->event_type = PD_EVT_HW_MSG;
 	vdm_event->msg = PD_HW_RETRY_VDM;
 
@@ -314,11 +415,7 @@ bool pd_put_last_vdm_event(struct tcpc_device *tcpc_dev)
 	tcpc_dev->pd_postpone_vdm_timeout = true;
 
 #ifdef CONFIG_USB_PD_POSTPONE_RETRY_VDM
-	reset_pe_vdm_state(tcpc_dev, pd_msg->payload[0]);
 	postpone_vdm_event(tcpc_dev);
-#else
-	atomic_inc(&tcpc_dev->pending_event); /* do not really wake up process*/
-	wake_up_interruptible(&tcpc_dev->event_loop_wait_que);
 #endif	/* CONFIG_USB_PD_POSTPONE_RETRY_VDM */
 
 	mutex_unlock(&tcpc_dev->access_lock);
@@ -391,6 +488,11 @@ bool pd_put_deferred_tcp_event(
 		return false;
 	}
 
+	if (tcpc_dev->pd_wait_hard_reset_complete) {
+		PD_ERR("pd_put_tcp_event failed2\r\n");
+		return false;
+	}
+
 	mutex_lock(&tcpc_dev->access_lock);
 	ret = __pd_put_deferred_tcp_event(tcpc_dev, tcp_event);
 	mutex_unlock(&tcpc_dev->access_lock);
@@ -407,7 +509,8 @@ void pd_notify_tcp_vdm_event_2nd_result(struct pd_port *pd_port, bool ack)
 	if (pd_port->tcp_event_id_2nd  == TCP_DPM_EVT_UNKONW)
 		return;
 
-	if (pd_port->tcp_event_id_2nd < TCP_DPM_EVT_VDM_COMMAND)
+	if (pd_port->tcp_event_id_2nd < TCP_DPM_EVT_VDM_COMMAND ||
+		pd_port->tcp_event_id_2nd >= TCP_DPM_EVT_IMMEDIATELY)
 		return;
 
 	if (tcp_event->event_cb != NULL) {
@@ -430,14 +533,14 @@ void pd_notify_tcp_event_2nd_result(struct pd_port *pd_port, int ret)
 	switch (ret) {
 	case TCP_DPM_RET_DROP_SENT_SRESET:
 		if (pd_port->tcp_event_id_2nd == TCP_DPM_EVT_SOFTRESET
-				&& pd_port->tcp_event_drop_reset_once) {
+			&& pd_port->tcp_event_drop_reset_once) {
 			pd_port->tcp_event_drop_reset_once = false;
 			return;
 		}
 		break;
 	case TCP_DPM_RET_DROP_SENT_HRESET:
 		if (pd_port->tcp_event_id_2nd == TCP_DPM_EVT_HARD_RESET
-				&& pd_port->tcp_event_drop_reset_once) {
+			&& pd_port->tcp_event_drop_reset_once) {
 			pd_port->tcp_event_drop_reset_once = false;
 			return;
 		}
@@ -452,7 +555,7 @@ void pd_notify_tcp_event_2nd_result(struct pd_port *pd_port, int ret)
 	}
 
 	TCPC_DBG2("tcp_event_2nd:evt%d=%d\r\n",
-			pd_port->tcp_event_id_2nd, ret);
+		pd_port->tcp_event_id_2nd, ret);
 
 	if (tcp_event->event_cb != NULL)
 		tcp_event->event_cb(pd_port->tcpc_dev, ret, tcp_event);
@@ -470,7 +573,7 @@ void pd_notify_tcp_event_1st_result(struct pd_port *pd_port, int ret)
 		return;
 
 	TCPC_DBG2("tcp_event_1st:evt%d=%d\r\n",
-			pd_port->tcp_event_id_1st, ret);
+		pd_port->tcp_event_id_1st, ret);
 
 #ifdef CONFIG_USB_PD_TCPM_CB_2ND
 	if (ret == TCP_DPM_RET_SENT) {
@@ -526,6 +629,8 @@ static void __pd_event_buf_reset(struct tcpc_device *tcpc_dev, uint8_t reason)
 
 	tcpc_dev->pd_pending_vdm_reset = false;
 	tcpc_dev->pd_pending_vdm_good_crc = false;
+	tcpc_dev->pd_pending_vdm_attention = false;
+	tcpc_dev->pd_pending_vdm_discard = false;
 
 	__tcp_event_buf_reset(tcpc_dev, reason);
 	/* PD_BUG_ON(tcpc_dev->pd_msg_buffer_allocated != 0); */
@@ -557,19 +662,47 @@ static inline bool __pd_put_pe_event(
 	return __pd_put_event(tcpc_dev, &evt, false);
 }
 
+bool pd_put_cc_attached_event(
+		struct tcpc_device *tcpc_dev, uint8_t type)
+{
+	struct pd_event evt = {
+		.event_type = PD_EVT_HW_MSG,
+		.msg = PD_HW_CC_ATTACHED,
+		.msg_sec = type,
+		.pd_msg = NULL,
+	};
+
+	switch (tcpc_dev->typec_attach_new) {
+	case TYPEC_ATTACHED_SNK:
+	case TYPEC_ATTACHED_SRC:
+		tcpc_dev->pd_pe_running = true;
+		tcpc_dev->pd_wait_pe_idle = false;
+		break;
+#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK
+	case TYPEC_ATTACHED_DBGACC_SNK:
+		tcpc_dev->pd_pe_running = true;
+		tcpc_dev->pd_wait_pe_idle = false;
+		break;
+#endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
+	default:
+		break;
+	}
+
+	return pd_put_event(tcpc_dev, &evt, false);
+}
+
 void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev)
 {
 	mutex_lock(&tcpc_dev->access_lock);
 
-	if (tcpc_dev->pd_wait_hard_reset_complete) {
-		tcpci_notify_hard_reset_state(
-			tcpc_dev, TCP_HRESET_RESULT_FAIL);
-	}
+	tcpci_notify_hard_reset_state(
+		tcpc_dev, TCP_HRESET_RESULT_FAIL);
 
 	__pd_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_CC_DETACH);
 	__pd_put_hw_event(tcpc_dev, PD_HW_CC_DETACHED);
 
 	tcpc_dev->pd_wait_pe_idle = true;
+	tcpc_dev->pd_pe_running = false;
 	tcpc_dev->pd_wait_pr_swap_complete = false;
 	tcpc_dev->pd_hard_reset_event_pending = false;
 	tcpc_dev->pd_wait_vbus_once = PD_WAIT_VBUS_DISABLE;
@@ -620,13 +753,15 @@ void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev)
 void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev)
 {
 	mutex_lock(&tcpc_dev->access_lock);
-	if (tcpc_dev->pd_wait_hard_reset_complete) {
-		tcpc_dev->pd_transmit_state = PD_TX_STATE_GOOD_CRC;
-		__pd_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_SENT_HRESET);
-		__pd_put_pe_event(tcpc_dev, PD_PE_HARD_RESET_COMPLETED);
-	}
 
-	TCPC_DBG2("[HReset] Unattached\r\n");
+	if (tcpc_dev->pd_wait_hard_reset_complete)
+		__pd_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_SENT_HRESET);
+	else
+		TCPC_DBG2("[HReset] Unattached\r\n");
+
+	tcpc_dev->pd_transmit_state = PD_TX_STATE_GOOD_CRC;
+	__pd_put_pe_event(tcpc_dev, PD_PE_HARD_RESET_COMPLETED);
+
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
@@ -817,10 +952,10 @@ void pd_notify_pe_idle(struct pd_port *pd_port)
 	mutex_lock(&tcpc_dev->access_lock);
 	if (tcpc_dev->pd_wait_pe_idle) {
 		notify_pe_idle = true;
-		tcpc_dev->pd_pe_running = false;
 		tcpc_dev->pd_wait_pe_idle = false;
 	}
 
+	tcpc_dev->pd_pe_running = false;
 	mutex_unlock(&tcpc_dev->access_lock);
 
 	pd_update_connect_state(pd_port, PD_CONNECT_NONE);
@@ -868,10 +1003,8 @@ void pd_notify_pe_error_recovery(struct pd_port *pd_port)
 
 	mutex_lock(&tcpc_dev->access_lock);
 
-	if (tcpc_dev->pd_wait_hard_reset_complete) {
-		tcpci_notify_hard_reset_state(
-			tcpc_dev, TCP_HRESET_RESULT_FAIL);
-	}
+	tcpci_notify_hard_reset_state(
+		tcpc_dev, TCP_HRESET_RESULT_FAIL);
 
 	tcpc_dev->pd_wait_pr_swap_complete = false;
 	__tcp_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_ERROR_REOCVERY);
@@ -920,10 +1053,8 @@ void pd_notify_pe_hard_reset_completed(struct pd_port *pd_port)
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
 	mutex_lock(&tcpc_dev->access_lock);
-	if (!tcpc_dev->pd_wait_hard_reset_complete) {
-		tcpci_notify_hard_reset_state(
-			tcpc_dev, TCP_HRESET_RESULT_DONE);
-	}
+	tcpci_notify_hard_reset_state(
+		tcpc_dev, TCP_HRESET_RESULT_DONE);
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
@@ -933,10 +1064,7 @@ void pd_notify_pe_send_hard_reset(struct pd_port *pd_port)
 
 	mutex_lock(&tcpc_dev->access_lock);
 	tcpc_dev->pd_transmit_state = PD_TX_STATE_WAIT_HARD_RESET;
-	tcpc_dev->pd_wait_hard_reset_complete = true;
-
-	tcpci_notify_hard_reset_state(
-		tcpc_dev, TCP_HRESET_SIGNAL_SEND);
+	tcpci_notify_hard_reset_state(tcpc_dev, TCP_HRESET_SIGNAL_SEND);
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
@@ -961,6 +1089,11 @@ void pd_notify_pe_cancel_pr_swap(struct pd_port *pd_port)
 	mutex_lock(&tcpc_dev->access_lock);
 	tcpc_dev->pd_wait_pr_swap_complete = false;
 	mutex_unlock(&tcpc_dev->access_lock);
+
+	/*
+	 *	CC_Alert was ignored if pd_wait_pr_swap_complete = true
+	 *	So enable PDDebounce to detect CC_Again after cancel_pr_swap.
+	 */
 
 	tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
 

@@ -155,6 +155,7 @@ static const char *const pe_state_name[] = {
 	"PE_DFP_VDM_MODE_EXIT_REQUEST",
 	"PE_DFP_VDM_MODE_EXIT_ACKED",
 	"PE_DFP_VDM_ATTENTION_REQUEST",
+	"PE_DFP_VDM_UNKNOWN",
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 	"PE_DFP_CBL_SEND_SOFT_RESET",
 	"PE_DFP_CBL_SEND_CABLE_RESET",
@@ -334,6 +335,7 @@ static const char *const pe_state_name[] = {
 	"D_MODE_EX_REQ",
 	"D_MODE_EX_ACK",
 	"D_ATTENTION",
+	"D_UNKNOWN",
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 	"D_C_SRESET",
 	"D_C_CRESET",
@@ -633,6 +635,7 @@ static const struct pe_state_actions pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_dfp_vdm_mode_exit_request),
 	PE_STATE_ACTIONS(pe_dfp_vdm_mode_exit_acked),
 	PE_STATE_ACTIONS(pe_dfp_vdm_attention_request),
+	PE_STATE_ACTIONS(pe_dfp_vdm_unknown),
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 	PE_STATE_ACTIONS(pe_dfp_cbl_send_soft_reset),
 	PE_STATE_ACTIONS(pe_dfp_cbl_send_cable_reset),
@@ -834,7 +837,8 @@ static int pd_handle_event(
 	struct pd_port *pd_port, struct pd_event *pd_event, bool vdm_evt)
 {
 	if (vdm_evt) {
-		if (pd_port->reset_vdm_state) {
+		if (pd_port->reset_vdm_state &&
+			(!pd_port->dpm_ack_immediately)) {
 			pd_port->reset_vdm_state = false;
 			pd_port->pe_vdm_state = pd_port->pe_pd_state;
 		}

@@ -121,6 +121,7 @@ static const char *const pd_hw_msg_name[] = {
 	"vbus_0v",
 	"vbus_stable",
 	"tx_err",
+	"discard",
 	"retry_vdm",
 };
 
@@ -1113,6 +1114,7 @@ static inline bool pe_exit_idle_state(
 	pd_port->get_src_cap_count = 0;
 	pd_port->send_pr_swap_count = 0;
 	pd_port->send_dr_swap_count = 0;
+	pd_port->vdm_discard_retry_count = 0;
 
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	pd_port->recv_hard_reset_count = 0;

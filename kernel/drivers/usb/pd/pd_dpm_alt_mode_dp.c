@@ -111,6 +111,31 @@ bool dp_dfp_u_notify_pe_startup(
 	return true;
 }
 
+static inline bool dp_dfp_u_discover_modes(struct pd_port *pd_port)
+{
+	pd_port->mode_svid = USB_SID_DISPLAYPORT;
+	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DISCOVER_MODES);
+	return true;
+}
+
+static inline bool dp_dfp_u_enter_mode(struct pd_port *pd_port)
+{
+	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_ENTER_MODE);
+	return true;
+}
+
+static inline bool dp_dfp_u_status_update(struct pd_port *pd_port)
+{
+	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DP_STATUS_UPDATE);
+	return true;
+}
+
+static inline bool dp_dfp_u_configuration(struct pd_port *pd_port)
+{
+	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DP_CONFIG);
+	return true;
+}
+
 int dp_dfp_u_notify_pe_ready(struct pd_port *pd_port,
 	struct svdm_svid_data *svid_data, struct pd_event *pd_event)
 {
@@ -121,9 +146,7 @@ int dp_dfp_u_notify_pe_ready(struct pd_port *pd_port,
 		return 0;
 
 	/* Check Cable later */
-	pd_port->mode_svid = USB_SID_DISPLAYPORT;
-	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DISCOVER_MODES);
-	return 1;
+	return dp_dfp_u_discover_modes(pd_port);
 }
 
 bool dp_notify_pe_shutdown(
@@ -377,6 +400,9 @@ bool dp_dfp_u_notify_discover_modes(
 	if (pd_port->dp_dfp_u_state != DP_DFP_U_DISCOVER_MODES)
 		return false;
 
+	if (pd_port->vdm_discard_retry_flag)
+		return dp_dfp_u_discover_modes(pd_port);
+
 	if (!ack) {
 		dp_dfp_u_set_state(pd_port,
 			DP_DFP_U_ERR_DISCOVER_MODE_NAK_TIMEROUT);
@@ -397,8 +423,7 @@ bool dp_dfp_u_notify_discover_modes(
 	}
 
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_ENTER_MODE);
-	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_ENTER_MODE);
-	return true;
+	return dp_dfp_u_enter_mode(pd_port);
 }
 
 bool dp_dfp_u_notify_enter_mode(struct pd_port *pd_port,
@@ -406,6 +431,9 @@ bool dp_dfp_u_notify_enter_mode(struct pd_port *pd_port,
 {
 	if (pd_port->dp_dfp_u_state != DP_DFP_U_ENTER_MODE)
 		return true;
+
+	if (pd_port->vdm_discard_retry_flag)
+		return dp_dfp_u_enter_mode(pd_port);
 
 	if (!ack) {
 		dp_dfp_u_set_state(pd_port,
@@ -433,7 +461,7 @@ bool dp_dfp_u_notify_enter_mode(struct pd_port *pd_port,
 	* tcpm_dpm_dp_status_update(tcpc, 0, 0, NULL)
 	*/
 
-	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DP_STATUS_UPDATE);
+	dp_dfp_u_status_update(pd_port);
 #endif	/* CONFIG_USB_PD_DBG_DP_DFP_D_AUTO_UPDATE */
 
 	return true;
@@ -537,7 +565,7 @@ void dp_dfp_u_request_dp_configuration(
 	tcpci_dp_notify_config_start(pd_port->tcpc_dev);
 
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_CONFIGURE);
-	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DP_CONFIG);
+	dp_dfp_u_configuration(pd_port);
 }
 
 static inline bool dp_dfp_u_update_dp_connected(
@@ -569,12 +597,10 @@ static inline bool dp_dfp_u_update_dp_connected(
 		dp_update_dp_connected_both(pd_port,
 				dp_connected, dp_local_connected);
 
-		if (pd_port->dp_dfp_u_state == DP_DFP_U_STATUS_UPDATE) {
-			pd_put_tcp_vdm_event(pd_port,
-				TCP_DPM_EVT_DP_STATUS_UPDATE);
-		} else {
+		if (pd_port->dp_dfp_u_state == DP_DFP_U_STATUS_UPDATE)
+			dp_dfp_u_status_update(pd_port);
+		else
 			valid_connected = true;
-		}
 		break;
 	}
 
@@ -598,6 +624,11 @@ bool dp_dfp_u_notify_dp_status_update(
 
 	default:
 		return false;
+	}
+
+	if (pd_port->vdm_discard_retry_flag && (!oper_mode)) {
+		DP_INFO("RetryUpdate\r\n");
+		return dp_dfp_u_status_update(pd_port);
 	}
 
 	if (!ack) {
@@ -632,8 +663,14 @@ bool dp_dfp_u_notify_dp_status_update(
 bool dp_dfp_u_notify_dp_configuration(
 	struct pd_port *pd_port, struct pd_event *pd_event, bool ack)
 {
+	uint8_t dp_status;
 	const uint32_t local_cfg = pd_port->local_dp_config;
 	const uint32_t remote_cfg = pd_port->remote_dp_config;
+
+	if (pd_port->vdm_discard_retry_flag) {
+		DP_INFO("RetryConfig\r\n");
+		return dp_dfp_u_configuration(pd_port);
+	}
 
 	if (ack)
 		dp_dfp_u_set_state(pd_port, DP_DFP_U_OPERATION);
@@ -642,6 +679,15 @@ bool dp_dfp_u_notify_dp_configuration(
 
 	tcpci_dp_notify_config_done(
 		pd_port->tcpc_dev, local_cfg, remote_cfg, ack);
+
+	/*
+	 * For compliance, Policy Engine should not expect to
+	 * always receive a Attention if original HPD state = High
+	 */
+
+	dp_status = pd_port->dp_ufp_u_attention;
+	if (ack && PD_VDO_DPSTS_HPD_LVL(dp_status))
+		tcpci_report_hpd_state(pd_port->tcpc_dev, dp_status);
 
 	return true;
 }
@@ -899,18 +945,20 @@ void pd_dpm_dfp_send_dp_status_update(
 void pd_dpm_dfp_inform_dp_status_update(
 	struct pd_port *pd_port, struct pd_event *pd_event, bool ack)
 {
+	pd_port->dpm_ack_immediately = true;
 	dp_dfp_u_notify_dp_status_update(pd_port, pd_event, ack);
 }
 
 void pd_dpm_dfp_send_dp_configuration(
-		struct pd_port *pd_port, struct pd_event *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
+	pd_port->dpm_ack_immediately = true;
 	pd_send_vdm_dp_config(pd_port, TCPC_TX_SOP,
 		pd_port->mode_obj_pos, 1, &pd_port->remote_dp_config);
 }
 
-void pd_dpm_dfp_inform_dp_configuration(struct pd_port *pd_port,
-					struct pd_event *pd_event, bool ack)
+void pd_dpm_dfp_inform_dp_configuration(
+	struct pd_port *pd_port, struct pd_event *pd_event, bool ack)
 {
 	dp_dfp_u_notify_dp_configuration(pd_port, pd_event, ack);
 }

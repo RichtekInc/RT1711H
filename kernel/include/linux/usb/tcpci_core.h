@@ -204,6 +204,7 @@ struct tcpc_ops {
 	int (*get_cc)(struct tcpc_device *tcpc, int *cc1, int *cc2);
 	int (*set_cc)(struct tcpc_device *tcpc, int pull);
 	int (*set_polarity)(struct tcpc_device *tcpc, int polarity);
+	int (*set_low_rp_duty)(struct tcpc_device *tcpc, bool low_rp);
 	int (*set_vconn)(struct tcpc_device *tcpc, int enable);
 	int (*deinit)(struct tcpc_device *tcpc);
 
@@ -394,9 +395,12 @@ struct tcpc_device {
 	bool pd_pending_vdm_event;
 	bool pd_pending_vdm_reset;
 	bool pd_pending_vdm_good_crc;
+	bool pd_pending_vdm_discard;
+	bool pd_pending_vdm_attention;
 	bool pd_postpone_vdm_timeout;
 
 	struct pd_msg pd_last_vdm_msg;
+	struct pd_msg pd_attention_vdm_msg;
 	struct pd_event pd_vdm_event;
 
 	struct pd_msg pd_msg_buffer[PD_MSG_BUF_SIZE];

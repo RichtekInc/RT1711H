@@ -26,7 +26,7 @@ struct tcpc_device;
  * 3. Policy Engine -> PR_SWAP, Error_Recovery, PE_Idle
  *****************************************************************************/
 
-extern int tcpc_typec_handle_ra_detach(
+extern int tcpc_typec_enter_lpm_again(
 	struct tcpc_device *tcpc_dev);
 
 extern int tcpc_typec_handle_cc_change(

@@ -44,7 +44,9 @@
 
 /* #define DEBUG_GPIO	66 */
 
-#define RT1711H_DRV_VERSION	"1.2.0_G"
+#define RT1711H_DRV_VERSION	"1.2.1_G"
+
+#define RT1711H_IRQ_WAKE_TIME	(500) /* ms */
 
 struct rt1711_chip {
 	struct i2c_client *client;
@@ -59,6 +61,7 @@ struct rt1711_chip {
 	struct kthread_worker irq_worker;
 	struct kthread_work irq_work;
 	struct task_struct *irq_worker_task;
+	struct wake_lock irq_wake_lock;
 
 	atomic_t poll_count;
 	struct delayed_work	poll_work;
@@ -529,6 +532,8 @@ static irqreturn_t rt1711_intr_handler(int irq, void *data)
 {
 	struct rt1711_chip *chip = data;
 
+	wake_lock_timeout(&chip->irq_wake_lock, RT1711H_IRQ_WAKE_TIME);
+
 #ifdef DEBUG_GPIO
 	gpio_set_value(DEBUG_GPIO, 0);
 #endif
@@ -959,6 +964,13 @@ static int rt1711_set_polarity(struct tcpc_device *tcpc, int polarity)
 	return rt1711_i2c_write8(tcpc, TCPC_V10_REG_TCPC_CTRL, data);
 }
 
+static int rt1711_set_low_rp_duty(struct tcpc_device *tcpc_dev, bool low_rp)
+{
+	uint16_t duty = low_rp ? 50 : 400;
+
+	return rt1711_i2c_write16(tcpc_dev, RT1711H_REG_DRP_DUTY_CTRL, duty);
+}
+
 static int rt1711_set_vconn(struct tcpc_device *tcpc, int enable)
 {
 	int rv;
@@ -1096,7 +1108,7 @@ static int rt1711_get_message(struct tcpc_device *tcpc, uint32_t *payload,
 	*msg_head = *(uint16_t *)&buf[2];
 
 	/* TCPC 1.0 ==> no need to subtract the size of msg_head */
-	if (rv >= 0 && cnt > 0) {
+	if (rv >= 0 && cnt > 3) {
 		cnt -= 3; /* MSG_HDR */
 		rv = rt1711_block_read(chip->client, TCPC_V10_REG_RX_DATA, cnt,
 				(uint8_t *) payload);
@@ -1183,6 +1195,7 @@ static struct tcpc_ops rt1711_tcpc_ops = {
 	.get_cc = rt1711_get_cc,
 	.set_cc = rt1711_set_cc,
 	.set_polarity = rt1711_set_polarity,
+	.set_low_rp_duty = rt1711_set_low_rp_duty,
 	.set_vconn = rt1711_set_vconn,
 	.deinit = rt1711_tcpc_deinit,
 
@@ -1346,20 +1359,15 @@ static int rt1711_tcpcdev_init(struct rt1711_chip *chip, struct device *dev)
 	if (IS_ERR(chip->tcpc))
 		return -EINVAL;
 
-	if (chip->chip_id <= RT1711H_DID_B) {
-		chip->tcpc->tcpc_flags =
-			TCPC_FLAGS_WAIT_HRESET_COMPLETE |
-			TCPC_FLAGS_LPM_WAKEUP_WATCHDOG;
-	} else {
-		chip->tcpc->tcpc_flags =
-			TCPC_FLAGS_WAIT_HRESET_COMPLETE |
-			TCPC_FLAGS_CHECK_RA_DETACHE;
-	}
+	chip->tcpc->tcpc_flags = TCPC_FLAGS_LPM_WAKEUP_WATCHDOG;
+
+	if (chip->chip_id > RT1711H_DID_B)
+		chip->tcpc->tcpc_flags |= TCPC_FLAGS_CHECK_RA_DETACHE;
 
 #ifdef CONFIG_USB_PD_RETRY_CRC_DISCARD
 	if (chip->chip_id > RT1715_DID_D)
 		chip->tcpc->tcpc_flags |= TCPC_FLAGS_RETRY_CRC_DISCARD;
-#endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
+#endif  /* CONFIG_USB_PD_RETRY_CRC_DISCARD */
 
 	return 0;
 }
@@ -1448,6 +1456,8 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 	sema_init(&chip->suspend_lock, 1);
 	i2c_set_clientdata(client, chip);
 	INIT_DELAYED_WORK(&chip->poll_work, rt1711_poll_work);
+	wake_lock_init(&chip->irq_wake_lock, WAKE_LOCK_SUSPEND,
+		"rt1711h_irq_wakelock");
 
 	chip->chip_id = chip_id;
 	pr_info("rt1711h_chipID = 0x%0x\n", chip_id);
@@ -1539,6 +1549,7 @@ static void rt1711_shutdown(struct i2c_client *client)
 	}
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int rt1711_pm_suspend_runtime(struct device *device)
 {
 	dev_dbg(device, "pm_runtime: suspending...\n");
@@ -1550,7 +1561,7 @@ static int rt1711_pm_resume_runtime(struct device *device)
 	dev_dbg(device, "pm_runtime: resuming...\n");
 	return 0;
 }
-
+#endif /* #ifdef CONFIG_PM_RUNTIME */
 
 static const struct dev_pm_ops rt1711_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(

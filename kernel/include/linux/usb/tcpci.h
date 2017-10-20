@@ -206,6 +206,19 @@ static inline int tcpci_set_vconn(struct tcpc_device *tcpc, int enable)
 #endif	/* CONFIG_TCPC_SOURCE_VCONN */
 }
 
+static inline int tcpci_set_low_rp_duty(struct tcpc_device *tcpc, bool low_rp)
+{
+#ifdef CONFIG_TYPEC_CAP_LOW_RP_DUTY
+	if (low_rp)
+		TCPC_INFO("low_rp_duty\r\n");
+
+	if (tcpc->ops->set_low_rp_duty)
+		return tcpc->ops->set_low_rp_duty(tcpc, low_rp);
+#endif	/* CONFIG_TYPEC_CAP_LOW_RP_DUTY */
+
+	return 0;
+}
+
 static inline int tcpci_is_low_power_mode(struct tcpc_device *tcpc)
 {
 	int rv = 1;
@@ -612,8 +625,10 @@ static inline int tcpci_notify_hard_reset_state(
 
 	if (state >= TCP_HRESET_SIGNAL_SEND)
 		tcpc->pd_wait_hard_reset_complete = true;
-	else
+	else if (tcpc->pd_wait_hard_reset_complete)
 		tcpc->pd_wait_hard_reset_complete = false;
+	else
+		return 0;
 
 	return srcu_notifier_call_chain(&tcpc->evt_nh,
 				TCP_NOTIFY_HARD_RESET_STATE, &tcp_noti);
@@ -656,6 +671,10 @@ static inline int tcpci_report_hpd_state(
 		tcp_noti.ama_dp_hpd_state.irq = PD_VDO_DPSTS_HPD_IRQ(dp_status);
 		tcp_noti.ama_dp_hpd_state.state =
 					PD_VDO_DPSTS_HPD_LVL(dp_status);
+
+		DP_INFO("+++ hpd_state: %d +++\r\n\r\n",
+			tcp_noti.ama_dp_hpd_state.state);
+
 		srcu_notifier_call_chain(&tcpc->evt_nh,
 			TCP_NOTIFY_AMA_DP_HPD_STATE, &tcp_noti);
 	}
