@@ -53,7 +53,7 @@ extern struct tcpc_device *tcpc_device_register(
 extern void tcpc_device_unregister(
 			struct device *dev, struct tcpc_device *tcpc);
 
-extern int tcpc_device_irq_enable(struct tcpc_device *tcpc);
+extern int tcpc_schedule_init_work(struct tcpc_device *tcpc);
 
 extern void *tcpc_get_dev_data(struct tcpc_device *tcpc);
 extern void tcpci_lock_typec(struct tcpc_device *tcpc);
@@ -118,12 +118,12 @@ static inline int tcpci_get_power_status(
     return tcpc->ops->get_power_status(tcpc, pw_status);
 }
 
-static inline int tcpci_init(struct tcpc_device *tcpc)
+static inline int tcpci_init(struct tcpc_device *tcpc, bool sw_reset)
 {
 	int ret;
 	uint16_t power_status;
 
-	ret = tcpc->ops->init(tcpc);
+	ret = tcpc->ops->init(tcpc, sw_reset);
 	if (ret)
 		return ret;
 

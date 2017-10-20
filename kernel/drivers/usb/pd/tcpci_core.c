@@ -17,8 +17,9 @@
 #include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+
 #include <linux/usb/tcpci.h>
-#include <linux/usb/pd_core.h>
+
 #ifdef CONFIG_USB_POWER_DELIVERY
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
@@ -296,6 +297,7 @@ static void tcpc_device_release(struct device *dev)
 	devm_kfree(dev, tcpc_dev);
 }
 
+static void tcpc_init_work(struct work_struct *work);
 
 struct tcpc_device *tcpc_device_register(struct device *parent,
 	struct tcpc_desc *tcpc_desc, struct tcpc_ops *ops, void *drv_data)
@@ -326,9 +328,10 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 		kfree(tcpc);
 		return ERR_PTR(ret);
 	}
-
+	
 	srcu_init_notifier_head(&tcpc->evt_nh);
-
+	INIT_DELAYED_WORK(&tcpc->init_work, tcpc_init_work);
+	
 	mutex_init(&tcpc->access_lock);
 	mutex_init(&tcpc->typec_lock);
 	mutex_init(&tcpc->timer_lock);
@@ -356,19 +359,77 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 }
 EXPORT_SYMBOL(tcpc_device_register);
 
+static int tcpc_device_irq_enable(struct tcpc_device *tcpc)
+{
+	int ret;
+	if (!tcpc->ops->init) {
+		pr_err("%s Please implment tcpc ops init function\n",
+		__func__);
+		return -EINVAL;
+	}
+
+	ret = tcpc->ops->init(tcpc, false);
+	if (ret < 0) {
+		pr_err("%s tcpc init fail\n", __func__);
+		return ret;
+	}
+
+	ret = tcpc_typec_init(tcpc, tcpc->desc.role_def + 1);
+	if (ret < 0) {
+		pr_err("%s : tcpc typec init fail\n", __func__);
+		return ret;
+	}
+
+	pr_info("%s : tcpc irq enable OK!\n", __func__);
+	return 0;
+}
+
+static void tcpc_init_work(struct work_struct *work)
+{
+	struct tcpc_device *tcpc = container_of(
+		work, struct tcpc_device, init_work.work);
+
+	if (tcpc->desc.notifier_supply_num == 0)
+		return;
+
+	tcpc->desc.notifier_supply_num = 0;
+	pr_info("%s force start\n", __func__);
+	tcpc_device_irq_enable(tcpc);
+}
+
+int tcpc_schedule_init_work(struct tcpc_device *tcpc)
+{
+	if (tcpc->desc.notifier_supply_num == 0) {
+		return tcpc_device_irq_enable(tcpc);
+	}
+	
+	schedule_delayed_work(
+		&tcpc->init_work, msecs_to_jiffies(10*1000));
+	return 0;
+}
+EXPORT_SYMBOL(tcpc_schedule_init_work);
+
 int register_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 			      struct notifier_block *nb)
 {
 	int ret;
 
 	ret = srcu_notifier_chain_register(&tcp_dev->evt_nh, nb);
-	if (ret == 0) {
-		tcp_dev->desc.notifier_supply_num--;
-		pr_info("%s supply_num = %d\n", __func__,
-			tcp_dev->desc.notifier_supply_num);
-		if (tcp_dev->desc.notifier_supply_num == 0)
-			tcpc_device_irq_enable(tcp_dev);
+	if (ret != 0)
+		return ret;
+
+	if (tcp_dev->desc.notifier_supply_num == 0) {
+		pr_info("%s already be 0\n", __func__);
+		return ret;
 	}
+	
+	tcp_dev->desc.notifier_supply_num--;
+	pr_info("%s supply_num = %d\n", __func__,
+		tcp_dev->desc.notifier_supply_num);
+	
+	if (tcp_dev->desc.notifier_supply_num == 0)
+		tcpc_device_irq_enable(tcp_dev);
+	
 	return ret;
 }
 EXPORT_SYMBOL(register_tcp_dev_notifier);
@@ -380,31 +441,6 @@ int unregister_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 }
 EXPORT_SYMBOL(unregister_tcp_dev_notifier);
 
-int tcpc_device_irq_enable(struct tcpc_device *tcpc)
-{
-	int ret;
-	if (!tcpc->ops->init) {
-		pr_err("%s Please implment tcpc ops init function\n",
-		__func__);
-		return -EINVAL;
-	}
-
-	ret = tcpc->ops->init(tcpc);
-	if (ret < 0) {
-		pr_err("%s tcpc init fail\n", __func__);
-		return ret;
-	}
-
-	ret = tcpc_typec_init(tcpc, tcpc->desc.role_def);
-	if (ret < 0) {
-		pr_err("%s : tcpc typec init fail\n", __func__);
-		return ret;
-	}
-
-	pr_info("%s : tcpc irq enable OK!\n", __func__);
-	return 0;
-}
-EXPORT_SYMBOL(tcpc_device_irq_enable);
 
 void tcpc_device_unregister(struct device *dev, struct tcpc_device *tcpc)
 {

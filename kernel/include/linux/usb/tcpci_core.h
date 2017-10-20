@@ -139,7 +139,8 @@ enum tcpm_rx_cap_type {
 
 /* role_def */
 enum typec_role_defination {
-    TYPEC_ROLE_SNK = 0,
+	TYPEC_ROLE_UNKNOWN = 0,
+    TYPEC_ROLE_SNK,
     TYPEC_ROLE_SRC,
     TYPEC_ROLE_DRP,
     TYPEC_ROLE_TRY_SRC,
@@ -159,7 +160,7 @@ enum tcpm_vbus_level {
 };
 
 struct tcpc_ops {
-	int (*init)(struct tcpc_device *tcpc);
+	int (*init)(struct tcpc_device *tcpc, bool sw_reset);
     int (*alert_status_clear)(struct tcpc_device *tcpc, uint32_t mask);
 	int (*fault_status_clear)(struct tcpc_device *tcpc, uint8_t status);
     int (*get_alert_status)(struct tcpc_device *tcpc, uint32_t *alert);
@@ -224,6 +225,8 @@ struct tcpc_device {
 	struct task_struct *timer_task;
 	bool timer_thead_stop;
 	bool event_loop_thead_stop;
+
+	struct delayed_work	init_work;
 	struct srcu_notifier_head evt_nh;
 
 	/* For TCPC TypeC */

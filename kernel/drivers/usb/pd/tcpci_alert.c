@@ -81,7 +81,7 @@ static int tcpci_alert_power_status_changed(struct tcpc_device *tcpc_dev)
 	uint16_t power_status = 0;
 
 	rv = tcpci_get_power_status(tcpc_dev, &power_status);
-	if (rv)
+	if (rv < 0)
 		return rv;
 
 	tcpci_vbus_level_init(tcpc_dev, power_status);
@@ -89,7 +89,7 @@ static int tcpci_alert_power_status_changed(struct tcpc_device *tcpc_dev)
     TCPC_INFO("ps_change=%d\r\n", tcpc_dev->vbus_level);
 	rv = tcpc_typec_handle_ps_change(tcpc_dev,
 		tcpc_dev->vbus_level == TCPC_VBUS_VALID);
-	if (rv)
+	if (rv < 0)
 		return rv;
 
 #ifdef CONFIG_USB_POWER_DELIVERY
@@ -251,7 +251,7 @@ const tcpci_alert_handler_t tcpci_alert_handlers[] = {
 
 int tcpci_alert(struct tcpc_device *tcpc_dev)
 {
-	int rv, i;
+	int rv;
 	uint32_t alert_status;
 	const uint32_t alert_rx =
 		TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF;
@@ -267,10 +267,15 @@ int tcpci_alert(struct tcpc_device *tcpc_dev)
 
     tcpci_alert_status_clear(tcpc_dev, alert_status & (~alert_rx));
 
+	if (tcpc_dev->typec_role == TYPEC_ROLE_UNKNOWN) {
+		TCPC_INFO("SkipAlert:0x%04x\r\n", alert_status);
+		return 0;
+	}
+
+#ifdef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
 	if (alert_status & TCPC_REG_ALERT_EXT_VBUS_80)
 		alert_status |= TCPC_REG_ALERT_POWER_STATUS;
-
-#if 1
+	
 	for (i = 0; i < ARRAY_SIZE(tcpci_alert_handlers); i++) {
 		if (tcpci_alert_handlers[i].bit_mask & alert_status) {
 			if (tcpci_alert_handlers[i].handler != 0) {

@@ -555,6 +555,10 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	char *name;
 	int len;
 
+	/* Clear Alert Mask & Status */
+	rt1711_write_word(chip->client, TCPC_V10_REG_ALERT_MASK, 0);
+	rt1711_write_word(chip->client, TCPC_V10_REG_ALERT, 0xffff);
+
 	len = strlen(chip->tcpc_desc->name);
 	name = kzalloc(sizeof(len+5), GFP_KERNEL);
 	sprintf(name, "%s-IRQ", chip->tcpc_desc->name);
@@ -623,17 +627,19 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	return 0;
 }
 
-static int rt1711_tcpc_init(struct tcpc_device *tcpc)
+static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 {
 	int ret;
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
 
 	RT1711_INFO("\n");
 
-	ret = rt1711_software_reset(tcpc);
-	if (ret < 0)
-		return ret;
-
+	if (sw_reset) {
+		ret = rt1711_software_reset(tcpc);
+		if (ret < 0)
+			return ret;
+	}
+	
 	ret = rt1711_init_testmode(tcpc);
 	if (ret < 0)
 		return ret;
@@ -1330,9 +1336,7 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 		goto err_irq_init;
 	}
 
-	if (chip->tcpc_desc->notifier_supply_num == 0)
-		tcpc_device_irq_enable(chip->tcpc);
-
+	tcpc_schedule_init_work(chip->tcpc);
 	pr_info("%s probe OK!\n", __func__);
 	return 0;
 

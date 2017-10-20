@@ -861,7 +861,7 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev, int cc1
 		tcpc_reset_typec_debounce_timer(tcpc_dev);
 
 		/* force to terminate TX */
-		tcpci_init(tcpc_dev);
+		tcpci_init(tcpc_dev, true);
 
 		typec_cc_src_remove_entry(tcpc_dev);
 		typec_alert_attach_state_change(tcpc_dev);
@@ -1329,6 +1329,7 @@ int tcpc_typec_handle_vsafe0v(struct tcpc_device *tcpc_dev)
  */
 
 static const char *const typec_role_name[] = {
+	"UNKNOWN",
 	"SNK",
 	"SRC",
 	"DRP",

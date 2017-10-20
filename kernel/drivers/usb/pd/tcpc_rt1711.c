@@ -546,16 +546,19 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	return 0;
 }
 
-static int rt1711_tcpc_init(struct tcpc_device *tcpc)
+static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 {
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
 	int ret;
 	int power_status;
 
 	RT1711_INFO("\n");
-	rt1711_reg_write(chip->client, RT1711_REG_SWRESET, 1);
-	mdelay(1);
 
+	if (sw_reset) {
+		rt1711_reg_write(chip->client, RT1711_REG_SWRESET, 1);
+		mdelay(1);
+	}
+	
 	power_status = rt1711_reg_read(chip->client, RT1711_REG_POWER_STATUS);
 	/* if EC Success, power_status should be 0 */
 	if (power_status < 0)
@@ -1230,9 +1233,7 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 		goto err_irq_init;
 	}
 
-	if (chip->tcpc_desc->notifier_supply_num == 0)
-		tcpc_device_irq_enable(chip->tcpc);
-
+	tcpc_schedule_init_work(chip->tcpc);
 	pr_info("%s probe OK!\n", __func__);
 	return 0;
 

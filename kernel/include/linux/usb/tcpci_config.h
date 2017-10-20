@@ -30,4 +30,8 @@
 #define CONFIG_USB_PD_SAFE0V_DELAY
 #endif
 
+/* debug config */
+// #define CONFIG_USB_PD_DBG_ALERT_STATUS
+// #define CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
+
 #endif /* __LINUX_TCPC_CONFIG_H */
