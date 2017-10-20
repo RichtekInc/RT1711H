@@ -25,6 +25,8 @@
 
 void pe_vcs_send_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_VCONN_SWAP);
 }
 

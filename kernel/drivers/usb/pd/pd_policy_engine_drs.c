@@ -33,6 +33,8 @@ void pe_drs_dfp_ufp_evaluate_dr_swap_entry(
 void pe_drs_dfp_ufp_accept_dr_swap_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	/* Change RX cap to UFP first for compliance */
+	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_UFP);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
 
@@ -45,6 +47,10 @@ void pe_drs_dfp_ufp_change_to_ufp_entry(
 
 void pe_drs_dfp_ufp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
+	/* Change RX cap to UFP first for compliance */
+	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_UFP);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_DR_SWAP);
 }
 
@@ -83,6 +89,8 @@ void pe_drs_ufp_dfp_change_to_dfp_entry(
 
 void pe_drs_ufp_dfp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_DR_SWAP);
 }
 

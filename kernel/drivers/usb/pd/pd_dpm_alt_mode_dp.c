@@ -85,7 +85,7 @@ static const char * const dp_dfp_u_state_name[] = {
 	"dp_dfp_u_configure",
 	"dp_dfp_u_operation",
 };
-#endif /* DPM_DBG_ENABLE */
+#endif /* DP_DBG_ENABLE */
 
 void dp_dfp_u_set_state(pd_port_t *pd_port, uint8_t state)
 {
@@ -102,7 +102,8 @@ void dp_dfp_u_set_state(pd_port_t *pd_port, uint8_t state)
 bool dp_dfp_u_notify_pe_startup(
 		pd_port_t *pd_port, svdm_svid_data_t *svid_data)
 {
-	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_DP_MODE) {
+	if ((pd_port->dpm_caps & DPM_CAP_ATTEMP_ENTER_DP_MODE) ||
+		(pd_port->dpm_flags & DPM_FLAGS_CHECK_DP_MODE)) {
 		dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_ID);
 		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_DP_MODE;
 	}
@@ -129,7 +130,7 @@ bool dp_notify_pe_shutdown(
 	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
 {
 	if (svid_data->active_mode) {
-		pd_send_vdm_enter_mode(pd_port, TCPC_TX_SOP,
+		pd_send_vdm_exit_mode(pd_port, TCPC_TX_SOP,
 			svid_data->svid, svid_data->active_mode);
 	}
 
@@ -182,6 +183,7 @@ bool dp_dfp_u_notify_discover_svid(
 		return false;
 	}
 
+	pd_port->dpm_flags |= DPM_FLAGS_CHECK_CABLE_ID_DFP;
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_DISCOVER_MODES);
 	return true;
 }
@@ -416,10 +418,24 @@ bool dp_dfp_u_notify_enter_mode(pd_port_t *pd_port,
 		return false;
 	}
 
+	pd_port->dp_status = pd_port->dp_first_connected;
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_STATUS_UPDATE);
 
-	pd_port->dp_status = pd_port->dp_first_connected;
+#ifdef CONFIG_USB_PD_DBG_DP_DFP_D_AUTO_UPDATE
+	/*
+	* For Real Product,
+	* DFP_U should not send status_update until USB status is changed
+	*	From : "USB Mode, USB Configration"
+	*	To : "DisplayPlay Mode, USB Configration"
+	*
+	* After USB status is changed,
+	* please call following function to continue DFP_U flow.
+	* tcpm_dpm_dp_status_update(tcpc, 0, 0, NULL)
+	*/
+
 	pd_put_tcp_vdm_event(pd_port, TCP_DPM_EVT_DP_STATUS_UPDATE);
+#endif	/* CONFIG_USB_PD_DBG_DP_DFP_D_AUTO_UPDATE */
+
 	return true;
 }
 
@@ -461,10 +477,10 @@ static inline bool dp_dfp_u_select_pin_mode(pd_port_t *pd_port)
 		break;
 
 	case DPSTS_UFP_D_CONNECTED:
-		/* TODO: */
-		DP_ERR("select_pin error0\n");
-		return false;
-
+		/* TODO: checkit next version*/
+		pin_cap[0] = PD_DP_UFP_D_PIN_CAPS(dp_mode[0]);
+		pin_cap[1] = PD_DP_DFP_D_PIN_CAPS(dp_mode[1]);
+		break;
 	default:
 		DP_ERR("select_pin error1\n");
 		return false;

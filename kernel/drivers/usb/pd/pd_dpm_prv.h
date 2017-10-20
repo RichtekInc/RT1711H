@@ -209,6 +209,11 @@ static inline bool svdm_reset_state(pd_port_t *pd_port)
 	int i;
 	svdm_svid_data_t *svid_data;
 
+	if (pd_port->dpm_charging_policy >= DPM_CHARGING_POLICY_RUNTIME) {
+		pd_port->dpm_charging_policy =
+			pd_port->dpm_charging_policy_default;
+	}
+
 	for (i = 0; i < pd_port->svid_data_cnt; i++) {
 		svid_data = &pd_port->svid_data[i];
 		if (svid_data->ops && svid_data->ops->reset_state)

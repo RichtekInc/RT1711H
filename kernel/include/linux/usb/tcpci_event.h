@@ -59,9 +59,6 @@ bool pd_get_deferred_tcp_event(
 bool pd_put_deferred_tcp_event(
 	struct tcpc_device *tcpc_dev, const tcp_dpm_event_t *tcp_event);
 
-void pd_notify_tcp_event_result(
-	struct tcpc_device *tcpc_dev, int ret, tcp_dpm_event_t *tcp_event);
-
 extern int tcpci_event_init(struct tcpc_device *tcpc_dev);
 extern int tcpci_event_deinit(struct tcpc_device *tcpc_dev);
 
@@ -80,6 +77,9 @@ enum pd_event_type {
 	PD_EVT_CTRL_MSG,
 	PD_EVT_DATA_MSG,
 
+#ifdef CONFIG_USB_PD_REV30
+	PD_EVT_EXT_MSG,
+#endif	/* CONFIG_USB_PD_REV30 */
 	PD_EVT_DPM_MSG,
 	PD_EVT_HW_MSG,
 	PD_EVT_PE_MSG,
@@ -105,6 +105,15 @@ enum pd_ctrl_msg_type {
 	PD_CTRL_WAIT = 12,
 	PD_CTRL_SOFT_RESET = 13,
 	/* 14-15 Reserved */
+
+#ifdef CONFIG_USB_PD_REV30
+	PD_CTRL_NOT_SUPPORTED = 0x10 + 0,
+	PD_CTRL_GET_SOURCE_CAP_EXT = 0x10 + 1,
+	PD_CTRL_GET_STATUS = 0x10 + 2,
+	PD_CTRL_FR_SWAP = 0x10 + 3,
+	PD_CTRL_GET_PPS_STATUS = 0x10 + 4,
+#endif	/* CONFIG_USB_PD_REV30 */
+
 	PD_CTRL_MSG_NR,
 };
 
@@ -115,10 +124,43 @@ enum pd_data_msg_type {
 	PD_DATA_REQUEST = 2,
 	PD_DATA_BIST = 3,
 	PD_DATA_SINK_CAP = 4,
-	/* 5-14 Reserved */
+
+#ifdef CONFIG_USB_PD_REV30
+	PD_DATA_BAT_STATUS = 5,
+	PD_DATA_ALERT = 6,
+#endif	/* CONFIG_USB_PD_REV30 */
+
+	/* 7-14 Reserved */
 	PD_DATA_VENDOR_DEF = 15,
 	PD_DATA_MSG_NR,
 };
+
+/* Extended message type */
+#ifdef CONFIG_USB_PD_REV30
+enum pd_ext_msg_type {
+	/* 0 Reserved */
+	PD_EXT_SOURCE_CAP_EX = 1,
+	PD_EXT_STATUS = 2,
+
+	PD_EXT_GET_BAT_CAPS = 3,
+	PD_EXT_GET_BAT_STATUS = 4,
+	PD_EXT_BAT_CAPS = 5,
+
+	PD_EXT_GET_MFR_INFO = 6,
+	PD_EXT_MFR_INFO = 7,
+
+	PD_EXT_SEC_REQUEST = 8,
+	PD_EXT_SEC_RESPONSE = 9,
+
+	PD_EXT_FW_UPDATE_REQUEST = 10,
+	PD_EXT_FW_UPDATE_RESPONSE = 11,
+
+	PD_EXT_PPS_STATUS = 12,
+
+	/* 13-15 Reserved */
+	PD_EXT_MSG_NR,
+};
+#endif	/* CONFIG_USB_PD_REV30 */
 
 /* HW Message type */
 enum pd_hw_msg_type {
@@ -140,6 +182,7 @@ enum pd_pe_msg_type {
 	PD_PE_POWER_ROLE_AT_DEFAULT,
 	PD_PE_HARD_RESET_COMPLETED,
 	PD_PE_IDLE,
+	PD_PE_VDM_RESET,
 	PD_PE_MSG_NR,
 };
 
@@ -188,7 +231,16 @@ static inline bool pd_event_msg_match(pd_event_t *pd_event,
 	if (pd_event->event_type != type)
 		return false;
 
-	return (pd_event->msg == msg);
+	return pd_event->msg == msg;
 }
+
+#ifdef CONFIG_USB_PD_REV30
+
+static inline bool pd_event_ext_msg_match(pd_event_t *pd_event, uint8_t msg)
+{
+	return pd_event_msg_match(pd_event, PD_EVT_EXT_MSG, msg);
+}
+
+#endif	/* CONFIG_USB_PD_REV30 */
 
 #endif /* TCPC_EVENT_BUF_H_INCLUDED */

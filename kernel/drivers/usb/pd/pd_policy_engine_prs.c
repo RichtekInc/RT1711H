@@ -70,6 +70,8 @@ void pe_prs_src_snk_wait_source_on_exit(
 
 void pe_prs_src_snk_send_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PR_SWAP);
 }
 
@@ -136,13 +138,15 @@ void pe_prs_snk_src_source_on_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 void pe_prs_snk_src_source_on_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 /*
-	Do it in process_event after source_on
-	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PS_RDY);
-*/
+ * Do it in process_event after source_on
+ * pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PS_RDY);
+ */
 }
 
 void pe_prs_snk_src_send_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	pd_notify_pe_execute_pr_swap(pd_port, false);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PR_SWAP);
 }

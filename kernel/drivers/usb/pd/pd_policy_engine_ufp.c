@@ -168,7 +168,7 @@ void pe_ufp_vdm_dp_configure_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 /*
- * UVDM
+ * SVMD/UVDM
  */
 
 #ifdef CONFIG_USB_PD_UVDM

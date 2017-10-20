@@ -51,13 +51,12 @@ static int chg_enable_vbus(struct rt_charger_info *info, int enable)
 	return 0;
 }
 
-static int rt_chg_handle_source_vbus(struct tcp_notify *tcp_noti)
+static int rt_chg_handle_source_vbus(struct tcp_notify *tcp_noti, int enable)
 {
 	struct power_supply *chg;
 	struct tcpc_device *tcpc;
 	union power_supply_propval val;
-	int enable = (tcp_noti->vbus_state.mv > 0) ? 1 : 0;
-
+	
 	chg = power_supply_get_by_name("rt-chg");
 	if (!chg) {
 		pr_err("%s: no rt-charger psy\n", __func__);
@@ -70,7 +69,8 @@ static int rt_chg_handle_source_vbus(struct tcp_notify *tcp_noti)
 	tcpc = tcpc_dev_get_by_name("type_c_port0");
 	if (!tcpc)
 		return -EINVAL;
-#if 1 //PD
+
+#ifdef CONFIG_USB_POWER_DELIVERY
 	tcpm_notify_vbus_stable(tcpc);
 #endif
 
@@ -165,9 +165,14 @@ static int chg_tcp_notifer_call(struct notifier_block *nb,
 	case TCP_NOTIFY_VCONN_SWAP:
 		/* Do what you want to do here */
 		break;
+	case TCP_NOTIFY_DIS_VBUS_CTRL:
+		/* Implement disable power path (otg & charger) behavior here */
+		rt_chg_handle_source_vbus(tcp_noti, 0);
+		break;
 	case TCP_NOTIFY_SOURCE_VBUS:
 		/* Implement source vbus behavior here */
-		rt_chg_handle_source_vbus(tcp_noti);
+		rt_chg_handle_source_vbus(
+			tcp_noti, (tcp_noti->vbus_state.mv > 0) ? 1 : 0);
 		break;
 	case TCP_NOTIFY_SINK_VBUS:
 		/* Implement sink vubs behavior here */

@@ -2,6 +2,24 @@
 
 ## Changelog
 
+### v018
+- [Linux] Remove dummy EXPORT_SYMBOL
+- [TCPC] Fixed dr_swap failed after pr_swap
+- [TYPEC] Ignore RpLvl Change during AttachWait state.	
+- [PE] Send CableReset before DiscoverCable (DR_SWAP & PR_SWAP)
+  - CONFIG_USB_PD_RESET_CABLE	
+- [PE] Optimize SenderResponse Timer	
+- [PE] Ensure VconnSource before DiscoverCable	
+- [PE] Change RX_CAP first during dr_swap to UFP
+- [PE] enter ping_test_mode if receive ping message
+- [DPM] Dynamic disable Vconn if EMark absent
+  - CONFIG_TCPC_VCONN_SUPPLY_MODE
+- [TCPM] Support block version interface
+  - CONFIG_USB_PD_BLOCK_TCPM
+  - CONFIG_USB_PD_TCPM_CB_2ND 
+- [PPS] Support Sink PPS based on PD20
+  - CONFIG_USB_PD_REV30_PPS_SINK
+
 ### v017
 - [TCPC] Fix tcpc_timer deadlock warning
 - [TCPC] Add option for Attach Wake lock Timeout

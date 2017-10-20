@@ -74,10 +74,6 @@ static inline bool pd_process_ctrl_msg_good_crc(
 		PE_TRANSIT_VCS_SWAP_STATE(pd_port);
 		return true;
 
-	case PE_VCS_SEND_SWAP:
-		pd_enable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);
-		return false;
-
 	default:
 		return false;
 	}

@@ -34,7 +34,7 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port->request_i = -1;
 	pd_port->request_v = TCPC_VBUS_SINK_5V;
 	pd_port->state_machine = PE_STATE_MACHINE_SINK;
-	pd_reset_protocol_layer(pd_port);
+	pd_reset_protocol_layer(pd_port, false);
 
 	switch (pd_event->event_type) {
 	case PD_EVT_HW_MSG:	/* CC attached */
@@ -47,7 +47,8 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	case PD_EVT_CTRL_MSG: /* From PR-SWAP (Received PS_RDY) */
 		/* If we reset rx_cap in here,
-		 * maybe can't meet tSwapSink (Check it later) */
+		 * maybe can't meet tSwapSink (Check it later)
+		 */
 		if (!pd_dpm_check_vbus_valid(pd_port)) {
 			PE_INFO("rx_cap_on\r\n");
 			rx_cap = PD_RX_CAP_PE_SEND_WAIT_CAP;
@@ -56,6 +57,10 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 #ifdef CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
 		pd_port->msg_id_pr_swap_last = msg_id_last;
 #endif	/* CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP */
+
+#ifdef CONFIG_USB_PD_RESET_CABLE
+		pd_port->reset_cable = true;
+#endif	/* CONFIG_USB_PD_RESET_CABLE */
 
 		pd_put_pe_event(pd_port, PD_PE_RESET_PRL_COMPLETED);
 		pd_free_pd_event(pd_port, pd_event);
@@ -69,7 +74,8 @@ void pe_snk_discovery_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 #ifdef CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW
 	/* iSafe0mA: Maximum current a Sink
-		is allowed to draw when VBUS is driven to vSafe0V*/
+	 * is allowed to draw when VBUS is driven to vSafe0V
+	 */
 	if (pd_port->tcpc_dev->pd_wait_hard_reset_complete)
 		pd_dpm_sink_vbus(pd_port, false);
 #endif	/* CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW */
@@ -104,8 +110,18 @@ void pe_snk_wait_for_capabilities_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_snk_evaluate_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	/* Disable UART output for Source SenderResponse */
+	pd_lock_msg_output(pd_port);
+
 	/* Stop NoResponseTimer and reset HardResetCounter to zero */
 	pd_disable_timer(pd_port, PD_TIMER_NO_RESPONSE);
+
+#ifdef CONFIG_USB_PD_REV30
+	if (!pd_port->pd_prev_connected) {
+		pd_sync_sop_spec_revision(pd_port,
+			PD_HEADER_REV(pd_event->pd_msg->msg_hdr));
+	}
+#endif	/* CONFIG_USB_PD_REV30 */
 
 	pd_port->hard_reset_counter = 0;
 	pd_port->pd_connected = 1;
@@ -122,6 +138,8 @@ void pe_snk_evaluate_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_snk_select_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	if (pd_event->msg == PD_DPM_NOTIFIED) {
 		PE_DBG("SelectCap%d, rdo:0x%08x\r\n",
 			pd_event->msg_sec, pd_port->last_rdo);
@@ -131,7 +149,9 @@ void pe_snk_select_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 		PE_DBG("NewReq, rdo:0x%08x\r\n", pd_port->last_rdo);
 	}
 
-	pd_lock_msg_output(pd_port);	/* SenderResponse */
+	/* Disable UART output for Sink SenderResponse */
+	pd_lock_msg_output(pd_port);
+
 	pd_send_data_msg(pd_port,
 		TCPC_TX_SOP, PD_DATA_REQUEST, 1, &pd_port->last_rdo);
 	pd_free_pd_event(pd_port, pd_event);
@@ -139,8 +159,6 @@ void pe_snk_select_capability_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_snk_select_capability_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_disable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);
-
 	if (pd_event_msg_match(pd_event,
 		PD_EVT_CTRL_MSG, PD_CTRL_ACCEPT))
 		pd_port->remote_selected_cap = RDO_POS(pd_port->last_rdo);
@@ -212,11 +230,17 @@ void pe_snk_give_sink_cap_entry(
 void pe_snk_get_source_cap_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
+#ifdef CONFIG_USB_PD_TCPM_CB_2ND
+	pd_port->pd_wait_sender_response = true;
+#endif	/* CONFIG_USB_PD_TCPM_CB_2ND */
+
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GET_SOURCE_CAP);
 }
 
 void pe_snk_send_soft_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_port->pd_wait_sender_response = true;
+
 	pd_send_soft_reset(pd_port, PE_STATE_MACHINE_SINK);
 	pd_free_pd_event(pd_port, pd_event);
 }
@@ -226,3 +250,42 @@ void pe_snk_soft_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_handle_soft_reset(pd_port, PE_STATE_MACHINE_SINK);
 	pd_free_pd_event(pd_port, pd_event);
 }
+
+/* ---- Policy Engine (PD30) ---- */
+
+#ifdef CONFIG_USB_PD_REV30
+
+void pe_snk_source_alert_received_entry(
+		pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_dpm_inform_alert(pd_port, pd_event);
+	pd_free_pd_event(pd_port, pd_event);
+}
+
+void pe_snk_get_source_status_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_port->pd_wait_sender_response = true;
+
+	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GET_STATUS);
+}
+
+void pe_snk_get_source_status_exit(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_dpm_inform_status(pd_port, pd_event);
+}
+
+#ifdef CONFIG_USB_PD_REV30_PPS_SINK
+void pe_snk_get_pps_status_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_port->pd_wait_sender_response = true;
+
+	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GET_PPS_STATUS);
+}
+
+void pe_snk_get_pps_status_exit(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_dpm_inform_pps_status(pd_port, pd_event);
+}
+#endif	/* CONFIG_USB_PD_REV30_PPS_SINK */
+
+#endif	/* CONFIG_USB_PD_REV30 */

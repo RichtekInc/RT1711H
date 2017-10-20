@@ -77,11 +77,6 @@ static inline bool pd_process_ctrl_msg_good_crc(
 		PE_TRANSIT_STATE(pd_port, PE_DRS_UFP_DFP_CHANGE_TO_DFP);
 		return true;
 
-	case PE_DRS_DFP_UFP_SEND_DR_SWAP:
-	case PE_DRS_UFP_DFP_SEND_DR_SWAP:
-		pd_enable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);
-		return false;
-
 	default:
 		return false;
 	}

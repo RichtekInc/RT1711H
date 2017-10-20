@@ -29,7 +29,7 @@
 #include <linux/usb/tcpm.h>
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.7_G"
+#define TCPC_CORE_VERSION		"1.1.8_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -92,7 +92,7 @@ static ssize_t tcpc_show_property(struct device *dev,
 	const ptrdiff_t offset = attr - tcpc_device_attributes;
 	int i = 0;
 #ifdef CONFIG_USB_POWER_DELIVERY
-	int vmin, vmax, ioper;
+	struct tcpm_power_cap_val cap;
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
 	switch (offset) {
@@ -105,40 +105,40 @@ static ssize_t tcpc_show_property(struct device *dev,
 			tcpc->pd_port.remote_selected_cap);
 
 		snprintf(buf+strlen(buf), 256, "%s\n",
-				"local_src_cap(vmin, vmax, ioper)");
+				"local_src_cap(type, vmin, vmax, oper)");
 		for (i = 0; i < tcpc->pd_port.local_src_cap.nr; i++) {
-			pd_extract_pdo_power(
+			tcpm_extract_power_cap_val(
 				tcpc->pd_port.local_src_cap.pdos[i],
-				&vmin, &vmax, &ioper);
-			snprintf(buf+strlen(buf), 256, "%d %d %d\n",
-				vmin, vmax, ioper);
+				&cap);
+			snprintf(buf+strlen(buf), 256, "%d %d %d %d\n",
+				cap.type, cap.min_mv, cap.max_mv, cap.ma);
 		}
 		snprintf(buf+strlen(buf), 256, "%s\n",
-				"local_snk_cap(vmin, vmax, ioper)");
+				"local_snk_cap(type, vmin, vmax, ioper)");
 		for (i = 0; i < tcpc->pd_port.local_snk_cap.nr; i++) {
-			pd_extract_pdo_power(
+			tcpm_extract_power_cap_val(
 				tcpc->pd_port.local_snk_cap.pdos[i],
-				&vmin, &vmax, &ioper);
-			snprintf(buf+strlen(buf), 256, "%d %d %d\n",
-				vmin, vmax, ioper);
+				&cap);
+			snprintf(buf+strlen(buf), 256, "%d %d %d %d\n",
+				cap.type, cap.min_mv, cap.max_mv, cap.ma);
 		}
 		snprintf(buf+strlen(buf), 256, "%s\n",
-				"remote_src_cap(vmin, vmax, ioper)");
+				"remote_src_cap(type, vmin, vmax, ioper)");
 		for (i = 0; i < tcpc->pd_port.remote_src_cap.nr; i++) {
-			pd_extract_pdo_power(
+			tcpm_extract_power_cap_val(
 				tcpc->pd_port.remote_src_cap.pdos[i],
-				&vmin, &vmax, &ioper);
-			snprintf(buf+strlen(buf), 256, "%d %d %d\n",
-				vmin, vmax, ioper);
+				&cap);
+			snprintf(buf+strlen(buf), 256, "%d %d %d %d\n",
+				cap.type, cap.min_mv, cap.max_mv, cap.ma);
 		}
 		snprintf(buf+strlen(buf), 256, "%s\n",
-				"remote_snk_cap(vmin, vmax, ioper)");
+				"remote_snk_cap(type, vmin, vmax, ioper)");
 		for (i = 0; i < tcpc->pd_port.remote_snk_cap.nr; i++) {
-			pd_extract_pdo_power(
+			tcpm_extract_power_cap_val(
 				tcpc->pd_port.remote_snk_cap.pdos[i],
-				&vmin, &vmax, &ioper);
-			snprintf(buf+strlen(buf), 256, "%d %d %d\n",
-				vmin, vmax, ioper);
+				&cap);
+			snprintf(buf+strlen(buf), 256, "%d %d %d %d\n",
+				cap.type, cap.min_mv, cap.max_mv, cap.ma);
 		}
 		break;
 #endif	/* CONFIG_USB_POWER_DELIVERY */
@@ -370,6 +370,10 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 	tcpc->ops = ops;
 	tcpc->typec_local_rp_level = tcpc_desc->rp_lvl;
 
+#ifdef CONFIG_TCPC_VCONN_SUPPLY_MODE
+	tcpc->tcpc_vconn_supply = tcpc_desc->vconn_supply;
+#endif	/* CONFIG_TCPC_VCONN_SUPPLY_MODE */
+
 	ret = device_register(&tcpc->dev);
 	if (ret) {
 		kfree(tcpc);
@@ -386,7 +390,8 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 	spin_lock_init(&tcpc->timer_tick_lock);
 
 	/* If system support "WAKE_LOCK_IDLE",
-	 * please use it instead of "WAKE_LOCK_SUSPEND" */
+	 * please use it instead of "WAKE_LOCK_SUSPEND"
+	 */
 	wake_lock_init(&tcpc->attach_wake_lock, WAKE_LOCK_SUSPEND,
 		"tcpc_attach_wakelock");
 	wake_lock_init(&tcpc->dettach_temp_wake_lock, WAKE_LOCK_SUSPEND,
@@ -462,7 +467,6 @@ int tcpc_schedule_init_work(struct tcpc_device *tcpc)
 		&tcpc->init_work, msecs_to_jiffies(30*1000));
 	return 0;
 }
-EXPORT_SYMBOL(tcpc_schedule_init_work);
 
 int register_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 			      struct notifier_block *nb)
@@ -528,13 +532,11 @@ void tcpci_lock_typec(struct tcpc_device *tcpc)
 {
 	mutex_lock(&tcpc->typec_lock);
 }
-EXPORT_SYMBOL(tcpci_lock_typec);
 
 void tcpci_unlock_typec(struct tcpc_device *tcpc)
 {
 	mutex_unlock(&tcpc->typec_lock);
 }
-EXPORT_SYMBOL(tcpci_unlock_typec);
 
 static void tcpc_init_attrs(struct device_type *dev_type)
 {

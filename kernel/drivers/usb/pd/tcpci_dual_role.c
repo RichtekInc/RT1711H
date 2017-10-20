@@ -63,7 +63,7 @@ static int tcpc_dual_role_get_prop(struct dual_role_phy_instance *dual_role,
 static	int tcpc_dual_role_prop_is_writeable(
 	struct dual_role_phy_instance *dual_role, enum dual_role_property prop)
 {
-	int retval = -ENOSYS;
+	int retval = -EINVAL;
 	struct tcpc_device *tcpc = dev_get_drvdata(dual_role->dev.parent);
 
 	switch (prop) {
@@ -270,7 +270,7 @@ int tcpc_dual_role_phy_init(
 	char *str_name;
 
 	tcpc->dr_usb = devm_kzalloc(&tcpc->dev,
-				sizeof(tcpc->dr_usb), GFP_KERNEL);
+				sizeof(*tcpc->dr_usb), GFP_KERNEL);
 
 	dual_desc = devm_kzalloc(&tcpc->dev, sizeof(*dual_desc), GFP_KERNEL);
 	if (!dual_desc)
@@ -280,7 +280,7 @@ int tcpc_dual_role_phy_init(
 
 	len = strlen(tcpc->desc.name);
 	str_name = devm_kzalloc(&tcpc->dev, len+11, GFP_KERNEL);
-	sprintf(str_name, "dual-role-%s", tcpc->desc.name);
+	snprintf(str_name, PAGE_SIZE, "dual-role-%s", tcpc->desc.name);
 	dual_desc->name = str_name;
 
 	dual_desc->properties = tcpc_dual_role_props;
@@ -301,5 +301,4 @@ int tcpc_dual_role_phy_init(
 	tcpc->dual_role_vconn = DUAL_ROLE_PROP_VCONN_SUPPLY_NO;
 	return 0;
 }
-EXPORT_SYMBOL(tcpc_dual_role_phy_init);
 #endif /* CONFIG_DUAL_ROLE_USB_INTF */

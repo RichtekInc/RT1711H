@@ -27,6 +27,9 @@ int pd_dpm_send_source_caps(pd_port_t *pd_port);
 void pd_dpm_inform_cable_id(
 	pd_port_t *pd_port, pd_event_t *pd_event);
 
+void pd_dpm_dynamic_enable_vconn(pd_port_t *pd_port);
+void pd_dpm_dynamic_disable_vconn(pd_port_t *pd_port);
+
 /* ---- SNK ---- */
 
 bool pd_dpm_update_tcp_request(pd_port_t *pd_port,
@@ -129,6 +132,20 @@ void pd_dpm_prs_change_role(pd_port_t *pd_port, uint8_t role);
 void pd_dpm_vcs_evaluate_swap(pd_port_t *pd_port);
 void pd_dpm_vcs_enable_vconn(pd_port_t *pd_port, bool en);
 
+
+/*
+ * PE : PD3.0
+ */
+
+#ifdef CONFIG_USB_PD_REV30
+void pd_dpm_inform_alert(pd_port_t *pd_port, pd_event_t *pd_event);
+void pd_dpm_inform_status(pd_port_t *pd_port, pd_event_t *pd_event);
+
+#ifdef CONFIG_USB_PD_REV30_PPS_SINK
+void pd_dpm_inform_pps_status(pd_port_t *pd_port, pd_event_t *pd_event);
+#endif	/* CONFIG_USB_PD_REV30_PPS_SINK */
+
+#endif	/* CONFIG_USB_PD_REV30 */
 
 /* PE : Notify DPM */
 

@@ -127,11 +127,6 @@ static inline bool pd_process_ctrl_msg_good_crc(
 		pd_unlock_msg_output(pd_port);	/* for tSRCTransition */
 		return false;
 
-	case PE_PRS_SRC_SNK_SEND_SWAP:
-	case PE_PRS_SNK_SRC_SEND_SWAP:
-		pd_enable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);
-		return false;
-
 	default:
 		return PE_MAKE_STATE_TRANSIT(PD_CTRL_MSG_GOOD_CRC);
 	}

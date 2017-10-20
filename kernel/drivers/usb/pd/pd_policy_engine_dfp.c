@@ -185,6 +185,29 @@ void pe_dfp_vdm_attention_request_entry(
 }
 
 /*
+ * [PD2.0] Figure 8-83 DFP Cable Soft Reset or Cable Reset State Diagram
+ */
+
+#ifdef CONFIG_PD_DFP_RESET_CABLE
+
+void pe_dfp_cbl_send_soft_reset_entry(
+				pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_port->pd_wait_sender_response = true;
+
+	pd_send_cable_soft_reset(pd_port);
+	pd_free_pd_event(pd_port, pd_event);
+}
+
+void pe_dfp_cbl_send_cable_reset_entry(
+				pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	/* TODO : we don't do cable reset now */
+}
+
+#endif	/* CONFIG_PD_DFP_RESET_CABLE */
+
+/*
  * [PD2.0] Display Port
  */
 

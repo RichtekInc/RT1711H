@@ -41,7 +41,7 @@ void pe_dbg_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 		pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_DFP);
 	}
 
-	pd_reset_protocol_layer(pd_port);
+	pd_reset_protocol_layer(pd_port, false);
 	pd_update_connect_state(pd_port, state);
 }
 

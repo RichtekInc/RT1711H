@@ -118,6 +118,17 @@ bool pd_process_recv_hard_reset(
 
 /*---------------------------------------------------------------------------*/
 
+#define PE_MAKE_STATE_TRANSIT_SINGLE(reaction, next)	\
+		pd_make_pe_state_transit_single(\
+			pd_port, pd_port->pe_state_curr, reaction, next)
+/* PE_MAKE_STATE_TRANSIT_SINGLE */
+
+#define PE_MAKE_STATE_TRANSIT_SRC_READY(state)	\
+		PE_MAKE_STATE_TRANSIT_SINGLE(PE_SRC_READY, state)
+/* PE_MAKE_STATE_TRANSIT_SRC_READY */
+
+
+
 #define PE_MAKE_STATE_TRANSIT(state)	\
 		pd_make_pe_state_transit(\
 			pd_port, pd_port->pe_state_curr, &state##_reactions)
@@ -149,6 +160,15 @@ bool pd_process_recv_hard_reset(
 			&state##_reactions)
 /* PE_MAKE_VDM_CMD_STATE_TRANSIT_VIRT */
 
+static inline bool pd_make_pe_state_transit_single(pd_port_t *pd_port,
+	uint8_t curr_state, uint8_t reaction_state, uint8_t next_state)
+{
+	if (curr_state == reaction_state) {
+		PE_TRANSIT_STATE(pd_port, next_state);
+		return true;
+	}
+	return false;
+}
 
 bool pd_make_pe_state_transit(pd_port_t *pd_port, uint8_t curr_state,
 	const pe_state_reaction_t *state_reaction);
