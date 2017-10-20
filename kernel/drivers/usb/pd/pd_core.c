@@ -794,7 +794,7 @@ int pd_update_connect_state(pd_port_t *pd_port, uint8_t state)
 		break;
 
 	case PD_CONNECT_PE_READY:
-		state = pd_port->data_role == PD_ROLE_DFP ?
+		state = pd_port->power_role == PD_ROLE_SOURCE ?
 			PD_CONNECT_PE_READY_SRC : PD_CONNECT_PE_READY_SNK;
 		break;
 

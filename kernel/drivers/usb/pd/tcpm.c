@@ -285,6 +285,10 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 int tcpm_notify_vbus_stable(
 	struct tcpc_device *tcpc_dev)
 {
+#if CONFIG_USB_PD_VBUS_STABLE_TOUT
+	tcpc_disable_timer(tcpc_dev, PD_TIMER_VBUS_STABLE);
+#endif
+
 	pd_put_vbus_stable_event(tcpc_dev);
 	return TCPM_SUCCESS;
 }

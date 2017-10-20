@@ -104,6 +104,8 @@ enum pd_dfp_u_state {
 	DP_DFP_U_ERR_STATUS_UPDATE_DP_SID,
 	DP_DFP_U_ERR_STATUS_UPDATE_NAK_TIMEOUT,
 	DP_DFP_U_ERR_STATUS_UPDATE_ROLE,
+
+	DP_DFP_U_ERR_CONFIGURE_SELECT_MODE,
 };
 
 #if DP_DBG_ENABLE
@@ -156,18 +158,16 @@ bool dp_dfp_u_notify_pe_startup(
 	return true;
 }
 
-bool dp_dfp_u_notify_pe_ready(
+int dp_dfp_u_notify_pe_ready(
 	pd_port_t* pd_port, svdm_svid_data_t *svid_data, pd_event_t *pd_event)
 {
 	DPM_DBG("dp_dfp_u_notify_pe_ready\r\n");
+	BUG_ON(pd_port->data_role != PD_ROLE_DFP);
 
 	if (pd_port->dp_dfp_u_state != DP_DFP_U_STARTUP)
-		return true;
+		return 0;
 
-	if (pd_port->data_role == PD_ROLE_DFP)
-		return pd_dpm_request_enter_dp_mode(pd_port);
-
-	return true;
+	return pd_dpm_request_enter_dp_mode(pd_port);
 }
 
 bool dp_dfp_u_notify_discover_id(pd_port_t* pd_port,
@@ -458,29 +458,92 @@ bool dp_dfp_u_notify_exit_mode(
 	return true;
 }
 
+static inline bool dp_dfp_u_select_pin_mode(pd_port_t* pd_port)
+{
+	uint32_t dp_local_connected;
+	uint32_t dp_mode[2], pin_cap[2];
+
+	uint32_t pin_caps, signal;
+
+	svdm_svid_data_t *svid_data = 
+		dpm_get_svdm_svid_data(pd_port, USB_SID_DISPLAYPORT);
+
+	if (svid_data == NULL)
+		return false;
+
+	dp_mode[0] = SVID_DATA_LOCAL_MODE(svid_data, 0);
+	dp_mode[1] = SVID_DATA_DFP_GET_ACTIVE_MODE(svid_data);
+
+	dp_local_connected = PD_VDO_DPSTS_CONNECT(pd_port->dp_status);
+
+	switch (dp_local_connected) {
+	case DPSTS_DFP_D_CONNECTED:
+		pin_cap[0] = PD_DP_DFP_D_PIN_CAPS(dp_mode[0]);
+		pin_cap[1] = PD_DP_UFP_D_PIN_CAPS(dp_mode[1]);
+		break;
+		
+	case DPSTS_UFP_D_CONNECTED:
+		/* TODO: */
+		DP_ERR("select_pin error0\n");
+		return false;
+
+	default:
+		DP_ERR("select_pin error1\n");
+		return false;
+	}
+	
+	PE_DBG("modes=0x%x 0x%x\r\n", dp_mode[0], dp_mode[1]);
+	PE_DBG("pins=0x%x 0x%x\r\n", pin_cap[0], pin_cap[1]);
+
+	pin_caps = pin_cap[0] & pin_cap[1];
+
+	/* if don't want multi-function then ignore those pin configs */
+	if (!PD_VDO_DPSTS_MF_PREF(pd_port->dp_ufp_u_attention))
+		pin_caps &= ~MODE_DP_PIN_MF_MASK;	
+
+	/* TODO: If DFP & UFP driver USB Gen2 signal */
+	signal = DP_SIG_DPV13;
+	pin_caps &= ~MODE_DP_PIN_BR2_MASK;
+
+	if (!pin_caps) {
+		DP_ERR("select_pin error2\n");
+		return false;
+	}
+
+	/* Priority */
+	if (pin_caps & MODE_DP_PIN_D)
+		pin_caps = MODE_DP_PIN_D;
+	else if (pin_caps & MODE_DP_PIN_F)
+		pin_caps = MODE_DP_PIN_F;
+	else if (pin_caps & MODE_DP_PIN_C)
+		pin_caps = MODE_DP_PIN_C;
+	else if (pin_caps & MODE_DP_PIN_E)
+		pin_caps = MODE_DP_PIN_E;
+
+	if (dp_local_connected == DPSTS_DFP_D_CONNECTED) {
+		pd_port->local_dp_config = VDO_DP_DFP_CFG(pin_caps, signal);
+		pd_port->remote_dp_config = VDO_DP_UFP_CFG(pin_caps, signal);
+	} else {
+		pd_port->local_dp_config = VDO_DP_UFP_CFG(pin_caps, signal);
+		pd_port->remote_dp_config = VDO_DP_DFP_CFG(pin_caps, signal);
+	}
+
+	return true;
+}
+
 void dp_dfp_u_request_dp_configuration(
 	pd_port_t* pd_port, pd_event_t *pd_event)
 {
-#if 0
-	uint32_t dp_local_connected;
-
-	dp_local_connected =
-		PD_VDO_DPSTS_CONNECT(pd_port->dp_status);
-
-	/* TODO: Select Pin Assignment & Signal */
-
-	if (dp_local_connected == DPSTS_DFP_D_CONNECTED) {
-		pd_port->remote_dp_config = VDO_DP_UFP_CFG(
-			DP_PIN_ASSIGN_SUPPORT_C, DP_SIG_DPV13);
-	} else {
-		pd_port->remote_dp_config = VDO_DP_DFP_CFG(
-			DP_PIN_ASSIGN_SUPPORT_C, DP_SIG_DPV13);
+	if (!dp_dfp_u_select_pin_mode(pd_port)) {
+		dp_dfp_u_set_state(pd_port, 
+			DP_DFP_U_ERR_CONFIGURE_SELECT_MODE);
+		return;
 	}
-#endif
 
 	tcpci_dp_notify_config_start(pd_port->tcpc_dev);
 
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_CONFIGURE);
+	
 	vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_DP_CONFIG);
 }
@@ -555,6 +618,7 @@ bool dp_dfp_u_notify_dp_status_update(
 	}
 
 	dp_status = pd_event->pd_msg->payload[1];
+	pd_port->dp_ufp_u_attention = (uint8_t) dp_status;
 	DPM_DBG("dp_status: 0x%x\r\n", dp_status);
 
 	if (oper_mode) {
@@ -591,6 +655,7 @@ bool dp_dfp_u_notify_attention(pd_port_t* pd_port,
 	uint32_t dp_status = pd_event->pd_msg->payload[1];
 	DPM_DBG("dp_status: 0x%x\r\n", dp_status);
 
+	pd_port->dp_ufp_u_attention = (uint8_t) dp_status;
 	switch (pd_port->dp_dfp_u_state) {
 	case DP_DFP_U_WAIT_ATTENTION:
 		valid_connected = dp_dfp_u_update_dp_connected(pd_port, dp_status);

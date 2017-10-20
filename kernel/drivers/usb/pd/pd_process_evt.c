@@ -246,6 +246,7 @@ bool pd_make_pe_state_transit_force(pd_port_t *pd_port,
 bool pd_process_protocol_error(
 	pd_port_t* pd_port, pd_event_t *pd_event)
 {
+	bool power_change = false;
 	pd_msg_t *pd_msg = pd_event->pd_msg;
 
 	uint8_t event_type = pd_event->event_type;
@@ -254,6 +255,7 @@ bool pd_process_protocol_error(
 
 	switch (pd_port->pe_state_curr) {
 	case PE_SNK_TRANSITION_SINK:
+		power_change = true;
 	case PE_PRS_SRC_SNK_WAIT_SOURCE_ON:
 		if (pd_event_msg_match(pd_event, PD_EVT_CTRL_MSG, PD_CTRL_PING)) {
 			PE_DBG("Igrone Ping\r\n");
@@ -280,6 +282,8 @@ bool pd_process_protocol_error(
 #else
 		PE_TRANSIT_HARD_RESET_STATE(pd_port);
 #endif
+	} else if (power_change) { 
+		PE_TRANSIT_HARD_RESET_STATE(pd_port);
 	} else {
 		PE_TRANSIT_SEND_SOFT_RESET_STATE(pd_port);
 	}

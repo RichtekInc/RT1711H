@@ -27,6 +27,9 @@
 #define RT1711H_REG_PHY_CTRL3				(0x82)
 #define RT1711H_REG_PHY_CTRL6				(0x85)
 
+#define RT1711H_REG_CLK_CTRL2				(0x87)
+#define RT1711H_REG_CLK_CTRL3				(0x88)
+
 #define RT1711H_REG_RX_TX_DBG				(0x8b)
 #define RT1711H_REG_BMC_CTRL				(0x90)
 #define RT1711H_REG_BMCIO_RXDZSEL			(0x93)
@@ -72,19 +75,24 @@
  * RT1711H_REG_RT_STATUS				(0x97)
  */
 
+#define RT1711H_REG_RA_DETACH				(1<<5) 
 #define RT1711H_REG_VBUS_80					(1<<1)
 
 /*
  * RT1711H_REG_RT_INT				(0x98)
  */
 
+#define RT1711H_REG_INT_RA_DETACH			(1<<5)
 #define RT1711H_REG_INT_VBUS_80				(1<<1)
+#define RT1711H_REG_INT_WAKEUP				(1<<0)
 
 /*
  * RT1711H_REG_RT_MASK				(0x99)
  */
 
+#define RT1711H_REG_M_RA_DETACH				(1<<5)
 #define RT1711H_REG_M_VBUS_80				(1<<1)
+#define RT1711H_REG_M_WAKEUP				(1<<0)
 
 #if ENABLE_RT1711_DBG
 #define RT1711H_INFO(format, args...) \

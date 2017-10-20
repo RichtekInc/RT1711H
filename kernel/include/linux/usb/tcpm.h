@@ -82,6 +82,7 @@ struct tcp_ny_enable_state {
 };
 
 struct tcp_ny_typec_state {
+	uint8_t rp_level;
 	uint8_t polarity;
 	uint8_t old_state;
 	uint8_t new_state;

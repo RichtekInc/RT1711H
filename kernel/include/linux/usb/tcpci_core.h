@@ -70,7 +70,9 @@ struct tcpc_desc {
 #define TCPC_REG_POWER_STATUS_VBUS_PRES		(1<<2)
 
 /* TCPC Alert Register Define */
-#define TCPC_REG_ALERT_EXT_VBUS_80	(1<<(16+1))
+#define TCPC_REG_ALERT_EXT_RA_DETACH	(1<<(16+5))
+#define TCPC_REG_ALERT_EXT_VBUS_80		(1<<(16+1))
+#define TCPC_REG_ALERT_EXT_WAKEUP		(1<<(16+0))
 
 #define TCPC_REG_ALERT_VBUS_DISCNCT (1<<11)
 #define TCPC_REG_ALERT_RX_BUF_OVF   (1<<10)

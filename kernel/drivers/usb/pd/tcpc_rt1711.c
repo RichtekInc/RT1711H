@@ -411,7 +411,7 @@ static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
 	}
 
 	schedule_delayed_work(
-		&chip->poll_work, msecs_to_jiffies(20));
+		&chip->poll_work, msecs_to_jiffies(40));
 }
 
 static void rt1711_irq_work_handler(struct kthread_work *work)

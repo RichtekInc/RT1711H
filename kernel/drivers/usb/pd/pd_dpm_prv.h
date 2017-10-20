@@ -1,6 +1,29 @@
 #ifndef PD_DPM_PRV_H_INCLUDED
 #define PD_DPM_PRV_H_INCLUDED
 
+typedef struct __eval_snk_request_result {
+	int src_sel;
+	int snk_sel;
+} eval_snk_request_result_t;
+
+#define SVID_DATA_LOCAL_MODE(svid_data, n) \
+	svid_data->local_mode.mode_vdo[n];
+
+#define SVID_DATA_REMOTE_MODE(svid_data, n) \
+	svid_data->remote_mode.mode_vdo[n];
+
+#define SVID_DATA_DFP_GET_ACTIVE_MODE(svid_data)\
+	SVID_DATA_REMOTE_MODE(svid_data, svid_data->active_mode-1)
+
+#define SVID_DATA_UFP_GET_ACTIVE_MODE(svid_data)\
+	SVID_DATA_LOCAL_MODE(svid_data, svid_data->active_mode-1)
+	
+extern bool eval_snk_cap_request(
+	const pd_port_power_caps* snk_caps,
+	const pd_port_power_caps* src_caps, 
+	int strategy,
+	eval_snk_request_result_t* result);
+
 enum pd_ufp_u_state {
 	DP_UFP_U_NONE = 0,
 	DP_UFP_U_STARTUP,
@@ -57,7 +80,7 @@ typedef struct __svdm_svid_ops {
 
 	bool (*notify_pe_startup)(pd_port_t* pd_port,
 		svdm_svid_data_t *svid_data);
-	bool (*notify_pe_ready)(pd_port_t* pd_port,
+	int (*notify_pe_ready)(pd_port_t* pd_port,
 		svdm_svid_data_t *svid_data, pd_event_t *pd_event);
 
 	bool (*reset_state)(pd_port_t* pd_port,
@@ -69,6 +92,9 @@ static inline svdm_svid_data_t *
 {
 	uint8_t i;
 	svdm_svid_data_t *svid_data;
+
+	if (!(pd_port->id_vdos[0] & PD_IDH_MODAL_SUPPORT))
+		return NULL;
 
 	for(i = 0; i < pd_port->svid_data_cnt; i++) {
 		svid_data = &pd_port->svid_data[i];
@@ -118,19 +144,24 @@ static inline bool svdm_notify_pe_startup(pd_port_t* pd_port)
 	return true;
 }
 
-static inline bool svdm_notify_pe_ready(
+static inline int svdm_notify_pe_ready(
 	pd_port_t* pd_port, pd_event_t *pd_event)
 {
-	int i;
+	int i, ret;
 	svdm_svid_data_t *svid_data;
 
 	for (i = 0; i < pd_port->svid_data_cnt; i++) {
 		svid_data = &pd_port->svid_data[i];
-		if (svid_data->ops && svid_data->ops->notify_pe_ready)
-			svid_data->ops->notify_pe_ready(pd_port, svid_data, pd_event);
+		if (svid_data->ops && svid_data->ops->notify_pe_ready) {
+			ret = svid_data->ops->notify_pe_ready(
+				pd_port, svid_data, pd_event);
+
+			if (ret != 0)
+				return ret;
+		}
 	}
 
-	return true;
+	return 0;
 }
 
 static inline bool svdm_reset_state(pd_port_t* pd_port)

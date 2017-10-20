@@ -307,6 +307,8 @@
 #define PD_IDH_PTYPE(vdo) (((vdo) >> 27) & 0x7)
 #define PD_IDH_VID(vdo)   ((vdo) & 0xffff)
 
+#define PD_IDH_MODAL_SUPPORT	(1<<26)
+
 /*
  * Cert Stat VDO
  * -------------
@@ -470,9 +472,16 @@
 
 #define MODE_DP_PORT_CAP(raw)		(raw & 0x03)
 #define MODE_DP_SIGNAL_SUPPORT(raw)	((raw>>2) & 0x0f)
+#define MODE_DP_RECEPT(mode)	((mode >> 6) & 0x01)
 
 #define MODE_DP_PIN_DFP(mode)	((mode >> 8) & 0xff)
 #define MODE_DP_PIN_UFP(mode)	((mode >> 16) & 0xff)
+
+#define PD_DP_DFP_D_PIN_CAPS(x)	(MODE_DP_RECEPT(x) ? \
+		MODE_DP_PIN_DFP(x) : MODE_DP_PIN_UFP(x))
+
+#define PD_DP_UFP_D_PIN_CAPS(x)	(MODE_DP_RECEPT(x) ? \
+		MODE_DP_PIN_UFP(x) : MODE_DP_PIN_DFP(x))
 
 /*
  * DisplayPort Status VDO
@@ -501,11 +510,6 @@
 #define PD_VDO_DPSTS_CONNECT(x)	(((x) >> 0) & 0x03)
 
 #define DPSTS_DISCONNECT		0
-
-#if 0
-#define DPSTS_UFP_D_CONNECTED	(1 << 0)
-#define DPSTS_DFP_D_CONNECTED	(1 << 1)
-#endif
 
 #define DPSTS_DFP_D_CONNECTED	(1 << 0)
 #define DPSTS_UFP_D_CONNECTED	(1 << 1)
@@ -802,6 +806,7 @@ typedef struct __pd_port {
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 	uint32_t local_dp_config;
 	uint32_t remote_dp_config;
+	uint8_t dp_ufp_u_attention;
 	uint8_t dp_dfp_u_state;
 #endif
 
@@ -828,6 +833,14 @@ static inline int pd_is_auto_discover_cable_id(pd_port_t *pd_port)
 	}
 
 	return false;
+}
+
+static inline int pd_is_support_modal_operation(pd_port_t *pd_port)
+{
+	if (!(pd_port->id_vdos[0] & PD_IDH_MODAL_SUPPORT))
+		return false;
+
+	return (pd_port->svid_data_cnt > 0);
 }
 
 /* new definitions*/

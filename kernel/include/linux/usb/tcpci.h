@@ -224,7 +224,7 @@ static inline int tcpci_retransmit(struct tcpc_device *tcpc)
 	return tcpc->ops->retransmit(tcpc);
 }
 #endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
-#endif	/* CONFIG_USB_POWER_DELIVERY */
+#endif 	/* CONFIG_USB_POWER_DELIVERY */
 
 static inline int tcpci_notify_typec_state(
 	struct tcpc_device *tcpc)
@@ -234,6 +234,7 @@ static inline int tcpci_notify_typec_state(
 	tcp_noti.typec_state.polarity = tcpc->typec_polarity;
 	tcp_noti.typec_state.old_state = tcpc->typec_attach_old;
 	tcp_noti.typec_state.new_state = tcpc->typec_attach_new;
+	tcp_noti.typec_state.rp_level = tcpc->typec_remote_rp_level;
 
 	return srcu_notifier_call_chain(&tcpc->evt_nh,
 				TCP_NOTIFY_TYPEC_STATE, &tcp_noti);
@@ -261,6 +262,7 @@ static inline int tcpci_notify_pd_state(
 
 static inline int tcpci_source_vbus(struct tcpc_device *tcpc, int mv, int ma)
 {
+	int ret;
 	struct tcp_notify tcp_noti;
 
 	if ((mv != 0) && (ma == 0)) {

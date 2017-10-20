@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### v004
+- [DP] Change dfp_d configuration rule
+- [DPM] No support modal operation, still response ACK for DiscoverSVID Mode
+- [SNK] Send HardReset if protocol error occurs during PE_SNK_TRANSITION_SINK state
+
 ### v003
 - Fix the tcpc_init sequence
 - Add new tcpm_xxx function : discover_cable_id;

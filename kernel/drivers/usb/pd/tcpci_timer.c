@@ -115,6 +115,7 @@ const char *tcpc_timer_name[] = {
 	"PD_TIMER_SRC_RECOVER",
 	"PD_TIMER_VSAFE0V",
 	"PD_TIMER_DISCARD",
+	"PD_TIMER_VBUS_STABLE",
 	"PD_PE_VDM_POSTPONE",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
@@ -126,7 +127,6 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_TIMER_SAFE0V",
 	"TYPEC_TIMER_DRP_SRC_TOGGLE",
 	"TYPEC_TIMER_PE_IDLE",
-
 #else
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -175,6 +175,7 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(660, 1000),	// PD_TIMER_SRC_RECOVER
 	PD_TIMER_VSAFE0V_TOUT,		// PD_TIMER_VSAFE0V (out of spec)
 	TIMEOUT_VAL(3),				// PD_TIMER_DISCARD (out of spec)
+	TIMEOUT_VAL(CONFIG_USB_PD_VBUS_STABLE_TOUT), // PD_TIMER_VBUS_STABLE (out of spec)
 	TIMEOUT_VAL_US(1500),       // PD_PE_VDM_POSTPONE (out of spec)
 
 	/* TYPEC-TRY-TIMER */

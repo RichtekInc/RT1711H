@@ -55,7 +55,7 @@ extern void dp_ufp_u_request_exit_mode(
 extern bool dp_dfp_u_notify_pe_startup(
 	pd_port_t* pd_port, svdm_svid_data_t *svid_data);
 
-extern bool dp_dfp_u_notify_pe_ready(pd_port_t* pd_port,
+extern int dp_dfp_u_notify_pe_ready(pd_port_t* pd_port,
 	svdm_svid_data_t *svid_data, pd_event_t *pd_event);
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 
@@ -632,6 +632,13 @@ void pd_dpm_src_transition_power(pd_port_t* pd_port, pd_event_t* pd_event)
 	tcpci_source_vbus(pd_port->tcpc_dev,
 		pd_port->request_v_new, pd_port->request_i_new);
 
+	if (pd_port->request_v == pd_port->request_v_new)
+		pd_put_vbus_stable_event(pd_port->tcpc_dev);
+#if CONFIG_USB_PD_VBUS_STABLE_TOUT
+	else
+		pd_enable_timer(pd_port, PD_TIMER_VBUS_STABLE);
+#endif	/* CONFIG_USB_PD_VBUS_STABLE_TOUT */
+
 	pd_port->request_v = pd_port->request_v_new;
 	pd_port->request_i = pd_port->request_i_new;
 }
@@ -756,9 +763,9 @@ void pd_dpm_ufp_request_svid_info(pd_port_t* pd_port, pd_event_t* pd_event)
 {
 	bool ack = false;
 
-	if (pd_port->svid_data_cnt > 0) {
+	if (pd_is_support_modal_operation(pd_port)) {
 		ack = (dpm_vdm_get_svid(pd_event) == USB_SID_PD);
-	}
+	} 
 
 	pd_dpm_ufp_reply_request(pd_port, pd_event, ack);
 }
@@ -1239,8 +1246,8 @@ void pd_dpm_prs_evaluate_swap(pd_port_t* pd_port, uint8_t role)
 
 	if (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GOOD_POWER) {
 		sink = pd_port->power_role == PD_ROLE_SINK;
-		check_src = pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC;
-		check_snk = pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK;
+		check_src = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC) ? 1: 0;
+		check_snk = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK) ? 1: 0;
 		good_power = dpm_check_good_power(pd_port);
 
 		switch(good_power) {
@@ -1374,11 +1381,6 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 	if (svdm_notify_pe_ready(pd_port, pd_event))
 		return 1;
-
-/*
-	if (dp_dfp_u_notify_pe_ready(pd_port, pd_event))
-		return 1;
-*/
 #else
 
 #ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_ID
