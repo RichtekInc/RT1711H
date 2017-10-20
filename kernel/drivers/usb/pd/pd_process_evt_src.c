@@ -121,6 +121,7 @@ DECL_PE_STATE_TRANSITION(PD_TIMER_SENDER_RESPONSE) = {
 	{ PE_SRC_SEND_CAPABILITIES, PE_SRC_HARD_RESET },
 	{ PE_SRC_SEND_SOFT_RESET, PE_SRC_HARD_RESET },
 
+	{ PE_SRC_GET_SINK_CAP, PE_SRC_READY }, 
 	{ PE_DR_SRC_GET_SOURCE_CAP, PE_SRC_READY },
 };
 DECL_PE_STATE_REACTION(PD_TIMER_SENDER_RESPONSE);
@@ -250,7 +251,7 @@ static inline bool pd_process_ctrl_msg(
 		break;
 
 	/* SoftReset */
-	case PD_CTRL_SOFT_RESET:
+	case PD_CTRL_SOFT_RESET:	
 		if (!pd_port->during_swap) {
 			PE_TRANSIT_STATE(pd_port, PE_SRC_SOFT_RESET);
 			return true;
@@ -362,10 +363,11 @@ static inline bool pd_process_hw_msg_vbus_present(
 static inline bool pd_process_hw_msg_tx_failed(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	if (pd_port->pe_state_curr == PE_SRC_SEND_CAPABILITIES) {
-		/* Waiting for SenderResponse Timeout */
-		if (pd_port->pd_prev_connected)
+	if (pd_port->pe_state_curr == PE_SRC_SEND_CAPABILITIES) {	
+		if (pd_port->pd_connected) {
+			PE_DBG("PR_SWAP NoResp\r\n");
 			return false;
+		}
 
 		PE_TRANSIT_STATE(pd_port, PE_SRC_DISCOVERY);
 		return true;

@@ -246,6 +246,12 @@ bool pd_make_pe_state_transit_force(pd_port_t *pd_port,
 bool pd_process_protocol_error(
 	pd_port_t* pd_port, pd_event_t *pd_event)
 {
+	pd_msg_t *pd_msg = pd_event->pd_msg;
+
+	uint8_t event_type = pd_event->event_type;
+	uint8_t msg_id = PD_HEADER_ID(pd_msg->msg_hdr);
+	uint8_t msg_type = PD_HEADER_TYPE(pd_msg->msg_hdr);
+
 	switch (pd_port->pe_state_curr) {
 	case PE_SNK_TRANSITION_SINK:
 	case PE_PRS_SRC_SNK_WAIT_SOURCE_ON:
@@ -255,15 +261,18 @@ bool pd_process_protocol_error(
 		}
 		break;
 
+	case PE_SRC_SOFT_RESET:
+	case PE_SRC_SEND_SOFT_RESET:
+	case PE_SNK_SOFT_RESET:
+	case PE_SNK_SEND_SOFT_RESET:
 	case PE_SNK_READY:
 	case PE_SRC_READY:
 	case PE_BIST_TEST_DATA:
-		PE_DBG("Igrone Unkonwn Event\r\n");
+		PE_DBG("Igrone Unknown Event\r\n");
 		return false;
 	};
 
-	PE_INFO("PRL_ERR: %d-%d\r\n",
-		pd_event->event_type, pd_event->msg);
+	PE_INFO("PRL_ERR: %d-%d-%d\r\n", event_type, msg_type, msg_id);
 
 	if (pd_port->during_swap) {
 #ifdef CONFIG_USB_PD_PR_SWAP_ERROR_RECOVERY
@@ -739,6 +748,7 @@ static inline bool pe_exit_idle_state(
 
 	pd_port->modal_operation = false;
 	pd_port->during_swap = false;
+	pd_port->dpm_ack_immediately = false;
 
 	pd_port->remote_src_cap.nr = 0;
 	pd_port->remote_snk_cap.nr = 0;

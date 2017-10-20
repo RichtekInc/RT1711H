@@ -368,7 +368,7 @@ static int tcpc_device_irq_enable(struct tcpc_device *tcpc)
 		return -EINVAL;
 	}
 
-	ret = tcpc->ops->init(tcpc, false);
+	ret = tcpci_init(tcpc, false);
 	if (ret < 0) {
 		pr_err("%s tcpc init fail\n", __func__);
 		return ret;
@@ -392,19 +392,19 @@ static void tcpc_init_work(struct work_struct *work)
 	if (tcpc->desc.notifier_supply_num == 0)
 		return;
 
-	tcpc->desc.notifier_supply_num = 0;
 	pr_info("%s force start\n", __func__);
+
+	tcpc->desc.notifier_supply_num = 0;
 	tcpc_device_irq_enable(tcpc);
 }
 
 int tcpc_schedule_init_work(struct tcpc_device *tcpc)
 {
-	if (tcpc->desc.notifier_supply_num == 0) {
+	if (tcpc->desc.notifier_supply_num == 0)
 		return tcpc_device_irq_enable(tcpc);
-	}
 	
 	schedule_delayed_work(
-		&tcpc->init_work, msecs_to_jiffies(10*1000));
+		&tcpc->init_work, msecs_to_jiffies(30*1000));
 	return 0;
 }
 EXPORT_SYMBOL(tcpc_schedule_init_work);
@@ -419,16 +419,18 @@ int register_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 		return ret;
 
 	if (tcp_dev->desc.notifier_supply_num == 0) {
-		pr_info("%s already be 0\n", __func__);
-		return ret;
+		pr_info("%s already started\n", __func__);
+		return 0;
 	}
 	
 	tcp_dev->desc.notifier_supply_num--;
 	pr_info("%s supply_num = %d\n", __func__,
 		tcp_dev->desc.notifier_supply_num);
 	
-	if (tcp_dev->desc.notifier_supply_num == 0)
+	if (tcp_dev->desc.notifier_supply_num == 0) {
+		cancel_delayed_work(&tcp_dev->init_work);
 		tcpc_device_irq_enable(tcp_dev);
+	}
 	
 	return ret;
 }

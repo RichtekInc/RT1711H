@@ -62,6 +62,8 @@ enum {
 	TCP_NOTIFY_DR_SWAP,
 	TCP_NOTIFY_VCONN_SWAP,
 	TCP_NOTIFY_AMA_DP_STATE,
+	TCP_NOTIFY_AMA_DP_ATTENTION,
+	TCP_NOTIFY_AMA_DP_HPD_STATE,
 
 	TCP_NOTIFY_TYPEC_STATE,
 	TCP_NOTIFY_PD_STATE,
@@ -104,6 +106,24 @@ struct tcp_ny_ama_dp_state {
 	uint8_t active;
 };
 
+enum {
+	TCP_DP_UFP_U_MASK = 0x7C,
+	TCP_DP_UFP_U_POWER_LOW = 1 << 2,
+	TCP_DP_UFP_U_ENABLED = 1 << 3,
+	TCP_DP_UFP_U_MF_PREFER = 1 << 4,
+	TCP_DP_UFP_U_USB_CONFIG = 1 << 5,
+	TCP_DP_UFP_U_EXIT_MODE = 1 << 6,
+};
+
+struct tcp_ny_ama_dp_attention {
+	uint8_t state;
+};
+
+struct tcp_ny_ama_dp_hpd_state {
+	bool irq : 1;
+	bool state : 1;
+};
+
 struct tcp_notify {
 	union {
 		struct tcp_ny_enable_state en_state;
@@ -112,6 +132,8 @@ struct tcp_notify {
 		struct tcp_ny_swap_state swap_state;
 		struct tcp_ny_pd_state pd_state;
 		struct tcp_ny_ama_dp_state ama_dp_state;
+		struct tcp_ny_ama_dp_attention ama_dp_attention;
+		struct tcp_ny_ama_dp_hpd_state ama_dp_hpd_state;
 	};
 };
 
@@ -158,6 +180,9 @@ extern int tcpm_error_recovery(struct tcpc_device *tcpc_dev);
 
 /* Request TCPM to send VDM */
 
+extern int tcpm_discover_cable(
+	struct tcpc_device *tcpc_dev, uint32_t *vdos);
+
 extern int tcpm_vdm_request_id(
 	struct tcpc_device *tcpc_dev, uint8_t* cnt, uint8_t* payload);
 
@@ -176,7 +201,6 @@ extern int tcpm_dp_configuration(
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 
 #endif	/* CONFIG_USB_PD_ALT_MODE */
-
 
 /* Notify TCPM */
 

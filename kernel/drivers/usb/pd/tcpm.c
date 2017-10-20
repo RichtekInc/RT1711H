@@ -164,6 +164,23 @@ int tcpm_error_recovery(struct tcpc_device *tcpc_dev)
 	return TCPM_SUCCESS;
 }
 
+int tcpm_discover_cable(
+	struct tcpc_device *tcpc_dev, uint32_t *vdos)
+{	
+	bool ret;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	mutex_lock(&pd_port->pd_lock);
+	pd_port->dpm_flags |= DPM_FLAGS_CHECK_CABLE_ID;
+	ret = vdm_put_dpm_discover_cable_event(pd_port);
+	mutex_unlock(&pd_port->pd_lock);
+
+	if (!ret)
+		return TCPM_ERROR_PUT_EVENT;
+
+	return TCPM_SUCCESS;	
+}
+
 int tcpm_vdm_request_id(
 	struct tcpc_device *tcpc_dev, uint8_t* cnt, uint8_t* payload)
 {

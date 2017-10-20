@@ -471,6 +471,9 @@
 #define MODE_DP_PORT_CAP(raw)		(raw & 0x03)
 #define MODE_DP_SIGNAL_SUPPORT(raw)	((raw>>2) & 0x0f)
 
+#define MODE_DP_PIN_DFP(mode)	((mode >> 8) & 0xff)
+#define MODE_DP_PIN_UFP(mode)	((mode >> 16) & 0xff)
+
 /*
  * DisplayPort Status VDO
  * ----------------------
@@ -498,8 +501,14 @@
 #define PD_VDO_DPSTS_CONNECT(x)	(((x) >> 0) & 0x03)
 
 #define DPSTS_DISCONNECT		0
+
+#if 0
 #define DPSTS_UFP_D_CONNECTED	(1 << 0)
 #define DPSTS_DFP_D_CONNECTED	(1 << 1)
+#endif
+
+#define DPSTS_DFP_D_CONNECTED	(1 << 0)
+#define DPSTS_UFP_D_CONNECTED	(1 << 1)
 #define DPSTS_BOTH_CONNECTED	(DPSTS_DFP_D_CONNECTED | DPSTS_UFP_D_CONNECTED)
 
 #define DPSTS_DP_ENABLED		(1<<3)
@@ -528,13 +537,21 @@
 #define VDO_DP_CFG(pin, sig, cfg) \
 	(((pin) & 0xff) << 8 | ((sig) & 0xf) << 2 | ((cfg) & 0x3))
 
+#if 0
 #define VDO_DP_DFP_CFG(pin, sig) \
 	(((pin) & 0xff) << 8 | ((sig) & 0xf) << 2 | (DP_CONFIG_DFP_D))
 
 #define VDO_DP_UFP_CFG(pin, sig) \
 	(((pin) & 0xff) << 16 | ((sig) & 0xf) << 2 | (DP_CONFIG_UFP_D))
+#endif
 
-#define PD_DP_CFG_DPON(x) (((x & 0x3) == 1) || ((x & 0x3) == 2))
+#define VDO_DP_DFP_CFG(pin, sig) VDO_DP_CFG(pin, sig, DP_CONFIG_DFP_D)
+#define VDO_DP_UFP_CFG(pin, sig) VDO_DP_CFG(pin, sig, DP_CONFIG_UFP_D)
+
+#define PD_DP_CFG_USB(x)	((x & 0x3) == DP_CONFIG_USB)
+#define PD_DP_CFG_DFP_D(x) ((x & 0x3) == DP_CONFIG_DFP_D)
+#define PD_DP_CFG_UFP_D(x) ((x & 0x3) == DP_CONFIG_UFP_D)
+#define PD_DP_CFG_DPON(x) (PD_DP_CFG_DFP_D(x) | PD_DP_CFG_UFP_D(x))
 
 #define DP_SIG_DPV13	(0x01)
 #define DP_SIG_GEN2	(0x02)
@@ -773,6 +790,7 @@ typedef struct __pd_port {
 	uint16_t mode_svid;
 	uint8_t mode_obj_pos;
 	bool modal_operation;
+	bool dpm_ack_immediately; 
 
 	uint32_t dpm_flags;
 	uint32_t dpm_init_flags;
@@ -800,13 +818,16 @@ int pd_alert_vbus_changed(pd_port_t *pd_port, int vbus_level);
 
 static inline int pd_is_auto_discover_cable_id(pd_port_t *pd_port)
 {
-	if (pd_port->power_cable_present)
-		return false;
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID) {
 
-	if (pd_port->discover_id_counter >= PD_DISCOVER_ID_COUNT)
-		return false;
+		if (pd_port->discover_id_counter < PD_DISCOVER_ID_COUNT)
+			return true;
 
-	return true;
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_CABLE_ID;
+		return false;
+	}
+
+	return false;
 }
 
 /* new definitions*/

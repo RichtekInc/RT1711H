@@ -106,7 +106,7 @@ enum pd_dfp_u_state {
 	DP_DFP_U_ERR_STATUS_UPDATE_ROLE,
 };
 
-#if DPM_DBG_ENABLE
+#if DP_DBG_ENABLE
 static const char *dp_dfp_u_state_name[] = {
 	"dp_dfp_u_none",
 	"dp_dfp_u_startup",
@@ -126,9 +126,9 @@ void dp_dfp_u_set_state(pd_port_t* pd_port, uint8_t state)
 	pd_port->dp_dfp_u_state = state;
 
 	if (pd_port->dp_dfp_u_state < DP_DFP_U_STATE_NR)
-		DPM_DBG("%s\r\n", dp_dfp_u_state_name[state]);
+		DP_DBG("%s\r\n", dp_dfp_u_state_name[state]);
 	else
-		DPM_DBG("dp_dfp_u_stop\r\n");
+		DP_DBG("dp_dfp_u_stop (%d)\r\n", state);
 }
 
 bool pd_dpm_request_enter_dp_mode(pd_port_t* pd_port)
@@ -245,24 +245,21 @@ static inline int eval_dp_match_score(uint32_t local_mode,
 	if (local_mode & DP_RECEPTACLE) {
 		if (remote_mode & DP_RECEPTACLE) {
 			if (local_mode & MODE_DP_SRC) {
-				local_pin_assignment = (local_mode >> 8) & 0xff;
-				remote_pin_assignment =
-					(remote_mode >> 16) & 0xff;
+				local_pin_assignment = MODE_DP_PIN_DFP(local_mode);
+				remote_pin_assignment = MODE_DP_PIN_UFP(remote_mode);
 				remote_is_ufp_pin_assignment = true;
 				local_is_dfp_pin_assignment = true;
 			} else {
-				local_pin_assignment = (local_mode >> 16) & 0xff;
-				remote_pin_assignment =
-					(remote_mode >> 8) & 0xff;
+				local_pin_assignment = MODE_DP_PIN_UFP(local_mode);
+				remote_pin_assignment = MODE_DP_PIN_DFP(remote_mode);
 				remote_is_ufp_pin_assignment = false;
 				local_is_dfp_pin_assignment = false;
 			}
 		} else {
-			// remote is plug
+			// remote is plug 
 			if (local_mode & MODE_DP_SRC) {
-				local_pin_assignment = (local_mode >> 8) & 0xff;
-				remote_pin_assignment =
-					(remote_mode >> 8) & 0xff;
+				local_pin_assignment = MODE_DP_PIN_DFP(local_mode);
+				remote_pin_assignment = MODE_DP_PIN_DFP(remote_mode);
 				remote_is_ufp_pin_assignment = false;
 				local_is_dfp_pin_assignment = true;
 			}
@@ -271,13 +268,13 @@ static inline int eval_dp_match_score(uint32_t local_mode,
 		// local is plug
 		if (remote_mode & DP_RECEPTACLE) {
 			if (local_mode & MODE_DP_SNK) {
-				local_pin_assignment = (local_mode >> 8) & 0xff;
-				remote_pin_assignment =
-					(remote_mode >> 8) & 0xff;
+				local_pin_assignment = MODE_DP_PIN_DFP(local_mode);
+				remote_pin_assignment = MODE_DP_PIN_DFP(remote_mode);
 				remote_is_ufp_pin_assignment = false;
 			}
 		}
 	}
+	
 	common_pin_assignment = local_pin_assignment & remote_pin_assignment;
 	if (common_pin_assignment & (MODE_DP_PIN_C | MODE_DP_PIN_E)) {
 		score = 1;
@@ -362,6 +359,7 @@ static inline uint8_t dp_dfp_u_select_mode(
 
 	local = &svid_data->local_mode;
 	remote = &svid_data->remote_mode;
+	
 	/* TODO: Evaluate All Modes later ... */
 	for (j = 0; j < local->mode_cnt; j++) {
 		dp_local_mode = local->mode_vdo[j];
@@ -407,6 +405,7 @@ bool dp_dfp_u_notify_discover_modes(
 		dp_dfp_u_set_state(pd_port, DP_DFP_U_ERR_DISCOVER_MODE_DP_SID);
 		return false;
 	}
+	
 	pd_port->mode_obj_pos = dp_dfp_u_select_mode(pd_port, svid_data);
 
 	if (pd_port->mode_obj_pos == 0) {
@@ -462,15 +461,6 @@ bool dp_dfp_u_notify_exit_mode(
 void dp_dfp_u_request_dp_configuration(
 	pd_port_t* pd_port, pd_event_t *pd_event)
 {
-#if 1	/* TODO: check it later */
-	struct tcp_notify tcp_noti;
-	tcp_noti.ama_dp_state.sel_config = SW_USB;
-	tcp_noti.ama_dp_state.active = 0;
-	// make switch open at first
-	 srcu_notifier_call_chain(&pd_port->tcpc_dev->evt_nh,
-				TCP_NOTIFY_AMA_DP_STATE, &tcp_noti);
-#endif
-
 #if 0
 	uint32_t dp_local_connected;
 
@@ -487,12 +477,12 @@ void dp_dfp_u_request_dp_configuration(
 			DP_PIN_ASSIGN_SUPPORT_C, DP_SIG_DPV13);
 	}
 #endif
+
+	tcpci_dp_notify_config_start(pd_port->tcpc_dev);
+
 	dp_dfp_u_set_state(pd_port, DP_DFP_U_CONFIGURE);
 	vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_DP_CONFIG);
-	// check later, by Patrick
-	// need to set MUX config after send DP config command
-	tcpci_dp_configure(pd_port->tcpc_dev, pd_port->local_dp_config);
 }
 
 static inline bool dp_dfp_u_update_dp_connected(
@@ -580,9 +570,17 @@ bool dp_dfp_u_notify_dp_status_update(
 bool dp_dfp_u_notify_dp_configuration(
 	pd_port_t* pd_port, pd_event_t *pd_event, bool ack)
 {
-	// Need to check, by Patrick
+	const uint32_t local_cfg = pd_port->local_dp_config;
+	const uint32_t remote_cfg = pd_port->remote_dp_config;
+
+	if (ack) 
+		dp_dfp_u_set_state(pd_port, DP_DFP_U_OPERATION);
+	else
+		DP_ERR("config failed: 0x%0x\r\n", remote_cfg);
+	
 	tcpci_dp_notify_config_done(
-		pd_port->tcpc_dev, pd_port->remote_dp_config, ack);
+		pd_port->tcpc_dev, local_cfg, remote_cfg, ack);
+	
 	return true;
 }
 

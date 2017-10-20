@@ -735,6 +735,45 @@ static void pd_pe_state_change(
 		pd_port->pe_pd_state = new_state;
 }
 
+static int pd_handle_event(
+	pd_port_t *pd_port, pd_event_t *pd_event, bool vdm_evt)
+{
+	if (vdm_evt) {
+		if (pd_port->reset_vdm_state) {
+			pd_port->reset_vdm_state = false;
+			pd_port->pe_vdm_state = pd_port->pe_pd_state;
+		}
+
+		pd_port->pe_state_curr = pd_port->pe_vdm_state;
+	} else {
+		pd_port->pe_state_curr = pd_port->pe_pd_state;
+	}
+
+	if (pd_process_event(pd_port, pd_event, vdm_evt))
+		pd_pe_state_change(pd_port, pd_event, vdm_evt);
+	else
+		pd_free_pd_event(pd_port, pd_event);
+
+	return 1;
+}
+
+static inline int pd_put_dpm_ack_immediately(
+	pd_port_t *pd_port, bool vdm_evt)
+{
+	pd_event_t pd_event = {
+		.event_type = PD_EVT_DPM_MSG,
+		.msg = PD_DPM_ACK,
+		.pd_msg = NULL,
+	};
+
+	pd_handle_event(pd_port, &pd_event, vdm_evt);
+
+	PE_DBG("ACK_Immediately\r\n");
+	pd_port->dpm_ack_immediately = false;
+	return 1;
+}
+
+
 int pd_policy_engine_run(struct tcpc_device *tcpc_dev)
 {
 	bool vdm_evt = false;
@@ -758,21 +797,10 @@ int pd_policy_engine_run(struct tcpc_device *tcpc_dev)
 
 	mutex_lock(&pd_port->pd_lock);
 
-	if (vdm_evt) {
-		if (pd_port->reset_vdm_state) {
-			pd_port->reset_vdm_state = false;
-			pd_port->pe_vdm_state = pd_port->pe_pd_state;
-		}
+	pd_handle_event(pd_port, &pd_event, vdm_evt);
 
-		pd_port->pe_state_curr = pd_port->pe_vdm_state;
-	} else {
-		pd_port->pe_state_curr = pd_port->pe_pd_state;
-	}
-
-	if (pd_process_event(pd_port, &pd_event, vdm_evt))
-		pd_pe_state_change(pd_port, &pd_event, vdm_evt);
-	else
-		pd_free_pd_event(pd_port, &pd_event);
+	if (pd_port->dpm_ack_immediately)
+		pd_put_dpm_ack_immediately(pd_port, vdm_evt);
 
 	mutex_unlock(&pd_port->pd_lock);
 	return 1;

@@ -78,8 +78,8 @@ static int pd_parse_pdata(pd_port_t *pd_port)
 	return 0;
 }
 
-#define DEFAULT_DP_ROLE_CAP				(MODE_DP_BOTH)
-#define DEFAULT_DP_FIRST_CONNECTED		(DPSTS_BOTH_CONNECTED)
+#define DEFAULT_DP_ROLE_CAP				(MODE_DP_SRC)
+#define DEFAULT_DP_FIRST_CONNECTED		(DPSTS_DFP_D_CONNECTED)
 #define DEFAULT_DP_SECOND_CONNECTED		(DPSTS_DFP_D_CONNECTED)
 
 #ifdef CONFIG_USB_PD_ALT_MODE
@@ -451,6 +451,7 @@ int pd_reset_protocol_layer(pd_port_t *pd_port)
 	pd_port->local_selected_cap = 0;
 	pd_port->remote_selected_cap = 0;
 	pd_port->during_swap = 0;
+	pd_port->dpm_ack_immediately = 0;
 
 	for(i = 0; i < PD_SOP_NR; i++)
 	{
@@ -582,6 +583,7 @@ int pd_reset_local_hw(pd_port_t *pd_port)
 	pd_port->explicit_contract = false;
 	pd_port->pd_connected  = false;
 	pd_port->pe_ready = false;
+	pd_port->dpm_ack_immediately = false;
 
 	pd_reset_modal_operation(pd_port);
 

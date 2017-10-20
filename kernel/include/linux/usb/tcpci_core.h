@@ -42,12 +42,16 @@
 #define PE_DBG_ENABLE		0
 #define TYPEC_DBG_ENABLE	0
 
+#define DP_INFO_ENABLE		1
+#define DP_DBG_ENABLE		1
+
 #define TCPC_ENABLE_ANYMSG	(TCPC_DBG_ENABLE | DPM_DBG_ENABLE|\
 				PD_ERR_ENABLE|PE_INFO_ENABLE|TCPC_TIMER_INFO_EN\
 				|PE_DBG_ENABLE|PE_EVENT_DBG_ENABLE|\
 				PE_STATE_INFO_ENABLE|TCPC_INFO_ENABLE|\
 				TCPC_TIMER_DBG_EN|TYPEC_DBG_ENABLE|\
-				TYPEC_INFO_ENABLE)
+				TYPEC_INFO_ENABLE|\
+				DP_INFO_ENABLE|DP_DBG_ENABLE)
 
 #define PE_EVT_INFO_VDM_DIS	0
 
@@ -330,6 +334,9 @@ struct tcpc_device {
 #define TCPC_ERR(format, args...)	\
 	RT_DBG_INFO("[TCPC-E]" format, ##args)
 
+#define DP_ERR(format, args...)	\
+	RT_DBG_INFO("[DP-E]" format, ##args)
+
 #if DPM_DBG_ENABLE
 #define DPM_DBG(format, args...)	\
 	RT_DBG_INFO("DPM-D:" format, ##args)
@@ -371,5 +378,20 @@ struct tcpc_device {
 #else
 #define PE_STATE_INFO(format, args...)
 #endif /* PE_STATE_IFNO_ENABLE */
+
+#if DP_INFO_ENABLE
+#define DP_INFO(format, args...)	\
+	RT_DBG_INFO("DP:" format, ##args)
+#else
+#define DP_INFO(format, args...)
+#endif /* DP_INFO_ENABLE */
+
+#if DP_DBG_ENABLE
+#define DP_DBG(format, args...)	\
+	RT_DBG_INFO("DP:" format, ##args)
+#else
+#define DP_DBG(format, args...)
+#endif /* DP_DBG_ENABLE */
+
 
 #endif /* #ifndef __LINUX_RT_TCPCI_CORE_H */

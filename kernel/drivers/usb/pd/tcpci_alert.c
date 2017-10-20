@@ -155,10 +155,11 @@ static int tcpci_alert_tx_discard(struct tcpc_device *tcpc_dev)
 	tcpc_dev->pd_transmit_state = PD_TX_STATE_DISCARD;
 	mutex_unlock(&tcpc_dev->access_lock);
 
+	TCPC_INFO("Discard\r\n");
+
 	if (tx_state == PD_TX_STATE_WAIT_CRC_VDM)
 		pd_put_last_vdm_event(tcpc_dev);
 	else {
-
 		retry_crc_discard =
 			(tcpc_dev->tcpc_flags & TCPC_FLAGS_RETRY_CRC_DISCARD) != 0;
 
@@ -251,7 +252,7 @@ const tcpci_alert_handler_t tcpci_alert_handlers[] = {
 
 int tcpci_alert(struct tcpc_device *tcpc_dev)
 {
-	int rv;
+	int rv, i;
 	uint32_t alert_status;
 	const uint32_t alert_rx =
 		TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF;
@@ -267,12 +268,10 @@ int tcpci_alert(struct tcpc_device *tcpc_dev)
 
     tcpci_alert_status_clear(tcpc_dev, alert_status & (~alert_rx));
 
-	if (tcpc_dev->typec_role == TYPEC_ROLE_UNKNOWN) {
-		TCPC_INFO("SkipAlert:0x%04x\r\n", alert_status);
+	if (tcpc_dev->typec_role == TYPEC_ROLE_UNKNOWN)
 		return 0;
-	}
 
-#ifdef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
+#ifndef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
 	if (alert_status & TCPC_REG_ALERT_EXT_VBUS_80)
 		alert_status |= TCPC_REG_ALERT_POWER_STATUS;
 	

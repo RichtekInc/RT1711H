@@ -401,12 +401,27 @@ static int rt1711_init_power_status_mask(struct tcpc_device *tcpc)
 		RT1711_REG_POWER_STATUS_MASK, mask);
 }
 
+static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
+{
+	cancel_delayed_work_sync(&chip->poll_work);
+
+	if (atomic_read(&chip->poll_count) == 0) {
+		atomic_inc(&chip->poll_count);
+		cpu_idle_poll_ctrl(true);
+	}
+
+	schedule_delayed_work(
+		&chip->poll_work, msecs_to_jiffies(20));
+}
+
 static void rt1711_irq_work_handler(struct kthread_work *work)
 {
 	struct rt1711_chip *chip =
 			container_of(work, struct rt1711_chip, irq_work);
 	int regval = 0;
 	int gpio_val;
+	
+	rt1711_poll_ctrl(chip);
 	/* make sure I2C bus had resumed */
 	down(&chip->suspend_lock);
 	tcpci_lock_typec(chip->tcpc);
@@ -430,19 +445,6 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 #endif
 }
 
-static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
-{
-	cancel_delayed_work_sync(&chip->poll_work);
-
-	if (atomic_read(&chip->poll_count) == 0) {
-		atomic_inc(&chip->poll_count);
-		cpu_idle_poll_ctrl(true);
-	}
-
-	schedule_delayed_work(
-		&chip->poll_work, msecs_to_jiffies(2000));
-}
-
 static void rt1711_poll_work(struct work_struct *work)
 {
 	struct rt1711_chip *chip = container_of(
@@ -459,12 +461,6 @@ static irqreturn_t rt1711_intr_handler(int irq, void *data)
 #ifdef DEBUG_GPIO
 	gpio_set_value(DEBUG_GPIO, 0);
 #endif
-
-	rt1711_poll_ctrl(chip);
-
-#ifdef CONFIG_PM
-    pm_runtime_set_active(&chip->client->adapter->dev);
-#endif /* CONFIG_PM */
 
 	queue_kthread_work(&chip->irq_worker, &chip->irq_work);
 	return IRQ_HANDLED;

@@ -432,6 +432,8 @@ static bool dpm_build_default_request_info(
 	req_info->pos = 1;
 	req_info->type = source.type;
 	req_info->mismatch = true;
+	req_info->vmax = 5000;
+	req_info->vmin = 5000;
 
 	if (req_info->type == DPM_PDO_TYPE_BAT){
 		req_info->max_uw = sink.uw;
@@ -675,13 +677,6 @@ static inline bool dpm_ufp_update_svid_data_enter_mode(
 
 	svid_data->active_mode = ops;
 	pd_port->modal_operation = true;
-
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE
-	if (svid == USB_SID_DISPLAYPORT)
-		dp_ufp_u_request_enter_mode(pd_port);
-#endif
-*/
 
 	svdm_ufp_request_enter_mode(pd_port, svid, ops);
 
@@ -972,12 +967,6 @@ void pd_dpm_dfp_inform_id(pd_port_t* pd_port, pd_event_t* pd_event, bool ack)
 				pd_msg->payload[2], pd_msg->payload[3]);
 	}
 
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	dp_dfp_u_notify_discover_id(pd_port, pd_event, ack);
-#endif
-*/
-
 	svdm_dfp_inform_id(pd_port, pd_event, ack);
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1037,13 +1026,6 @@ void pd_dpm_dfp_inform_svids(pd_port_t* pd_port, pd_event_t* pd_event, bool ack)
 			return;
 	}
 
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	if (dp_dfp_u_notify_discover_svid(pd_port, ack))
-		return;
-#endif
-*/
-
 	svdm_dfp_inform_svids(pd_port, ack);
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1071,13 +1053,6 @@ void pd_dpm_dfp_inform_modes(
 		}
 	}
 
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	if (dp_dfp_u_notify_discover_modes(pd_port, ack))
-		return;
-#endif
-*/
-
 	svdm_dfp_inform_modes(pd_port, expected_svid, ack);
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1101,13 +1076,6 @@ void pd_dpm_dfp_inform_enter_mode(pd_port_t* pd_port, pd_event_t* pd_event, bool
 		}
 	}
 
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	if (dp_dfp_u_notify_enter_mode(pd_port, ack))
-		return;
-#endif
-*/
-
 	svdm_dfp_inform_enter_mode(pd_port, expected_svid, ops, ack);
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1127,12 +1095,6 @@ void pd_dpm_dfp_inform_exit_mode(pd_port_t* pd_port, pd_event_t* pd_event)
 
 	dpm_dfp_update_svid_data_exit_mode(pd_port, expected_svid, ops);
 
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	dp_dfp_u_notify_exit_mode(pd_port, svid);
-#endif
-*/
-
 	svdm_dfp_inform_exit_mode(pd_port, expected_svid, ops);
 	vdm_put_dpm_notified_event(pd_port);
 }
@@ -1144,13 +1106,6 @@ void pd_dpm_dfp_inform_attention(pd_port_t* pd_port, pd_event_t* pd_event)
 	dpm_vdm_get_svid_ops(pd_event, &svid, &ops);
 
 	DPM_DBG("Attention (svid0x%04x, mode:%d)\r\n", svid, ops);
-
-/*
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP
-	if(svid == USB_SID_DISPLAYPORT)
-		dp_dfp_u_notify_attention(pd_port, pd_event);
-#endif
-*/
 
 	svdm_dfp_inform_attention(pd_port, svid, pd_event);
 	vdm_put_dpm_notified_event(pd_port);
@@ -1229,13 +1184,16 @@ void pd_dpm_drs_evaluate_swap(pd_port_t* pd_port, uint8_t role)
 void pd_dpm_drs_change_role(pd_port_t* pd_port, uint8_t role)
 {
 	pd_set_data_role(pd_port, role);
-	pd_put_dpm_ack_event(pd_port);
+
+	/* pd_put_dpm_ack_event(pd_port); */
+	pd_port->dpm_ack_immediately = true;
 }
 
 /*
  * DRP : Power Role Swap
  */
 
+ /*
 static bool pd_dpm_evaluate_source_cap_match(pd_port_t* pd_port)
 {
 	int i, j;
@@ -1259,7 +1217,7 @@ static bool pd_dpm_evaluate_source_cap_match(pd_port_t* pd_port)
 	}
 
 	return find_cap;
-}
+} */
 
 /*
 Rules:
@@ -1301,8 +1259,12 @@ void pd_dpm_prs_evaluate_swap(pd_port_t* pd_port, uint8_t role)
 			break;
 
 		default:
+			accept = true;
+			break;
+#if 0			
 			if ((!sink) && check_src)
 				accept = pd_dpm_evaluate_source_cap_match(pd_port);
+#endif
 		}
 	}
 
@@ -1345,13 +1307,17 @@ void pd_dpm_vcs_evaluate_swap(pd_port_t* pd_port)
 void pd_dpm_vcs_enable_vconn(pd_port_t* pd_port, bool en)
 {
 	pd_dpm_enable_vconn(pd_port, en);
-	pd_put_dpm_ack_event(pd_port);
+	
+	/* TODO: If we can't enable vconn immediately, 
+		then after vconn_on, 
+		Vconn Controller should pd_put_dpm_ack_event() */
+
+	pd_port->dpm_ack_immediately = true;	
 }
 
 /*
  * PE : Notify DPM
  */
-
 
 static inline int pd_dpm_ready_get_sink_cap(pd_port_t* pd_port)
 {
@@ -1417,7 +1383,7 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 
 #ifdef CONFIG_USB_PD_ATTEMP_DISCOVER_ID
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_UFP_ID) {
-		pd_port->dpm_flags &= ~ DPM_FLAGS_CHECK_UFP_ID;
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_ID;
 		if (vdm_put_dpm_vdm_request_event(
 			pd_port, PD_DPM_VDM_REQUEST_DISCOVER_ID))
 			return 1;

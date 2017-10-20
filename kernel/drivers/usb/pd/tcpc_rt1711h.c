@@ -478,12 +478,27 @@ static int rt1711_init_fault_mask(struct tcpc_device *tcpc)
 	return 0;
 }
 
+static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
+{
+	cancel_delayed_work_sync(&chip->poll_work);
+
+	if (atomic_read(&chip->poll_count) == 0) {
+		atomic_inc(&chip->poll_count);
+		cpu_idle_poll_ctrl(true);
+	}
+
+	schedule_delayed_work(
+		&chip->poll_work, msecs_to_jiffies(20));
+}
+
 static void rt1711_irq_work_handler(struct kthread_work *work)
 {
 	struct rt1711_chip *chip =
 			container_of(work, struct rt1711_chip, irq_work);
 	int regval = 0;
 	int gpio_val;
+	
+	rt1711_poll_ctrl(chip);
 	/* make sure I2C bus had resumed */
 	down(&chip->suspend_lock);
 	tcpci_lock_typec(chip->tcpc);
@@ -507,19 +522,6 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 #endif
 }
 
-static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
-{
-	cancel_delayed_work_sync(&chip->poll_work);
-
-	if (atomic_read(&chip->poll_count) == 0) {
-		atomic_inc(&chip->poll_count);
-		cpu_idle_poll_ctrl(true);
-	}
-
-	schedule_delayed_work(
-		&chip->poll_work, msecs_to_jiffies(2000));
-}
-
 static void rt1711_poll_work(struct work_struct *work)
 {
 	struct rt1711_chip *chip = container_of(
@@ -537,11 +539,6 @@ static irqreturn_t rt1711_intr_handler(int irq, void *data)
 	gpio_set_value(DEBUG_GPIO, 0);
 #endif
 
-	rt1711_poll_ctrl(chip);
-
-#ifdef CONFIG_PM
-    pm_runtime_set_active(&chip->client->adapter->dev);
-#endif /* CONFIG_PM */
 
 	queue_kthread_work(&chip->irq_worker, &chip->irq_work);
 	return IRQ_HANDLED;
@@ -905,7 +902,7 @@ static int rt1711_set_low_power_mode(struct tcpc_device *tcpc_dev, bool en, int 
 		data = RT1711H_REG_BMCIO_LPEN;
 
 		if (pull & TYPEC_CC_RP)
-			data = RT1711H_REG_BMCIO_LPRPRD;
+			data |= RT1711H_REG_BMCIO_LPRPRD;
 	} else {
 		data = RT1711H_REG_BMCIO_BG_EN |
 				RT1711H_REG_VBUS_DET_EN | RT1711H_REG_BMCIO_OSC_EN;
@@ -1444,14 +1441,13 @@ static struct i2c_driver rt1711_driver = {
 static int __init rt1711_init(void)
 {
 	struct device_node *np;
-	pr_info("rt1711_init() : initializing...\n");
+	pr_info("rt1711h_init() : initializing...\n");
 
 	np = of_find_node_by_name(NULL, "rt1711");
 	if (np != NULL)
-		pr_info("rt1711 node found...\n");
+		pr_info("rt1711h node found...\n");
 	else
-		pr_info("rt1711 node not found...\n");
-
+		pr_info("rt1711h node not found...\n");
 
 	return i2c_add_driver(&rt1711_driver);
 }

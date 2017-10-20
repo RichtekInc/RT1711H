@@ -316,22 +316,42 @@ static inline int tcpci_enter_mode(struct tcpc_device *tcpc,
 	uint16_t svid, uint8_t ops, uint32_t mode)
 {
 	/* DFP_U : DisplayPort Mode, USB Configuration */
-
+	TCPC_INFO("EnterMode\r\n");
 	return 0;
 }
 
 static inline int tcpci_exit_mode(
 	struct tcpc_device *tcpc, uint16_t svid)
 {
+	TCPC_INFO("ExitMode\r\n");
 	return 0;
 }
 
 #ifdef CONFIG_USB_PD_ALT_MODE
 
+static inline int tcpci_report_hpd_state(
+		struct tcpc_device *tcpc, uint32_t dp_status)
+{
+	struct tcp_notify tcp_noti;
+
+	/* UFP_D to DFP_D only */
+	
+	if (PD_DP_CFG_DFP_D(tcpc->pd_port.local_dp_config)) {
+		tcp_noti.ama_dp_hpd_state.irq = PD_VDO_DPSTS_HPD_IRQ(dp_status);
+		tcp_noti.ama_dp_hpd_state.state = PD_VDO_DPSTS_HPD_LVL(dp_status);
+		
+		srcu_notifier_call_chain(&tcpc->evt_nh,
+			TCP_NOTIFY_AMA_DP_HPD_STATE, &tcp_noti);
+	}
+	
+	return 0;
+}
+
 static inline int tcpci_dp_status_update(
 	struct tcpc_device *tcpc, uint32_t dp_status)
 {
-	TCPC_DBG("DP_StatusUpdate: 0x%x\r\n", dp_status);
+	DP_INFO("Status0: 0x%x\r\n", dp_status);
+	tcpci_report_hpd_state(tcpc, dp_status);
 	return 0;
 }
 
@@ -339,6 +359,9 @@ static inline int tcpci_dp_configure(
 	struct tcpc_device *tcpc, uint32_t dp_config)
 {
 	struct tcp_notify tcp_noti;
+	
+	DP_INFO("LocalCFG: 0x%x\r\n", dp_config);
+	
 	switch (dp_config & 0x03) {
 		case 0:
 			tcp_noti.ama_dp_state.sel_config =SW_USB;
@@ -360,13 +383,21 @@ static inline int tcpci_dp_configure(
 				TCP_NOTIFY_AMA_DP_STATE, &tcp_noti);
 }
 
+
 static inline int tcpci_dp_attention(
 	struct tcpc_device *tcpc, uint32_t dp_status)
 {
 	/* DFP_U : Not call this function during internal flow */
 
-	TCPC_DBG("DP_Attention: 0x%x\r\n", dp_status);
-	return 0;
+	struct tcp_notify tcp_noti;
+	DP_INFO("Attention: 0x%x\r\n", dp_status);
+
+	tcp_noti.ama_dp_attention.state = (uint8_t) dp_status;
+	
+	srcu_notifier_call_chain(&tcpc->evt_nh,
+		TCP_NOTIFY_AMA_DP_ATTENTION, &tcp_noti);
+
+	return tcpci_report_hpd_state(tcpc, dp_status);
 }
 
 static inline int tcpci_dp_notify_status_update_done(
@@ -374,16 +405,39 @@ static inline int tcpci_dp_notify_status_update_done(
 {
 	/* DFP_U : Not call this function during internal flow */
 
-	TCPC_DBG("DP_StatusUpdate_Done: 0x%x, ack=%d\r\n", dp_status, ack);
+	DP_INFO("Status1: 0x%x, ack=%d\r\n", dp_status, ack);
 	return 0;
 }
 
-static inline int tcpci_dp_notify_config_done(
-	struct tcpc_device *tcpc, uint32_t dp_config, bool ack)
+static inline int tcpci_dp_notify_config_start(struct tcpc_device *tcpc)
 {
-	TCPC_DBG("DP_Config_Done: 0x%x, ack=%d\r\n", dp_config, ack);
+	/* DFP_U : Put signal & mux into the Safe State */
+
+	struct tcp_notify tcp_noti;
+	
+	DP_INFO("ConfigStart\r\n");
+
+	tcp_noti.ama_dp_state.sel_config = SW_USB;
+	tcp_noti.ama_dp_state.active = 0;
+
+	srcu_notifier_call_chain(&tcpc->evt_nh,
+		TCP_NOTIFY_AMA_DP_STATE, &tcp_noti);
 	return 0;
 }
+
+static inline int tcpci_dp_notify_config_done(struct tcpc_device *tcpc, 
+	uint32_t local_cfg, uint32_t remote_cfg, bool ack)
+{
+	/* DFP_U : If DP success, internal flow will enter this function finally */
+	DP_INFO("ConfigDone, L:0x%x, R:0x%x, ack=%d\r\n", 
+		local_cfg, remote_cfg, ack);
+		
+	if (ack)
+		tcpci_dp_configure(tcpc, local_cfg);
+	
+	return 0;
+}
+
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
