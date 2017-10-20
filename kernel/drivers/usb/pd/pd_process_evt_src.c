@@ -19,6 +19,7 @@
 /* PD Control MSG reactions */
 
 DECL_PE_STATE_TRANSITION(PD_CTRL_MSG_GOOD_CRC) = {
+	{ PE_SRC_TRANSITION_SUPPLY2, PE_SRC_READY },
 	{ PE_SRC_GIVE_SOURCE_CAP, PE_SRC_READY },
 	{ PE_SRC_SOFT_RESET, PE_SRC_SEND_CAPABILITIES },
 
@@ -69,25 +70,25 @@ DECL_PE_STATE_REACTION(PD_DATA_MSG_SINK_CAP);
 
 /* DPM Event reactions */
 
-DECL_PE_STATE_TRANSITION(pd_dpm_msg_ack) = {
+DECL_PE_STATE_TRANSITION(PD_DPM_MSG_ACK) = {
 	{ PE_SRC_NEGOTIATE_CAPABILITIES, PE_SRC_TRANSITION_SUPPLY },
 
 #ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
 	{ PE_SRC_STARTUP, PE_SRC_SEND_CAPABILITIES },
 #endif	/*  CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID */
 };
-DECL_PE_STATE_REACTION(pd_dpm_msg_ack);
+DECL_PE_STATE_REACTION(PD_DPM_MSG_ACK);
 
-DECL_PE_STATE_TRANSITION(pd_dpm_msg_nak) = {
+DECL_PE_STATE_TRANSITION(PD_DPM_MSG_NAK) = {
 	{ PE_SRC_NEGOTIATE_CAPABILITIES, PE_SRC_CAPABILITY_RESPONSE },
 };
-DECL_PE_STATE_REACTION(pd_dpm_msg_nak);
+DECL_PE_STATE_REACTION(PD_DPM_MSG_NAK);
 
-DECL_PE_STATE_TRANSITION(pd_dpm_msg_cap_changed) = {
+DECL_PE_STATE_TRANSITION(PD_DPM_MSG_CAP_CHANGED) = {
 	{ PE_SRC_READY, PE_SRC_SEND_CAPABILITIES },
 	{ PE_SRC_WAIT_NEW_CAPABILITIES, PE_SRC_SEND_CAPABILITIES },
 };
-DECL_PE_STATE_REACTION(pd_dpm_msg_cap_changed);
+DECL_PE_STATE_REACTION(PD_DPM_MSG_CAP_CHANGED);
 
 /* HW Event reactions */
 
@@ -98,23 +99,27 @@ DECL_PE_STATE_TRANSITION(PD_HW_MSG_TX_FAILED) = {
 DECL_PE_STATE_REACTION(PD_HW_MSG_TX_FAILED);
 
 DECL_PE_STATE_TRANSITION(PD_HW_VBUS_STABLE) = {
-	{ PE_SRC_TRANSITION_SUPPLY, PE_SRC_READY },
+	{ PE_SRC_TRANSITION_SUPPLY, PE_SRC_TRANSITION_SUPPLY2 },
 };
 DECL_PE_STATE_REACTION(PD_HW_VBUS_STABLE);
 
 /* PE Event reactions */
 
 /* TODO: Remove it later, always trigger by pd_evt_source_start_timeout */
-DECL_PE_STATE_TRANSITION(pd_pe_msg_reset_prl_completed) = {
+DECL_PE_STATE_TRANSITION(PD_PE_MSG_RESET_PRL_COMPLETED) = {
 	{ PE_SRC_STARTUP, PE_SRC_SEND_CAPABILITIES },
 };
-DECL_PE_STATE_REACTION(pd_pe_msg_reset_prl_completed);
+DECL_PE_STATE_REACTION(PD_PE_MSG_RESET_PRL_COMPLETED);
 
-DECL_PE_STATE_TRANSITION(pd_pe_msg_power_role_at_default) = {
+DECL_PE_STATE_TRANSITION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT) = {
 	{ PE_SRC_TRANSITION_TO_DEFAULT, PE_SRC_STARTUP },
 };
-DECL_PE_STATE_REACTION(pd_pe_msg_power_role_at_default);
+DECL_PE_STATE_REACTION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
 
+DECL_PE_STATE_TRANSITION(PD_PE_MSG_IDLE) = {
+	{ PE_IDLE1, PE_IDLE2 },
+};
+DECL_PE_STATE_REACTION(PD_PE_MSG_IDLE);
 /* Timer Event reactions */
 
 DECL_PE_STATE_TRANSITION(PD_TIMER_SENDER_RESPONSE) = {
@@ -163,6 +168,9 @@ static inline bool pd_process_ctrl_msg_good_crc(
 		pd_disable_timer(pd_port, PD_TIMER_NO_RESPONSE);
 		pd_port->cap_counter = 0;
 		pd_port->hard_reset_counter = 0;
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+		pd_port->recv_hard_reset_count = 0;
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 		pd_notify_pe_hard_reset_completed(pd_port);
 		pd_enable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);
 		/* pd_set_cc_res(pd_port, TYPEC_CC_RP_1_5); */
@@ -313,13 +321,13 @@ static inline bool pd_process_dpm_msg(
 
 	switch (pd_event->msg) {
 	case PD_DPM_ACK:
-		ret = PE_MAKE_STATE_TRANSIT(pd_dpm_msg_ack);
+		ret = PE_MAKE_STATE_TRANSIT(PD_DPM_MSG_ACK);
 		break;
 	case PD_DPM_NAK:
-		ret = PE_MAKE_STATE_TRANSIT(pd_dpm_msg_nak);
+		ret = PE_MAKE_STATE_TRANSIT(PD_DPM_MSG_NAK);
 		break;
 	case PD_DPM_CAP_CHANGED:
-		ret = PE_MAKE_STATE_TRANSIT(pd_dpm_msg_cap_changed);
+		ret = PE_MAKE_STATE_TRANSIT(PD_DPM_MSG_CAP_CHANGED);
 		break;
 
 	case PD_DPM_ERROR_RECOVERY:
@@ -375,7 +383,7 @@ static inline bool pd_process_hw_msg(
 
 	switch (pd_event->msg) {
 	case PD_HW_CC_DETACHED:
-		PE_TRANSIT_STATE(pd_port, PE_IDLE);
+		PE_TRANSIT_STATE(pd_port, PE_IDLE1);
 		return true;
 
 	case PD_HW_CC_ATTACHED:
@@ -383,8 +391,9 @@ static inline bool pd_process_hw_msg(
 		return true;
 
 	case PD_HW_RECV_HARD_RESET:
-		PE_TRANSIT_STATE(pd_port, PE_SRC_HARD_RESET_RECEIVED);
-		return true;
+		ret = pd_process_recv_hard_reset(
+				pd_port, pd_event, PE_SRC_HARD_RESET_RECEIVED);
+		break;
 
 	case PD_HW_VBUS_PRESENT:
 		ret = pd_process_hw_msg_vbus_present(pd_port, pd_event);
@@ -420,14 +429,17 @@ static inline bool pd_process_pe_msg(
 
 	switch (pd_event->msg) {
 	case PD_PE_RESET_PRL_COMPLETED:
-		ret = PE_MAKE_STATE_TRANSIT(pd_pe_msg_reset_prl_completed);
+		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_RESET_PRL_COMPLETED);
 		break;
 
 	case PD_PE_POWER_ROLE_AT_DEFAULT:
-		ret = PE_MAKE_STATE_TRANSIT(pd_pe_msg_power_role_at_default);
+		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
+		break;
+
+	case PD_PE_IDLE:
+		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_IDLE);
 		break;
 	}
-
 	return ret;
 }
 

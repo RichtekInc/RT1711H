@@ -505,8 +505,7 @@ static int __init tcpc_class_init(void)
 
 	tcpc_class = class_create(THIS_MODULE, "tcpc");
 	if (IS_ERR(tcpc_class)) {
-		pr_info(KERN_WARNING
-		       "Unable to create tcpc class; errno = %ld\n",
+		pr_info("Unable to create tcpc class; errno = %ld\n",
 		       PTR_ERR(tcpc_class));
 		return PTR_ERR(tcpc_class);
 	}
@@ -529,5 +528,5 @@ module_exit(tcpc_class_exit);
 
 MODULE_DESCRIPTION("Richtek TypeC Port Control Core");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
-MODULE_VERSION("1.0.4_G");
+MODULE_VERSION("1.0.7_G");
 MODULE_LICENSE("GPL");

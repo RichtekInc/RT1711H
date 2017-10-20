@@ -94,6 +94,7 @@ static const char *const pd_pe_msg_name[] = {
 	"reset_prl_done",
 	"pr_at_dft",
 	"hard_reset_done",
+	"pe_idle",
 };
 
 static inline void print_pe_msg_event(uint8_t msg)
@@ -238,6 +239,8 @@ bool pd_process_protocol_error(
 
 	switch (pd_port->pe_state_curr) {
 	case PE_SNK_TRANSITION_SINK:
+	case PE_SRC_TRANSITION_SUPPLY:
+	case PE_SRC_TRANSITION_SUPPLY2:
 		power_change = true;
 	case PE_PRS_SRC_SNK_WAIT_SOURCE_ON:
 		if (pd_event_msg_match(pd_event,
@@ -462,6 +465,22 @@ bool pd_process_dpm_msg_vconn_swap(
 
 	pd_port->state_machine = PE_STATE_MACHINE_VCONN_SWAP;
 	PE_TRANSIT_STATE(pd_port, PE_VCS_SEND_SWAP);
+	return true;
+}
+
+bool pd_process_recv_hard_reset(
+		pd_port_t *pd_port, pd_event_t *pd_event, uint8_t hreset_state)
+{
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	if (pd_port->recv_hard_reset_count > PD_HARD_RESET_COUNT) {
+		PE_TRANSIT_STATE(pd_port, PE_OVER_RECV_HRESET_LIMIT);
+		return true;
+	}
+
+	pd_port->recv_hard_reset_count++;
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
+	PE_TRANSIT_STATE(pd_port, hreset_state);
 	return true;
 }
 
@@ -737,6 +756,10 @@ static inline bool pe_exit_idle_state(
 	pd_port->get_snk_cap_count = 0;
 	pd_port->get_src_cap_count = 0;
 
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	pd_port->recv_hard_reset_count = 0;
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
 	pd_port->pe_ready = 0;
 	pd_port->pd_connected = 0;
 	pd_port->pd_prev_connected = 0;
@@ -762,8 +785,17 @@ static inline bool pe_is_trap_in_idle_state(
 {
 	bool trap = true;
 
-	if (pd_port->pe_state_curr != PE_IDLE)
+	switch (pd_port->pe_state_curr) {
+	case PE_IDLE1:
+		if (pd_event_msg_match(pd_event, PD_EVT_PE_MSG, PD_PE_IDLE))
+			return false;
+		pd_try_put_pe_idle_event(pd_port);
+	case PE_IDLE2:
+		break;
+
+	default:
 		return false;
+	}
 
 	if (pd_event->event_type == PD_EVT_HW_MSG) {
 		switch (pd_event->msg) {
@@ -782,20 +814,17 @@ static inline bool pe_is_trap_in_idle_state(
 
 	if (!trap)
 		trap = !pe_exit_idle_state(pd_port, pd_event);
-
-	if (trap)
-		PE_DBG("Trap in idle state, Igrone All MSG\r\n");
-
 	return trap;
 }
 
 bool pd_process_event(pd_port_t *pd_port, pd_event_t *pd_event, bool vdm_evt)
 {
-
 	bool ret = false;
 
-	if (pe_is_trap_in_idle_state(pd_port, pd_event))
+	if (pe_is_trap_in_idle_state(pd_port, pd_event)) {
+		PE_DBG("Trap in idle state, Igrone All MSG\r\n");
 		return false;
+	}
 
 	if (!pe_translate_pd_msg_event(pd_port, pd_event))
 		return false;

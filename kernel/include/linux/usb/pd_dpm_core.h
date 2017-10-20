@@ -127,14 +127,14 @@ static inline int pd_dpm_sink_vbus(pd_port_t *pd_port, bool en)
 {
 	int mv = en ? TCPC_VBUS_SINK_5V : TCPC_VBUS_SINK_0V;
 
-	return tcpci_sink_vbus(pd_port->tcpc_dev, mv, 0);
+	return tcpci_sink_vbus(pd_port->tcpc_dev, mv, -1);
 }
 
 static inline int pd_dpm_source_vbus(pd_port_t *pd_port, bool en)
 {
 	int mv = en ? TCPC_VBUS_SOURCE_5V : TCPC_VBUS_SOURCE_0V;
 
-	return tcpci_source_vbus(pd_port->tcpc_dev, mv, 0);
+	return tcpci_source_vbus(pd_port->tcpc_dev, mv, -1);
 }
 
 #ifdef CONFIG_USB_PD_ALT_MODE

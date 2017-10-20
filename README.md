@@ -2,6 +2,17 @@
 
 ## Changelog
 
+### v007
+- [PE] Remove busy wait for tx finish
+- [PE] Add a option for Receive HardReset over limit. <ESD?>
+- [TYPEC] Support TypeC spec 1.2
+- [TYPEC] Change solution for legacy CtoA cable
+- [TYPEC] Support local Rp level as default to pass Ellisys test
+- [PR_SWAP] Fix compatibility test with Apple MACBook (act as Sink)
+  - source may turn off power & change CC before we got GoodCRC or Accept
+- [PR_SWAP] Always do good power check for local_ext & local_src case
+- [TCPCI] Change source vbus & sink vbus default value (0 -> -1)
+
 ### v006
 - [LINUX] Fix Coding Style
 

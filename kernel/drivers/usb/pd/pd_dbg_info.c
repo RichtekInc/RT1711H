@@ -62,7 +62,7 @@ static int print_out_thread_fn(void *arg)
 		if (pd_dbg_buffer[index].used) {
 			pd_dbg_buffer[index].
 				buf[pd_dbg_buffer[index].used] = '\0';
-			printk("///PD dbg info %ud\n",
+			pr_info("///PD dbg info %ud\n",
 					pd_dbg_buffer[index].used);
 			for (i = 0; i < pd_dbg_buffer[index].used;
 							i += OUT_BUF_MAX) {
@@ -101,7 +101,7 @@ static int print_out_thread_fn(void *arg)
 			   pr_info("///PD dbg info\n%s\nPD dbg info///\n",
 						pd_dbg_buffer[index].buf);
 			*/
-			printk("///PD dbg info\n");
+			pr_info("///PD dbg info\n");
 			printk(pd_dbg_buffer[index].buf);
 			printk("PD dbg info///\n");
 		}

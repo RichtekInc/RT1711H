@@ -17,15 +17,6 @@
 #include <linux/usb/tcpci.h>
 #include <linux/usb/pd_policy_engine.h>
 
-#ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
-#define CONFIG_PD_DISCOVER_CABLE_ID
-#endif
-
-#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
-#undef CONFIG_PD_DISCOVER_CABLE_ID
-#define CONFIG_PD_DISCOVER_CABLE_ID
-#endif
-
 typedef struct __pe_state_transition {
 	uint8_t curr_state; /*state, msg, or cmd */
 	uint8_t next_state;
@@ -83,6 +74,9 @@ bool pd_process_ctrl_msg_vconn_swap(
 	pd_port_t *pd_port, pd_event_t *pd_event);
 bool pd_process_dpm_msg_vconn_swap(
 	pd_port_t *pd_port, pd_event_t *pd_event);
+
+bool pd_process_recv_hard_reset(
+		pd_port_t *pd_port, pd_event_t *pd_event, uint8_t hreset_state);
 
 /*
 //-----------------------------------------------------------------------------

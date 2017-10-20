@@ -221,6 +221,8 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
 
+#define TCPC_LEGACY_CABLE_CONFIRM	7
+
 struct tcpc_device {
 	struct i2c_client *client;
 	struct tcpc_ops *ops;
@@ -259,18 +261,18 @@ struct tcpc_device {
 	uint8_t typec_role;
 	uint8_t typec_attach_old;
 	uint8_t typec_attach_new;
+	uint8_t typec_local_cc;
 	uint8_t typec_local_rp_level;
+	uint8_t typec_remote_cc[2];
 	uint8_t typec_remote_rp_level;
+	uint8_t typec_wait_ps_change;
 	bool typec_polarity;
-	bool typec_wait_ps_change;
-	bool typec_skip_try_snk;
-	bool typec_trysnk_timeout;
+	bool typec_drp_try_timeout;
 	bool typec_lpm;
 	bool typec_cable_only;
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	bool typec_legacy_cable;
-	uint8_t typec_check_legacy_cable;
+	uint8_t typec_legacy_cable_suspect;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
@@ -304,7 +306,6 @@ struct tcpc_device {
 	bool pd_wait_pr_swap_complete;
 	bool pd_wait_error_recovery;
 	bool pd_ping_event_pending;
-	bool pd_idle_mode;
 	uint8_t pd_bist_mode;
 	uint8_t pd_transmit_state;
 	int pd_wait_vbus_once;

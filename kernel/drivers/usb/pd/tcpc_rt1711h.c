@@ -242,7 +242,7 @@ static int rt1711_reg_write(struct i2c_client *i2c, u8 reg, const u8 data)
 	struct rt1711_chip *chip = i2c_get_clientdata(i2c);
 	int ret = 0;
 
-#ifdef CONFIT_RT_REGMAP
+#ifdef CONFIG_RT_REGMAP
 	ret = rt_regmap_block_write(chip->m_dev, reg, 1, &data);
 #else
 	ret = rt1711_write_device(chip->client, reg, 1, &data);
@@ -661,8 +661,8 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	return 0;
 }
 
-static inline int rt1711h_set_clock_gating(
-			struct tcpc_device *tcpc_dev, bool en)
+static inline int rt1711h_set_clock_gating(struct tcpc_device *tcpc_dev,
+									bool en)
 {
 	int ret = 0;
 
@@ -694,6 +694,14 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* CK_300K from 320K, SHIPPING off, AUTOIDLE enable, TIMEOUT = 32ms */
+	rt1711_i2c_write8(tcpc, RT1711H_REG_IDLE_CTRL, 0x2A);
+
+#ifdef CONFIG_TCPC_INTRST_EN
+	rt1711_i2c_write8(tcpc,
+			RT1711H_REG_INTRST_CTRL, RT1711H_REG_INTRST_SET(1, 3));
+#endif /* CONFIG_TCPC_INTRST_EN */
 
 	ret = rt1711_init_testmode(tcpc);
 	if (ret < 0)
@@ -735,11 +743,6 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	/* RX/TX Clock Gating (Auto Mode)*/
 	if (!sw_reset)
 		rt1711h_set_clock_gating(tcpc, true);
-
-#ifdef CONFIG_TCPC_INTRST_EN
-	rt1711_i2c_write8(tcpc,
-		RT1711H_REG_INTRST_CTRL, RT1711H_REG_INTRST_SET(1, 3));
-#endif
 
 	tcpci_alert_status_clear(tcpc, 0xffffffff);
 
@@ -1298,7 +1301,7 @@ static int rt1711_check_i2c(struct i2c_client *i2c)
 		return ret;
 	data = 1;
 	rt1711_write_device(i2c, RT1711H_REG_SWRESET, 1, &data);
-	msleep(5);
+	msleep(20);
 	return 0;
 }
 #endif /* #if 0 */

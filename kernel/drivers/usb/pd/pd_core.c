@@ -322,8 +322,8 @@ int pd_core_init(struct tcpc_device *tcpc_dev)
 	mutex_init(&pd_port->pd_lock);
 	pd_port->tcpc_dev = tcpc_dev;
 
-	pd_port->pe_pd_state = PE_IDLE;
-	pd_port->pe_vdm_state = PE_IDLE;
+	pd_port->pe_pd_state = PE_IDLE2;
+	pd_port->pe_vdm_state = PE_IDLE2;
 
 	pd_port->pd_connect_state = PD_CONNECT_NONE;
 
@@ -627,6 +627,16 @@ int pd_enable_bist_test_mode(pd_port_t *pd_port, bool en)
 	return tcpci_set_bist_test_mode(pd_port->tcpc_dev, en);
 }
 
+/* ---- Handle PD Message ----*/
+
+int pd_handle_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
+{
+	pd_port->state_machine = state_machine;
+
+	pd_reset_protocol_layer(pd_port);
+	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
+}
+
 /* ---- Send PD Message ----*/
 
 static int pd_send_message(pd_port_t *pd_port, uint8_t sop_type,
@@ -666,7 +676,6 @@ static int pd_send_message(pd_port_t *pd_port, uint8_t sop_type,
 	if (ret < 0)
 		PD_ERR("[SendMsg] Failed, %d\r\n", ret);
 
-	ret = pd_wait_tx_finished_event(pd_port);
 	return ret;
 }
 
@@ -681,22 +690,32 @@ int pd_send_data_msg(pd_port_t *pd_port,
 	return pd_send_message(pd_port, sop_type, msg, cnt, payload);
 }
 
+int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
+{
+	pd_port->state_machine = state_machine;
+
+	pd_reset_protocol_layer(pd_port);
+	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_SOFT_RESET);
+}
+
 int pd_send_hard_reset(pd_port_t *pd_port)
 {
 	int ret;
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
-	PE_DBG("Send HARD Reset++\r\n");
-
-	pd_notify_pe_send_hard_reset_start(pd_port);
-	ret = tcpci_transmit(pd_port->tcpc_dev, TCPC_TX_HARD_RESET, 0, NULL);
+	PE_DBG("Send HARD Reset\r\n");
+	pd_port->hard_reset_counter++;
+	pd_notify_pe_send_hard_reset(pd_port);
+	ret = tcpci_transmit(tcpc_dev, TCPC_TX_HARD_RESET, 0, NULL);
 	if (ret)
 		return ret;
-	ret = pd_wait_tx_finished_event(pd_port);
 
-	pd_port->hard_reset_counter++;
-	pd_notify_pe_send_hard_reset_done(pd_port);
-
-	PE_DBG("Send HARD Reset--\r\n");
+#ifdef CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER
+	if (!(tcpc_dev->tcpc_flags & TCPC_FLAGS_WAIT_HRESET_COMPLETE)) {
+		pd_put_sent_hard_reset_event(tcpc_dev);
+		return 0;
+	}
+#endif
 	return 0;
 }
 

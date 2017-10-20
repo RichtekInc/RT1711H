@@ -26,7 +26,7 @@ void pe_src_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port->state_machine = PE_STATE_MACHINE_SOURCE;
 
 	pd_port->cap_counter = 0;
-	pd_port->request_i = 0;
+	pd_port->request_i = -1;
 	pd_port->request_v = TCPC_VBUS_SOURCE_5V;
 
 	pd_reset_protocol_layer(pd_port);
@@ -97,7 +97,7 @@ void pe_src_negotiate_capabilities_entry(
 void pe_src_transition_supply_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	if (pd_event->msg == PD_DPM_PD_REQUEST)	/* goto-min */ {
-		pd_port->request_i_new = 0;
+		pd_port->request_i_new = -1;
 		pd_port->request_v_new = TCPC_VBUS_SOURCE_5V;
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GOTO_MIN);
 	} else
@@ -109,14 +109,17 @@ void pe_src_transition_supply_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 void pe_src_transition_supply_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_disable_timer(pd_port, PD_TIMER_SOURCE_TRANSITION);
+}
 
-	if (pd_event_msg_match(pd_event, PD_EVT_HW_MSG, PD_HW_VBUS_STABLE))
-		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PS_RDY);
+void pe_src_transition_supply2_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PS_RDY);
 }
 
 void pe_src_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_port->state_machine = PE_STATE_MACHINE_SOURCE;
+	pd_notify_pe_src_explicit_contract(pd_port);
 	pe_power_ready_entry(pd_port, pd_event);
 }
 
@@ -192,21 +195,13 @@ void pe_src_wait_new_capabilities_entry(
 
 void pe_src_send_soft_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_port->state_machine = PE_STATE_MACHINE_SOURCE;
-
-	pd_reset_protocol_layer(pd_port);
-	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_SOFT_RESET);
-
+	pd_send_soft_reset(pd_port, PE_STATE_MACHINE_SOURCE);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_src_soft_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_port->state_machine = PE_STATE_MACHINE_SOURCE;
-
-	pd_reset_protocol_layer(pd_port);
-	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
-
+	pd_handle_soft_reset(pd_port, PE_STATE_MACHINE_SOURCE);
 	pd_free_pd_event(pd_port, pd_event);
 }
 

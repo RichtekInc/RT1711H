@@ -33,7 +33,7 @@ void pe_prs_src_snk_evaluate_pr_swap_entry(
 void pe_prs_src_snk_accept_pr_swap_entry(
 				pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_notify_pe_execute_pr_swap(pd_port);
+	pd_notify_pe_execute_pr_swap(pd_port, true);
 
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
@@ -42,7 +42,7 @@ void pe_prs_src_snk_transition_to_off_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_lock_msg_output(pd_port);	/* for tSRCTransition */
-	pd_notify_pe_execute_pr_swap(pd_port);
+	pd_notify_pe_execute_pr_swap(pd_port, true);
 
 	pd_enable_timer(pd_port, PD_TIMER_SOURCE_TRANSITION);
 	pd_free_pd_event(pd_port, pd_event);
@@ -94,17 +94,20 @@ void pe_prs_snk_src_evaluate_pr_swap_entry(
 void pe_prs_snk_src_accept_pr_swap_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	/* Source may turn off power before we got good-crc*/
-	pd_notify_pe_execute_pr_swap(pd_port);
-
+	pd_notify_pe_execute_pr_swap(pd_port, true);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
 
 void pe_prs_snk_src_transition_to_off_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_notify_pe_execute_pr_swap(pd_port);
+	/*
+	 * Sink should call pd_notify_pe_execute_pr_swap before this state,
+	 * because source may turn off power & change CC before we got
+	 * GoodCRC or Accept.
+	 */
 
+	pd_port->during_swap = true;
 	pd_enable_timer(pd_port, PD_TIMER_PS_SOURCE_OFF);
 	pd_dpm_prs_turn_off_power_sink(pd_port);
 	pd_free_pd_event(pd_port, pd_event);
@@ -137,6 +140,7 @@ void pe_prs_snk_src_source_on_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pe_prs_snk_src_send_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	pd_notify_pe_execute_pr_swap(pd_port, false);
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_PR_SWAP);
 }
 

@@ -146,6 +146,7 @@ static inline bool pd_process_ctrl_msg(
 
 	case PD_CTRL_WAIT:
 	case PD_CTRL_REJECT:
+		pd_notify_pe_cancel_pr_swap(pd_port);
 		return PE_MAKE_STATE_TRANSIT(PD_CTRL_MSG_REJECT_WAIT);
 
 	case PD_CTRL_PS_RDY:
@@ -219,6 +220,7 @@ static inline bool pd_process_timer_msg(
 {
 	switch (pd_event->msg) {
 	case PD_TIMER_SENDER_RESPONSE:
+		pd_notify_pe_cancel_pr_swap(pd_port);
 		return PE_MAKE_STATE_TRANSIT(PD_TIMER_SENDER_RESPONSE);
 
 	case PD_TIMER_PS_SOURCE_ON:

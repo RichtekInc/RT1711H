@@ -30,6 +30,7 @@ static const char *const pe_state_name[] = {
 	"PE_SRC_SEND_CAPABILITIES",
 	"PE_SRC_NEGOTIATE_CAPABILITIES",
 	"PE_SRC_TRANSITION_SUPPLY",
+	"PE_SRC_TRANSITION_SUPPLY2",
 	"PE_SRC_READY",
 	"PE_SRC_DISABLED",
 	"PE_SRC_CAPABILITY_RESPONSE",
@@ -173,12 +174,17 @@ static const char *const pe_state_name[] = {
 	"PE_DFP_VDM_DP_CONFIGURATION_NAKED",
 #endif
 
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	"PE_OVER_RECV_HRESET_LIMIT",
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
 	"PE_ERROR_RECOVERY",
 
 	"PE_BIST_TEST_DATA",
 	"PE_BIST_CARRIER_MODE_2",
 
-	"PE_IDLE",
+	"PE_IDLE1",
+	"PE_IDLE2",
 
 	"PE_VIRT_HARD_RESET",
 	"PE_VIRT_READY",
@@ -365,31 +371,56 @@ typedef struct __pe_state_actions {
 extern int rt1711_set_bist_carrier_mode(
 	struct tcpc_device *tcpc_dev, uint8_t pattern);
 */
-
-static void pe_idle_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+static void pe_idle_reset_data(pd_port_t *pd_port)
 {
 	pd_reset_pe_timer(pd_port);
 	pd_reset_svid_data(pd_port);
 	pd_port->state_machine = PE_STATE_MACHINE_IDLE;
 
-	pd_unlock_msg_output(pd_port);
+	switch (pd_port->pe_state_curr) {
+	case PE_BIST_TEST_DATA:
+		pd_enable_bist_test_mode(pd_port, false);
+		break;
 
+	case PE_BIST_CARRIER_MODE_2:
+		pd_disable_bist_mode2(pd_port);
+		break;
+	}
+
+	pd_unlock_msg_output(pd_port);
+}
+
+static void pe_idle1_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	pe_idle_reset_data(pd_port);
+
+	pd_try_put_pe_idle_event(pd_port);
+}
+
+static void pe_idle2_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
 	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_IDLE);
 	pd_notify_pe_idle(pd_port);
 }
 
 void pe_error_recovery_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	pd_reset_pe_timer(pd_port);
-	pd_reset_svid_data(pd_port);
-	pd_port->state_machine = PE_STATE_MACHINE_IDLE;
-
-	pd_unlock_msg_output(pd_port);
+	pe_idle_reset_data(pd_port);
 
 	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_IDLE);
 	pd_notify_pe_error_recovery(pd_port);
 	pd_free_pd_event(pd_port, pd_event);
 }
+
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+void pe_over_recv_hreset_limit_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	PE_INFO("OverHResetLimit++\r\n");
+	pe_idle_reset_data(pd_port);
+	pd_notify_pe_over_recv_hreset(pd_port);
+	PE_INFO("OverHResetLimit--\r\n");
+}
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 
 void pe_bist_test_data_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
@@ -441,6 +472,7 @@ static const pe_state_actions_t pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_src_send_capabilities),
 	PE_STATE_ACTIONS(pe_src_negotiate_capabilities),
 	PE_STATE_ACTIONS(pe_src_transition_supply),
+	PE_STATE_ACTIONS(pe_src_transition_supply2),
 	PE_STATE_ACTIONS(pe_src_ready),
 	PE_STATE_ACTIONS(pe_src_disabled),
 	PE_STATE_ACTIONS(pe_src_capability_response),
@@ -594,12 +626,16 @@ static const pe_state_actions_t pe_state_actions[] = {
 #endif
 
 	/* general activity */
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	PE_STATE_ACTIONS(pe_over_recv_hreset_limit),
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 	PE_STATE_ACTIONS(pe_error_recovery),
 
 	PE_STATE_ACTIONS(pe_bist_test_data),
 	PE_STATE_ACTIONS(pe_bist_carrier_mode_2),
 
-	PE_STATE_ACTIONS(pe_idle),
+	PE_STATE_ACTIONS(pe_idle1),
+	PE_STATE_ACTIONS(pe_idle2),
 };
 
 static void pe_exit_action_disable_sender_response(
@@ -699,7 +735,7 @@ static void pd_pe_state_change(
 	BUG_ON(old_state >= PD_NR_PE_STATES);
 	BUG_ON(new_state >= PD_NR_PE_STATES);
 
-	if (new_state == PE_IDLE)
+	if ((new_state == PE_IDLE1) || (new_state == PE_IDLE2))
 		prev_exit_action = NULL;
 	else
 		prev_exit_action = pe_get_exit_action(old_state);

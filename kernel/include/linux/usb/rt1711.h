@@ -129,7 +129,7 @@
 
 #if ENABLE_RT1711_DBG
 #define RT1711_INFO(format, args...) \
-	pd_dbg_info(KERN_INFO "%s() line-%d: " format,\
+	pd_dbg_info("%s() line-%d: " format,\
 	__func__, __LINE__, ##args)
 #else
 #define RT1711_INFO(foramt, args...)

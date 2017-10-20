@@ -275,6 +275,9 @@ static inline int __tcpci_alert(struct tcpc_device *tcpc_dev)
 	const uint32_t alert_rx =
 		TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF;
 
+	const uint32_t alert_sent_hreset =
+		TCPC_REG_ALERT_TX_SUCCESS | TCPC_REG_ALERT_TX_FAILED;
+
 	rv = tcpci_get_alert_status(tcpc_dev, &alert_status);
 	if (rv)
 		return rv;
@@ -297,6 +300,15 @@ static inline int __tcpci_alert(struct tcpc_device *tcpc_dev)
 			(tcpc_dev->tcpc_flags & TCPC_FLAGS_CHECK_RA_DETACHE))
 		alert_status |= TCPC_REG_ALERT_CC_STATUS;
 #endif /* CONFIG_TYPEC_CAP_RA_DETACH */
+
+#ifdef CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER
+	if ((alert_status & alert_sent_hreset) == alert_sent_hreset) {
+		if (tcpc_dev->tcpc_flags & TCPC_FLAGS_WAIT_HRESET_COMPLETE) {
+			alert_status &= ~alert_sent_hreset;
+			pd_put_sent_hard_reset_event(tcpc_dev);
+		}
+	}
+#endif	/* CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER */
 
 #ifndef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
 	for (i = 0; i < ARRAY_SIZE(tcpci_alert_handlers); i++) {
@@ -352,7 +364,7 @@ static inline int tcpci_report_usb_port_detached(struct tcpc_device *tcpc)
 	wake_unlock(&tcpc->attach_wake_lock);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-	pd_put_idle_event(tcpc);
+	pd_put_cc_detached_event(tcpc);
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 	return 0;

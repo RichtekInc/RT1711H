@@ -118,6 +118,10 @@ DECL_PE_STATE_TRANSITION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT) = {
 	{ PE_SNK_TRANSITION_TO_DEFAULT, PE_SNK_STARTUP },
 };
 DECL_PE_STATE_REACTION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
+DECL_PE_STATE_TRANSITION(PD_PE_MSG_IDLE) = {
+	{ PE_IDLE1, PE_IDLE2 },
+};
+DECL_PE_STATE_REACTION(PD_PE_MSG_IDLE);
 
 /* Timer Event reactions */
 
@@ -325,7 +329,7 @@ static inline bool pd_process_hw_msg(
 
 	switch (pd_event->msg) {
 	case PD_HW_CC_DETACHED:
-		PE_TRANSIT_STATE(pd_port, PE_IDLE);
+		PE_TRANSIT_STATE(pd_port, PE_IDLE1);
 		return true;
 
 	case PD_HW_CC_ATTACHED:
@@ -333,8 +337,9 @@ static inline bool pd_process_hw_msg(
 		return true;
 
 	case PD_HW_RECV_HARD_RESET:
-		PE_TRANSIT_STATE(pd_port, PE_SNK_TRANSITION_TO_DEFAULT);
-		return true;
+		ret = pd_process_recv_hard_reset(
+			pd_port, pd_event, PE_SNK_TRANSITION_TO_DEFAULT);
+		break;
 
 	case PD_HW_VBUS_PRESENT:
 		ret = PE_MAKE_STATE_TRANSIT(PD_HW_MSG_VBUS_PRESENT);
@@ -373,6 +378,10 @@ static inline bool pd_process_pe_msg(
 
 	case PD_PE_POWER_ROLE_AT_DEFAULT:
 		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
+		break;
+
+	case PD_PE_IDLE:
+		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_IDLE);
 		break;
 	}
 

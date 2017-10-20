@@ -284,6 +284,15 @@ static inline bool pd_process_ctrl_msg(
 }
 
 /*
+ * [BLOCK] Porcess Data MSG (UVDM)
+ */
+
+static inline bool pd_process_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+	return false;
+}
+
+/*
  * [BLOCK] Porcess Data MSG (VDM)
  */
 
@@ -465,8 +474,11 @@ static inline bool pd_process_data_msg(
 	if (pd_event->msg != PD_DATA_VENDOR_DEF)
 		return ret;
 
-	/* From Port Partner, copy curr_state from pd_state */
 	vdm_hdr = pd_msg->payload[0];
+	if (!PD_VDO_SVDM(vdm_hdr))
+		return pd_process_uvdm(pd_port, pd_event);
+
+	/* From Port Partner, copy curr_state from pd_state */
 	if (PD_VDO_CMDT(vdm_hdr) == CMDT_INIT) {
 		pd_port->pe_vdm_state = pd_port->pe_pd_state;
 		pd_port->pe_state_curr = pd_port->pe_pd_state;
