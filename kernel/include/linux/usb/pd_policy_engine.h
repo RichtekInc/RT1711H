@@ -224,7 +224,7 @@ int pd_policy_engine_run(struct tcpc_device *tcpc_dev);
 
 /* ---- Policy Engine (General) ---- */
 
-void pe_power_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event);
+void pe_power_ready_entry(struct pd_port *pd_port, struct pd_event *pd_event);
 
 
 
@@ -232,343 +232,343 @@ void pe_power_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 /******************* Source *******************/
 #ifdef CONFIG_USB_PD_PE_SOURCE
 void pe_src_startup_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_discovery_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_send_capabilities_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_negotiate_capabilities_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_transition_supply_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_transition_supply_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_transition_supply2_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_ready_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_disabled_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_capability_response_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_hard_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_hard_reset_received_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_transition_to_default_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_transition_to_default_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_get_sink_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_get_sink_cap_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_wait_new_capabilities_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_send_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_ping_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
 #ifdef CONFIG_PD_SRC_RESET_CABLE
 void pe_src_cbl_send_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_PD_SRC_RESET_CABLE */
 void pe_src_vdm_identity_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_vdm_identity_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_vdm_identity_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* PD_CAP_PE_SRC_STARTUP_DISCOVER_ID */
 #endif	/* CONFIG_USB_PD_PE_SOURCE */
 /******************* Sink *******************/
 #ifdef CONFIG_USB_PD_PE_SINK
 void pe_snk_startup_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_discovery_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_wait_for_capabilities_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_wait_for_capabilities_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_evaluate_capability_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_select_capability_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_select_capability_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_transition_sink_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_transition_sink_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_ready_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_hard_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_transition_to_default_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_transition_to_default_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_give_sink_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_get_source_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_send_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_PE_SINK */
 /******************* DR_SWAP *******************/
 #ifdef CONFIG_USB_PD_DR_SWAP
 void pe_drs_dfp_ufp_evaluate_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_dfp_ufp_accept_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_dfp_ufp_change_to_ufp_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_dfp_ufp_send_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_dfp_ufp_reject_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_ufp_dfp_evaluate_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_ufp_dfp_accept_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_ufp_dfp_change_to_dfp_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_ufp_dfp_send_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_drs_ufp_dfp_reject_dr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_DR_SWAP */
 /******************* PR_SWAP *******************/
 #ifdef CONFIG_USB_PD_PR_SWAP
 void pe_prs_src_snk_evaluate_pr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_accept_pr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_transition_to_off_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_assert_rd_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_wait_source_on_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_wait_source_on_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_send_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_src_snk_reject_pr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_evaluate_pr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_accept_pr_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_transition_to_off_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_transition_to_off_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_assert_rp_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_source_on_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_source_on_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_send_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_prs_snk_src_reject_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 /* get same role cap */
 void pe_dr_src_get_source_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dr_src_get_source_cap_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dr_src_give_sink_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dr_snk_get_sink_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dr_snk_get_sink_cap_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dr_snk_give_source_cap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_PR_SWAP */
 /******************* VCONN_SWAP *******************/
 #ifdef CONFIG_USB_PD_VCONN_SWAP
 void pe_vcs_send_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_evaluate_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_accept_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_reject_vconn_swap_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_wait_for_vconn_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_wait_for_vconn_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_turn_off_vconn_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_turn_on_vconn_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_vcs_send_ps_rdy_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_VCONN_SWAP */
 /******************* UFP_VDM *******************/
 void pe_ufp_vdm_get_identity_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_send_identity_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_get_identity_nak_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_get_svids_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_send_svids_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_get_svids_nak_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_get_modes_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_send_modes_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_get_modes_nak_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_evaluate_mode_entry_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_mode_entry_ack_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_mode_entry_nak_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_mode_exit_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_mode_exit_ack_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_mode_exit_nak_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_attention_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #ifdef CONFIG_USB_PD_ALT_MODE
 void pe_ufp_vdm_dp_status_update_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_ufp_vdm_dp_configure_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif/* CONFIG_USB_PD_ALT_MODE */
 /******************* DFP_VDM *******************/
 void pe_dfp_ufp_vdm_identity_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_ufp_vdm_identity_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_ufp_vdm_identity_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_cbl_vdm_identity_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_cbl_vdm_identity_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_cbl_vdm_identity_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_svids_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_svids_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_svids_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_modes_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_modes_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_modes_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_mode_entry_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_mode_entry_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_mode_entry_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_mode_exit_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_mode_exit_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_attention_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #ifdef CONFIG_PD_DFP_RESET_CABLE
 void pe_dfp_cbl_send_soft_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_cbl_send_cable_reset_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_PD_DFP_RESET_CABLE */
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 void pe_dfp_vdm_dp_status_update_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_dp_status_update_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_dp_status_update_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_dp_configuration_request_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_dp_configuration_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_vdm_dp_configuration_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif/* CONFIG_USB_PD_ALT_MODE_DFP */
 /******************* UVDM & SVDM *******************/
 #ifdef CONFIG_USB_PD_UVDM
 void pe_ufp_uvdm_recv_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_uvdm_send_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_uvdm_acked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_dfp_uvdm_naked_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif/* CONFIG_USB_PD_UVDM */
 /******************* PD30 for PPS *******************/
 #ifdef CONFIG_USB_PD_REV30
 void pe_src_send_source_alert_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_source_alert_received_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_get_source_status_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_get_source_status_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_src_give_source_status_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #ifdef CONFIG_USB_PD_REV30_PPS_SINK
 void pe_snk_get_pps_status_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_snk_get_pps_status_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_REV30_PPS_SINK */
 #ifdef CONFIG_USB_PD_REV30_PPS_SOURCE
 void pe_src_give_pps_status_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif	/* CONFIG_USB_PD_REV30_PPS_SOURCE */
 #endif /* CONFIG_USB_PD_REV30 */
 /******************* Others *******************/
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 void pe_dbg_ready_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif/* CONFIG_USB_PD_CUSTOM_DBGACC */
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 void pe_over_recv_hreset_limit_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 #endif/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 void pe_error_recovery_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_bist_test_data_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_bist_test_data_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_bist_carrier_mode_2_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_bist_carrier_mode_2_exit(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 /* Wait tx finished */
 void pe_idle1_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 void pe_idle2_entry(
-	struct __pd_port *pd_port, struct __pd_event *pd_event);
+	struct pd_port *pd_port, struct pd_event *pd_event);
 /******************* Virtual *******************/
 
 #endif /* PD_POLICY_ENGINE_H_ */

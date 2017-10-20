@@ -44,7 +44,7 @@
 
 /* #define DEBUG_GPIO	66 */
 
-#define RT1711H_DRV_VERSION	"1.1.8_G"
+#define RT1711H_DRV_VERSION	"1.1.9_G"
 
 struct rt1711_chip {
 	struct i2c_client *client;

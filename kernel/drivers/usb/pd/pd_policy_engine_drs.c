@@ -24,14 +24,14 @@
  */
 
 void pe_drs_dfp_ufp_evaluate_dr_swap_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_dpm_drs_evaluate_swap(pd_port, PD_ROLE_UFP);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_drs_dfp_ufp_accept_dr_swap_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	/* Change RX cap to UFP first for compliance */
 	pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_UFP);
@@ -39,13 +39,14 @@ void pe_drs_dfp_ufp_accept_dr_swap_entry(
 }
 
 void pe_drs_dfp_ufp_change_to_ufp_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_dpm_drs_change_role(pd_port, PD_ROLE_UFP);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
-void pe_drs_dfp_ufp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+void pe_drs_dfp_ufp_send_dr_swap_entry(
+		struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_port->pd_wait_sender_response = true;
 
@@ -55,7 +56,7 @@ void pe_drs_dfp_ufp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 }
 
 void pe_drs_dfp_ufp_reject_dr_swap_entry(
-				pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	if (pd_event->msg_sec == PD_DPM_NAK_REJECT)
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
@@ -68,26 +69,27 @@ void pe_drs_dfp_ufp_reject_dr_swap_entry(
  */
 
 void pe_drs_ufp_dfp_evaluate_dr_swap_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_dpm_drs_evaluate_swap(pd_port, PD_ROLE_DFP);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_drs_ufp_dfp_accept_dr_swap_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
 
 void pe_drs_ufp_dfp_change_to_dfp_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_dpm_drs_change_role(pd_port, PD_ROLE_DFP);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
-void pe_drs_ufp_dfp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
+void pe_drs_ufp_dfp_send_dr_swap_entry(
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	pd_port->pd_wait_sender_response = true;
 
@@ -95,7 +97,7 @@ void pe_drs_ufp_dfp_send_dr_swap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 }
 
 void pe_drs_ufp_dfp_reject_dr_swap_entry(
-			pd_port_t *pd_port, pd_event_t *pd_event)
+			struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	if (pd_event->msg_sec == PD_DPM_NAK_REJECT)
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);

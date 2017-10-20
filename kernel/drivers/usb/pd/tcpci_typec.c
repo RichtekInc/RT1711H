@@ -932,7 +932,7 @@ static inline bool typec_check_cc_stable_sink(
 	if ((cc1a != TYPEC_CC_VOLT_OPEN) && (cc2a != TYPEC_CC_VOLT_OPEN)) {
 		TYPEC_INFO("CC Stable Check...\r\n");
 		typec_set_polarity(tcpc_dev, !tcpc_dev->typec_polarity);
-		usleep(1000, 2000);
+		usleep_range(1000, 2000);
 
 		ret = tcpci_get_cc(tcpc_dev);
 		cc1b = typec_get_cc1();

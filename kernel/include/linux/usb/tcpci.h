@@ -739,7 +739,7 @@ static inline int tcpci_dp_notify_config_done(struct tcpc_device *tcpc,
 static inline int tcpci_notify_uvdm(struct tcpc_device *tcpc, bool ack)
 {
 	struct tcp_notify tcp_noti;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	tcp_noti.uvdm_msg.ack = ack;
 

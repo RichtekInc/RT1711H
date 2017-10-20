@@ -279,7 +279,7 @@ typedef enum hrtimer_restart (*tcpc_hrtimer_call)(struct hrtimer *timer);
 static inline void on_pe_timer_timeout(
 		struct tcpc_device *tcpc_dev, uint32_t timer_id)
 {
-	pd_event_t pd_event = {0};
+	struct pd_event pd_event = {0};
 
 	pd_event.event_type = PD_EVT_TIMER_MSG;
 	pd_event.msg = timer_id;
@@ -376,7 +376,8 @@ static enum hrtimer_restart tcpc_timer_discover_id(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static enum hrtimer_restart tcpc_timer_hard_reset_complete(struct hrtimer *timer)
+static enum hrtimer_restart
+	tcpc_timer_hard_reset_complete(struct hrtimer *timer)
 {
 	int index = PD_TIMER_HARD_RESET_COMPLETE;
 	struct tcpc_device *tcpc_dev =

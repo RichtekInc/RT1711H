@@ -41,6 +41,7 @@ static inline int tcpm_check_typec_attached(struct tcpc_device *tcpc)
 static inline int tcpm_check_pd_attached(struct tcpc_device *tcpc)
 {
 	int ret = tcpm_check_typec_attached(tcpc);
+
 	if (ret != TCPM_SUCCESS)
 		return ret;
 
@@ -161,7 +162,7 @@ int tcpm_typec_set_usb_sink_curr(
 	bool force_sink_vbus = true;
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 
@@ -222,6 +223,7 @@ int tcpm_typec_role_swap(struct tcpc_device *tcpc_dev)
 {
 #ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
 	int ret = tcpm_check_typec_attached(tcpc_dev);
+
 	if (ret != TCPM_SUCCESS)
 		return ret;
 
@@ -242,7 +244,7 @@ int tcpm_typec_change_role(
 bool tcpm_inquire_pd_connected(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->pd_connected;
 }
@@ -250,7 +252,7 @@ bool tcpm_inquire_pd_connected(
 bool tcpm_inquire_pd_prev_connected(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->pd_prev_connected;
 }
@@ -258,7 +260,7 @@ bool tcpm_inquire_pd_prev_connected(
 uint8_t tcpm_inquire_pd_data_role(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->data_role;
 }
@@ -266,7 +268,7 @@ uint8_t tcpm_inquire_pd_data_role(
 uint8_t tcpm_inquire_pd_power_role(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->power_role;
 }
@@ -274,7 +276,7 @@ uint8_t tcpm_inquire_pd_power_role(
 uint8_t tcpm_inquire_pd_vconn_role(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->vconn_source;
 }
@@ -282,7 +284,7 @@ uint8_t tcpm_inquire_pd_vconn_role(
 uint8_t tcpm_inquire_pd_pe_ready(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->pe_ready;
 }
@@ -290,7 +292,7 @@ uint8_t tcpm_inquire_pd_pe_ready(
 uint8_t tcpm_inquire_cable_current(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	if (pd_port->power_cable_present)
 		return pd_get_cable_curr_lvl(pd_port)+1;
@@ -300,21 +302,21 @@ uint8_t tcpm_inquire_cable_current(
 
 uint32_t tcpm_inquire_dpm_flags(struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->dpm_flags;
 }
 
 uint32_t tcpm_inquire_dpm_caps(struct tcpc_device *tcpc_dev)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->dpm_caps;
 }
 
 void tcpm_set_dpm_flags(struct tcpc_device *tcpc_dev, uint32_t flags)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	pd_port->dpm_flags = flags;
@@ -323,7 +325,7 @@ void tcpm_set_dpm_flags(struct tcpc_device *tcpc_dev, uint32_t flags)
 
 void tcpm_set_dpm_caps(struct tcpc_device *tcpc_dev, uint32_t caps)
 {
-	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	pd_port->dpm_caps = caps;
@@ -336,7 +338,7 @@ int tcpm_inquire_pd_contract(
 	struct tcpc_device *tcpc, int *mv, int *ma)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -361,7 +363,7 @@ int tcpm_inquire_cable_inform(
 	struct tcpc_device *tcpc, uint32_t *vdos)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -386,7 +388,7 @@ int tcpm_inquire_pd_partner_inform(
 {
 #ifdef CONFIG_USB_PD_KEEP_PARTNER_ID
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -413,7 +415,7 @@ int tcpm_inquire_pd_source_cap(
 	struct tcpc_device *tcpc, struct tcpm_power_cap *cap)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -438,7 +440,7 @@ int tcpm_inquire_pd_sink_cap(
 	struct tcpc_device *tcpc, struct tcpm_power_cap *cap)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -488,7 +490,7 @@ bool tcpm_extract_power_cap_val(
 int tcpm_dpm_pd_power_swap(
 	struct tcpc_device *tcpc, uint8_t role, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_PR_SWAP_AS_SNK + role,
 		.event_cb = event_cb,
 	};
@@ -499,7 +501,7 @@ int tcpm_dpm_pd_power_swap(
 int tcpm_dpm_pd_data_swap(
 	struct tcpc_device *tcpc, uint8_t role, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DR_SWAP_AS_UFP + role,
 		.event_cb = event_cb,
 	};
@@ -510,7 +512,7 @@ int tcpm_dpm_pd_data_swap(
 int tcpm_dpm_pd_vconn_swap(
 	struct tcpc_device *tcpc, uint8_t role, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_VCONN_SWAP_OFF + role,
 		.event_cb = event_cb,
 	};
@@ -521,7 +523,7 @@ int tcpm_dpm_pd_vconn_swap(
 int tcpm_dpm_pd_goto_min(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GOTOMIN,
 		.event_cb = event_cb,
 	};
@@ -532,7 +534,7 @@ int tcpm_dpm_pd_goto_min(
 int tcpm_dpm_pd_soft_reset(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_SOFTRESET,
 		.event_cb = event_cb,
 	};
@@ -543,7 +545,7 @@ int tcpm_dpm_pd_soft_reset(
 int tcpm_dpm_pd_get_source_cap(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_SOURCE_CAP,
 		.event_cb = event_cb,
 	};
@@ -554,7 +556,7 @@ int tcpm_dpm_pd_get_source_cap(
 int tcpm_dpm_pd_get_sink_cap(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_SINK_CAP,
 		.event_cb = event_cb,
 	};
@@ -565,7 +567,7 @@ int tcpm_dpm_pd_get_sink_cap(
 int tcpm_dpm_pd_request(struct tcpc_device *tcpc,
 	int mv, int ma, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST,
 		.event_cb = event_cb,
 
@@ -579,7 +581,7 @@ int tcpm_dpm_pd_request(struct tcpc_device *tcpc,
 int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc,
 	uint8_t pos, uint32_t max, uint32_t oper, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_EX,
 		.event_cb = event_cb,
 
@@ -598,7 +600,7 @@ int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc,
 int tcpm_dpm_pd_bist_cm2(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_BIST_CM2,
 		.event_cb = event_cb,
 	};
@@ -623,7 +625,7 @@ int tcpm_dpm_pd_fast_swap(
 int tcpm_dpm_pd_get_status(
 		struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_STATUS,
 		.event_cb = event_cb,
 	};
@@ -634,7 +636,7 @@ int tcpm_dpm_pd_get_status(
 int tcpm_dpm_pd_get_pps_status(
 		struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_PPS_STATUS,
 		.event_cb = event_cb,
 	};
@@ -646,7 +648,7 @@ int tcpm_dpm_pd_get_pps_status(
 
 int tcpm_dpm_pd_hard_reset(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_HARD_RESET,
 	};
 
@@ -655,7 +657,7 @@ int tcpm_dpm_pd_hard_reset(struct tcpc_device *tcpc)
 
 int tcpm_dpm_pd_error_recovery(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_ERROR_RECOVERY,
 	};
 
@@ -665,7 +667,7 @@ int tcpm_dpm_pd_error_recovery(struct tcpc_device *tcpc)
 int tcpm_dpm_vdm_discover_cable(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DISCOVER_CABLE,
 		.event_cb = event_cb,
 	};
@@ -676,7 +678,7 @@ int tcpm_dpm_vdm_discover_cable(
 int tcpm_dpm_vdm_discover_id(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DISCOVER_ID,
 		.event_cb = event_cb,
 	};
@@ -687,7 +689,7 @@ int tcpm_dpm_vdm_discover_id(
 int tcpm_dpm_vdm_discover_svid(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DISCOVER_SVIDS,
 		.event_cb = event_cb,
 	};
@@ -698,7 +700,7 @@ int tcpm_dpm_vdm_discover_svid(
 int tcpm_dpm_vdm_discover_mode(
 	struct tcpc_device *tcpc, uint16_t svid, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DISCOVER_MODES,
 		.event_cb = event_cb,
 
@@ -711,7 +713,7 @@ int tcpm_dpm_vdm_discover_mode(
 int tcpm_dpm_vdm_enter_mode(struct tcpc_device *tcpc,
 	uint16_t svid, uint8_t ops, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_ENTER_MODE,
 		.event_cb = event_cb,
 
@@ -725,7 +727,7 @@ int tcpm_dpm_vdm_enter_mode(struct tcpc_device *tcpc,
 int tcpm_dpm_vdm_exit_mode(struct tcpc_device *tcpc,
 	uint16_t svid, uint8_t ops, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_EXIT_MODE,
 		.event_cb = event_cb,
 
@@ -742,7 +744,7 @@ int tcpm_inquire_dp_ufp_u_state(
 	struct tcpc_device *tcpc, uint8_t *state)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -761,7 +763,7 @@ int tcpm_inquire_dp_ufp_u_state(
 int tcpm_dpm_dp_attention(struct tcpc_device *tcpc,
 	uint32_t dp_status, uint32_t mask, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_ATTENTION,
 		.event_cb = event_cb,
 
@@ -778,7 +780,7 @@ int tcpm_inquire_dp_dfp_u_state(
 	struct tcpc_device *tcpc, uint8_t *state)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -797,7 +799,7 @@ int tcpm_inquire_dp_dfp_u_state(
 int tcpm_dpm_dp_status_update(struct tcpc_device *tcpc,
 	uint32_t dp_status, uint32_t mask, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_STATUS_UPDATE,
 		.event_cb = event_cb,
 
@@ -811,7 +813,7 @@ int tcpm_dpm_dp_status_update(struct tcpc_device *tcpc,
 int tcpm_dpm_dp_config(struct tcpc_device *tcpc,
 	uint32_t dp_config, uint32_t mask, tcp_dpm_event_cb event_cb)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_CONFIG,
 		.event_cb = event_cb,
 
@@ -831,7 +833,7 @@ int tcpm_dpm_send_uvdm(struct tcpc_device *tcpc,
 {
 	struct tcp_dpm_uvdm_data *uvdm_data;
 
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_UVDM,
 		.event_cb = event_cb,
 	};
@@ -851,7 +853,7 @@ int tcpm_dpm_send_uvdm(struct tcpc_device *tcpc,
 
 #ifdef CONFIG_USB_PD_TCPM_CB_2ND
 void tcpm_replace_curr_tcp_event(
-		pd_port_t *pd_port, struct tcp_dpm_event *event)
+		struct pd_port *pd_port, struct tcp_dpm_event *event)
 {
 	int reason = TCP_DPM_RET_DENIED_UNKNOWM;
 
@@ -868,7 +870,7 @@ void tcpm_replace_curr_tcp_event(
 	pd_notify_tcp_event_2nd_result(pd_port, reason);
 	pd_port->tcp_event_drop_reset_once = true;
 	pd_port->tcp_event_id_2nd = event->event_id;
-	memcpy(&pd_port->tcp_event, event, sizeof(tcp_dpm_event_t));
+	memcpy(&pd_port->tcp_event, event, sizeof(struct tcp_dpm_event));
 	mutex_unlock(&pd_port->pd_lock);
 }
 #endif	/* CONFIG_USB_PD_TCPM_CB_2ND */
@@ -877,7 +879,7 @@ int tcpm_put_tcp_dpm_event(
 	struct tcpc_device *tcpc, struct tcp_dpm_event *event)
 {
 	bool ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	ret = tcpm_check_pd_attached(tcpc);
 	if (ret != TCPM_SUCCESS)
@@ -912,18 +914,18 @@ int tcpm_notify_vbus_stable(
 
 uint8_t tcpm_inquire_pd_charging_policy(struct tcpc_device *tcpc)
 {
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	return pd_port->dpm_charging_policy;
 }
 
 int tcpm_set_pd_charging_policy(struct tcpc_device *tcpc, uint8_t policy)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_AGAIN,
 	};
 
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	if (pd_port->dpm_charging_policy == policy)
 		return TCPM_SUCCESS;
@@ -942,7 +944,7 @@ int tcpm_set_pd_charging_policy(struct tcpc_device *tcpc, uint8_t policy)
 #ifdef CONFIG_USB_PD_DIRECT_CHARGE
 int tcpm_set_direct_charge_en(struct tcpc_device *tcpc, bool en)
 {
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	tcpc->pd_during_direct_charge = en;
@@ -963,7 +965,7 @@ bool tcpm_inquire_during_direct_charge(struct tcpc_device *tcpc)
 int tcpm_dpm_set_vconn_supply_mode(
 	struct tcpc_device *tcpc, uint8_t mode) {
 	bool keep_vconn;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	tcpc->tcpc_vconn_supply = mode;
@@ -995,11 +997,11 @@ int tcpm_dpm_set_vconn_supply_mode(
 int tcpm_set_apdo_charging_policy(
 		struct tcpc_device *tcpc, uint8_t policy, int mv, int ma)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_AGAIN,
 	};
 
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	if (pd_port->dpm_charging_policy == policy)
 		return TCPM_SUCCESS;

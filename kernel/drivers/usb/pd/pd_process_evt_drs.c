@@ -61,7 +61,7 @@ DECL_PE_STATE_REACTION(PD_TIMER_SENDER_RESPONSE);
  */
 
 static inline bool pd_process_ctrl_msg_good_crc(
-		pd_port_t *pd_port, pd_event_t *pd_event)
+		struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	switch (pd_port->pe_state_curr) {
 	case PE_DRS_DFP_UFP_REJECT_DR_SWAP:
@@ -83,7 +83,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	switch (pd_event->msg) {
 	case PD_CTRL_GOOD_CRC:
@@ -107,7 +107,7 @@ static inline bool pd_process_ctrl_msg(
  */
 
 static inline bool pd_process_dpm_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -128,7 +128,7 @@ static inline bool pd_process_dpm_msg(
  */
 
 static inline bool pd_process_timer_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -145,7 +145,7 @@ static inline bool pd_process_timer_msg(
  * [BLOCK] Process Policy Engine's DRS Message
  */
 
-bool pd_process_event_drs(pd_port_t *pd_port, pd_event_t *pd_event)
+bool pd_process_event_drs(struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	switch (pd_event->event_type) {
 	case PD_EVT_CTRL_MSG:

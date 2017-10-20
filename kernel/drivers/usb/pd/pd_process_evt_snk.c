@@ -176,7 +176,7 @@ DECL_PE_STATE_REACTION(PD_TIMER_SINK_REQUEST);
  */
 
 static inline bool pd_process_ctrl_msg_get_source_cap(
-		pd_port_t *pd_port, pd_event_t *pd_event)
+		struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	if (pd_port->pe_state_curr != PE_SNK_READY)
 		return false;
@@ -191,7 +191,7 @@ static inline bool pd_process_ctrl_msg_get_source_cap(
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -286,7 +286,7 @@ static inline bool pd_process_ctrl_msg(
  */
 
 static inline bool pd_process_data_msg(
-		pd_port_t *pd_port, pd_event_t *pd_event)
+		struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -321,14 +321,13 @@ static inline bool pd_process_data_msg(
 	return ret;
 }
 
-
 /*
  * [BLOCK] Porcess Extend MSG
  */
 
 #ifdef CONFIG_USB_PD_REV30
 static inline bool pd_process_ext_msg(
-		pd_port_t *pd_port, pd_event_t *pd_event)
+		struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -355,7 +354,7 @@ static inline bool pd_process_ext_msg(
  */
 
 static inline bool pd_process_dpm_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -376,7 +375,7 @@ static inline bool pd_process_dpm_msg(
  */
 
 static inline bool pd_process_hw_msg_tx_failed(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	if (pd_port->pe_state_curr == PE_SNK_READY ||
 		pd_port->tcpc_dev->pd_wait_hard_reset_complete) {
@@ -389,7 +388,7 @@ static inline bool pd_process_hw_msg_tx_failed(
 }
 
 static inline bool pd_process_hw_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -428,7 +427,7 @@ static inline bool pd_process_hw_msg(
  */
 
 static inline bool pd_process_pe_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -457,7 +456,7 @@ static inline bool pd_process_pe_msg(
  * [BLOCK] Porcess Timer MSG
  */
 
-static inline void pd_report_typec_only_charger(pd_port_t *pd_port)
+static inline void pd_report_typec_only_charger(struct pd_port *pd_port)
 {
 	/* TODO: pd_set_rx_enable(pd_port, PD_RX_CAP_PE_DISABLE);*/
 	PE_INFO("TYPE-C Only Charger!\r\n");
@@ -467,7 +466,7 @@ static inline void pd_report_typec_only_charger(pd_port_t *pd_port)
 }
 
 static inline bool pd_process_timer_msg(
-	pd_port_t *pd_port, pd_event_t *pd_event)
+	struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	bool ret = false;
 
@@ -482,18 +481,6 @@ static inline bool pd_process_timer_msg(
 
 #ifndef CONFIG_USB_PD_DBG_IGRONE_TIMEOUT
 	case PD_TIMER_SENDER_RESPONSE:
-		/* Test Code ... */
-		if (pd_port->pe_state_curr == PE_SNK_SELECT_CAPABILITY) {
-			uint32_t alert;
-			tcpci_get_alert_status(pd_port->tcpc_dev, &alert);
-			TCPC_INFO("Alert:0x%04x\r\n", alert);
-
-			if (alert & TCPC_REG_ALERT_RX_STATUS) {
-				pd_enable_timer(pd_port,
-					PD_TIMER_SENDER_RESPONSE);
-				return false;
-			}
-		}
 
 		ret = PE_MAKE_STATE_TRANSIT(PD_TIMER_SENDER_RESPONSE);
 		break;
@@ -550,7 +537,7 @@ static inline bool pd_process_timer_msg(
  * [BLOCK] Process Policy Engine's SNK Message
  */
 
-bool pd_process_event_snk(pd_port_t *pd_port, pd_event_t *pd_event)
+bool pd_process_event_snk(struct pd_port *pd_port, struct pd_event *pd_event)
 {
 	switch (pd_event->event_type) {
 	case PD_EVT_CTRL_MSG:

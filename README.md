@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### v019
+- [Linux] Fix Coding Style : remove typedef	
+- [PE] Discover Cable only if VconnSource just for PD30
+
+
 ### v018
 - [Linux] Remove dummy EXPORT_SYMBOL
 - [TCPC] Fixed dr_swap failed after pr_swap

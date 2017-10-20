@@ -52,7 +52,7 @@ static const char * const bk_event_ret_name[] = {
 int tcpm_dpm_bk_event_cb(
 	struct tcpc_device *tcpc, int ret, struct tcp_dpm_event *event)
 {
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	pd_port->tcpm_bk_ret = ret;
 	pd_port->tcpm_bk_done = true;
@@ -64,7 +64,7 @@ int tcpm_dpm_bk_event_cb(
 	return 0;
 }
 
-int tcpm_dpm_wait_bk_event(pd_port_t *pd_port, uint32_t tout_ms)
+int tcpm_dpm_wait_bk_event(struct pd_port *pd_port, uint32_t tout_ms)
 {
 	wait_event_interruptible_timeout(pd_port->tcpm_bk_wait_que,
 				pd_port->tcpm_bk_done,
@@ -81,7 +81,7 @@ static int tcpm_put_tcp_dpm_event_bk(
 	struct tcpc_device *tcpc, uint32_t tout_ms, struct tcp_dpm_event *event)
 {
 	int ret;
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	mutex_lock(&pd_port->tcpm_bk_lock);
 
@@ -100,7 +100,7 @@ static int tcpm_put_tcp_dpm_event_bk(
 
 int tcpm_dpm_pd_power_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_PR_SWAP_AS_SNK + role,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -110,7 +110,7 @@ int tcpm_dpm_pd_power_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 
 int tcpm_dpm_pd_data_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_DR_SWAP_AS_UFP + role,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -120,7 +120,7 @@ int tcpm_dpm_pd_data_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 
 int tcpm_dpm_pd_vconn_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_VCONN_SWAP_OFF + role,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -130,7 +130,7 @@ int tcpm_dpm_pd_vconn_swap_bk(struct tcpc_device *tcpc, uint8_t role)
 
 int tcpm_dpm_pd_goto_min_bk(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GOTOMIN,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -140,7 +140,7 @@ int tcpm_dpm_pd_goto_min_bk(struct tcpc_device *tcpc)
 
 int tcpm_dpm_pd_soft_reset_bk(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_SOFTRESET,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -150,7 +150,7 @@ int tcpm_dpm_pd_soft_reset_bk(struct tcpc_device *tcpc)
 
 int tcpm_dpm_pd_get_source_cap_bk(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_SOURCE_CAP,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -160,7 +160,7 @@ int tcpm_dpm_pd_get_source_cap_bk(struct tcpc_device *tcpc)
 
 int tcpm_dpm_pd_get_sink_cap_bk(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_SINK_CAP,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -170,7 +170,7 @@ int tcpm_dpm_pd_get_sink_cap_bk(struct tcpc_device *tcpc)
 
 int tcpm_dpm_pd_request_bk(struct tcpc_device *tcpc, int mv, int ma)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST,
 		.event_cb = tcpm_dpm_bk_event_cb,
 
@@ -184,7 +184,7 @@ int tcpm_dpm_pd_request_bk(struct tcpc_device *tcpc, int mv, int ma)
 int tcpm_dpm_pd_request_ex_bk(struct tcpc_device *tcpc,
 	uint8_t pos, uint32_t max, uint32_t oper)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_EX,
 		.event_cb = tcpm_dpm_bk_event_cb,
 
@@ -201,7 +201,7 @@ int tcpm_dpm_pd_request_ex_bk(struct tcpc_device *tcpc,
 
 int tcpm_dpm_pd_hard_reset_bk(struct tcpc_device *tcpc)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_HARD_RESET,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -216,7 +216,7 @@ int tcpm_dpm_send_uvdm_bk(struct tcpc_device *tcpc,
 	int ret;
 	struct tcp_dpm_uvdm_data *uvdm_data;
 
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_UVDM,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -245,12 +245,12 @@ int tcpm_dpm_send_uvdm_bk(struct tcpc_device *tcpc,
 
 int tcpm_set_pd_charging_policy_bk(struct tcpc_device *tcpc, uint8_t policy)
 {
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_AGAIN,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
 
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	if (pd_port->dpm_charging_policy == policy)
 		return TCPM_SUCCESS;
@@ -267,7 +267,7 @@ int tcpm_set_pd_charging_policy_bk(struct tcpc_device *tcpc, uint8_t policy)
 
 int tcpm_set_apdo_boundary(struct tcpc_device *tcpc, uint8_t index)
 {
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	if (pd_port->dpm_charging_policy ==  DPM_CHARGING_POLICY_PPS)
 		return TCPM_ERROR_CHARGING_POLICY;
@@ -288,12 +288,12 @@ int tcpm_set_apdo_charging_policy_bk(
 	int ret;
 	struct tcpm_power_cap_val cap_val;
 
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_REQUEST_AGAIN,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
 
-	pd_port_t *pd_port = &tcpc->pd_port;
+	struct pd_port *pd_port = &tcpc->pd_port;
 
 	/* Not PPS should call another function ... */
 	if ((policy & DPM_CHARGING_POLICY_MASK) < DPM_CHARGING_POLICY_PPS)
@@ -325,7 +325,7 @@ int tcpm_dpm_pd_get_status_bk(
 {
 	int ret;
 
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_STATUS,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
@@ -344,7 +344,7 @@ int tcpm_dpm_pd_get_pps_status_bk(
 {
 	int ret;
 
-	tcp_dpm_event_t tcp_event = {
+	struct tcp_dpm_event tcp_event = {
 		.event_id = TCP_DPM_EVT_GET_PPS_STATUS,
 		.event_cb = tcpm_dpm_bk_event_cb,
 	};
