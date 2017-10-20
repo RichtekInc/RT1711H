@@ -1,0 +1,5 @@
+config DUAL_ROLE_USB_INTF
+	bool "Dual Role Class Device"
+	help
+	  Say Y to enable USB DUAL_ROLE Class
+
