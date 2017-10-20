@@ -34,17 +34,19 @@
 #define PE_EVENT_DBG_ENABLE	1
 #define PE_STATE_INFO_ENABLE	1
 #define TCPC_INFO_ENABLE	1
-#define TCPC_TIMER_DBG_EN	1
+#define TCPC_TIMER_DBG_EN	0
 #define TCPC_TIMER_INFO_EN	1
 #define PE_INFO_ENABLE		1
-#define TCPC_DBG_ENABLE		1
+#define TCPC_DBG_ENABLE		0
 #define DPM_DBG_ENABLE		1
 #define PD_ERR_ENABLE		1
-#define PE_DBG_ENABLE		1
-#define TYPEC_DBG_ENABLE	1
+#define PE_DBG_ENABLE		0
+#define TYPEC_DBG_ENABLE	0
 
 #define DP_INFO_ENABLE		1
 #define DP_DBG_ENABLE		1
+
+#define UVDM_INFO_ENABLE		1
 
 #define TCPC_ENABLE_ANYMSG	(TCPC_DBG_ENABLE | DPM_DBG_ENABLE|\
 		PD_ERR_ENABLE|PE_INFO_ENABLE|TCPC_TIMER_INFO_EN\
@@ -52,7 +54,7 @@
 		PE_STATE_INFO_ENABLE|TCPC_INFO_ENABLE|\
 		TCPC_TIMER_DBG_EN|TYPEC_DBG_ENABLE|\
 		TYPEC_INFO_ENABLE|\
-		DP_INFO_ENABLE|DP_DBG_ENABLE)
+		DP_INFO_ENABLE|DP_DBG_ENABLE|UVDM_INFO_ENABLE)
 
 #define PE_EVT_INFO_VDM_DIS		0
 #define PE_DBG_RESET_VDM_DIS	1
@@ -239,6 +241,7 @@ struct tcpc_device {
 	bool typec_cable_only;
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	bool typec_legacy_cable;
 	uint8_t typec_legacy_cable_suspect;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
@@ -388,5 +391,11 @@ struct tcpc_device {
 #define DP_DBG(format, args...)
 #endif /* DP_DBG_ENABLE */
 
+#if UVDM_INFO_ENABLE
+#define UVDM_INFO(format, args...)	\
+	RT_DBG_INFO("UVDM:" format, ## args)
+#else
+#define UVDM_INFO(format, args...)
+#endif
 
 #endif /* #ifndef __LINUX_RT_TCPCI_CORE_H */

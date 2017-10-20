@@ -229,3 +229,29 @@ void pe_dfp_vdm_dp_configuration_naked_entry(
 }
 
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+/*
+ * UVDM
+ */
+
+#ifdef CONFIG_USB_PD_UVDM
+
+void pe_dfp_uvdm_send_entry(pd_port_t *pd_port, pd_event_t* pd_event)
+{
+	pd_dpm_dfp_send_uvdm(pd_port, pd_event);
+}
+
+void pe_dfp_uvdm_acked_entry(pd_port_t *pd_port, pd_event_t* pd_event)
+{
+	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_dpm_dfp_inform_uvdm(pd_port, pd_event, true);
+	pd_free_pd_event(pd_port, pd_event);
+}
+
+void pe_dfp_uvdm_naked_entry(pd_port_t *pd_port, pd_event_t* pd_event)
+{
+	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+	pd_dpm_dfp_inform_uvdm(pd_port, pd_event, false);
+	pd_free_pd_event(pd_port, pd_event);
+}
+#endif      /* CONFIG_USB_PD_UVDM */

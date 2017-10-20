@@ -2,6 +2,18 @@
 
 ## Changelog
 
+### v009
+- [TYPEC] Support DebugACC-SNK
+- [TYPEC] Support Custom-SRC
+- [TYPEC] Support PowerOff Charge (don't reset Charger)
+- [TYPEC] Compatibility with abnormal cable or device
+	- Legacy AtoC Cable
+	- Hub with vbus > vsafe0v
+- [PE] Fix GotoMin flow	
+- [PE] Support UVDM
+- [PE] Support Custom DebugACC
+- [DP] Fix UFP_U issue.
+
 ### v008
 - [TCPCI] Add control type for VBUS Control.
 - [TCPCI] Add new VBUS Control : disable power path for Sink/Source 

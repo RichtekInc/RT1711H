@@ -42,7 +42,12 @@ static inline bool pd_check_pe_state_ready(pd_port_t *pd_port)
 	switch (pd_port->pe_state_curr) {
 	case PE_SNK_READY:
 	case PE_SRC_READY:
+		
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	case PE_DBG_READY:
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 		return true;
+
 	default:
 		return false;
 	}
@@ -166,5 +171,9 @@ extern bool pd_process_event_drs(pd_port_t *pd_port, pd_event_t *evt);
 extern bool pd_process_event_prs(pd_port_t *pd_port, pd_event_t *evt);
 extern bool pd_process_event_vdm(pd_port_t *pd_port, pd_event_t *evt);
 extern bool pd_process_event_vcs(pd_port_t *pd_port, pd_event_t *evt);
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+extern bool pd_process_event_dbg(pd_port_t *pd_port, pd_event_t *evt);
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #endif /* PD_PROCESS_EVT_H_ */

@@ -18,7 +18,6 @@
 #include <linux/usb/pd_dpm_core.h>
 #include "pd_dpm_prv.h"
 
-
 typedef struct __pd_device_policy_manager {
 	uint8_t temp;
 } pd_device_policy_manager_t;
@@ -51,6 +50,16 @@ static const svdm_svid_ops_t svdm_svid_ops[] = {
 		.reset_state = dp_reset_state,
 	},
 #endif	/* CONFIG_USB_PD_ALT_MODE */
+
+#ifdef CONFIG_USB_PD_RICHTEK_UVDM
+	{
+		.name = "Richtek",
+		.svid = USB_SID_RICHTEK,
+
+		.dfp_notify_uvdm = richtek_dfp_notify_uvdm,
+		.ufp_notify_uvdm = richtek_ufp_notify_uvdm,
+	},
+#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 };
 
 int dpm_check_supported_modes(void)
@@ -429,11 +438,26 @@ static inline void dpm_update_request(
 	if (req_info->type == DPM_PDO_TYPE_BAT) {
 		mw_op = req_info->oper_uw / 1000;
 		mw_max = req_info->max_uw / 1000;
-		pd_port->request_i_new = req_info->oper_uw / req_info->vmin;
+
+		pd_port->request_i_op = req_info->oper_uw / req_info->vmin;
+		pd_port->request_i_max = req_info->max_uw / req_info->vmin;
+
+		if (req_info->mismatch)
+			pd_port->request_i_new = pd_port->request_i_op;
+		else
+			pd_port->request_i_new = pd_port->request_i_max;
+
 		pd_port->last_rdo = RDO_BATT(
 				req_info->pos, mw_op, mw_max, flags);
 	} else {
-		pd_port->request_i_new = req_info->oper_ma;
+		pd_port->request_i_op = req_info->oper_ma;
+		pd_port->request_i_max = req_info->max_ma;
+
+		if (req_info->mismatch)
+			pd_port->request_i_new = pd_port->request_i_op;
+		else
+			pd_port->request_i_new = pd_port->request_i_max;
+
 		pd_port->last_rdo = RDO_FIXED(
 			req_info->pos, req_info->oper_ma,
 			req_info->max_ma, flags);
@@ -570,7 +594,15 @@ void pd_dpm_src_evaluate_request(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (accept_request) {
 		pd_port->local_selected_cap = rdo_pos;
-		pd_port->request_i_new = op_curr;
+
+		pd_port->request_i_op = op_curr;
+		pd_port->request_i_max = max_curr;
+
+		if (rdo & RDO_CAP_MISMATCH)
+			pd_port->request_i_new = op_curr;
+		else
+			pd_port->request_i_new = max_curr;
+		
 		pd_port->request_v_new = source_vmin;
 		pd_put_dpm_notify_event(pd_port, rdo_pos);
 	} else {
@@ -621,7 +653,7 @@ void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pd_dpm_src_hard_reset(pd_port_t *pd_port)
 {
-	tcpci_source_vbus(pd_port->tcpc_dev,
+	tcpci_source_vbus(pd_port->tcpc_dev, 
 		TCP_VBUS_CTRL_HRESET, TCPC_VBUS_SOURCE_0V, 0);
 	pd_enable_vbus_safe0v_detection(pd_port);
 }
@@ -788,12 +820,11 @@ int pd_dpm_ufp_response_svids(pd_port_t *pd_port, pd_event_t *pd_event)
 		cnt = VDO_MAX_SVID_SIZE;
 
 	while (i < cnt) {
-		svid_data = &pd_port->svid_data[i];
+		svid_data = &pd_port->svid_data[i++];
 		svid_list[0] = svid_data->svid;
 
-		i++;
 		if (i < cnt) {
-			svid_data = &pd_port->svid_data[i];
+			svid_data = &pd_port->svid_data[i++];
 			svid_list[1] = svid_data->svid;
 		} else
 			svid_list[1] = 0;
@@ -1093,6 +1124,73 @@ void pd_dpm_dfp_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	vdm_put_dpm_notified_event(pd_port);
 }
+
+/* ---- Unstructured VDM ---- */
+
+#ifdef CONFIG_USB_PD_UVDM
+
+void pd_dpm_ufp_recv_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+{
+	pd_msg_t *pd_msg;
+	svdm_svid_data_t *svid_data;
+	uint16_t svid = dpm_vdm_get_svid(pd_event);
+	svid_data = dpm_get_svdm_svid_data(pd_port, svid);
+
+	pd_msg = pd_event->pd_msg;
+	pd_port->uvdm_svid = svid;
+	pd_port->uvdm_cnt = PD_HEADER_CNT(pd_msg->msg_hdr);
+	memcpy(pd_port->uvdm_data, 
+		pd_msg->payload, pd_port->uvdm_cnt * sizeof(uint32_t));	
+
+	if (svid_data && svid_data->ops->ufp_notify_uvdm)
+		svid_data->ops->ufp_notify_uvdm(pd_port, svid_data);		
+
+	tcpci_notify_uvdm(pd_port->tcpc_dev, true);
+}
+
+void pd_dpm_dfp_send_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+{
+	pd_send_uvdm(pd_port, TCPC_TX_SOP);
+	pd_port->uvdm_svid = PD_VDO_VID(pd_port->uvdm_data[0]);
+	
+	if (pd_port->uvdm_wait_resp)
+		pd_enable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
+}
+
+void pd_dpm_dfp_inform_uvdm(
+	pd_port_t* pd_port, pd_event_t* pd_event, bool ack)
+{
+	uint16_t svid;
+	pd_msg_t *pd_msg = pd_event->pd_msg;
+	uint16_t expected_svid = pd_port->uvdm_svid;
+	svdm_svid_data_t *svid_data = 
+		dpm_get_svdm_svid_data(pd_port, expected_svid);
+	
+	if (ack && pd_port->uvdm_wait_resp) {
+		svid = dpm_vdm_get_svid(pd_event);
+
+		if (svid != expected_svid) {
+			ack = false;
+			DPM_DBG("Not expected SVID (0x%04x, 0x%04x)\r\n",
+				svid, expected_svid);
+		} else {
+			pd_port->uvdm_cnt = PD_HEADER_CNT(pd_msg->msg_hdr);
+			memcpy(pd_port->uvdm_data, 
+				pd_msg->payload, pd_port->uvdm_cnt * sizeof(uint32_t));
+		}
+	}
+
+	if (svid_data && svid_data->ops->dfp_notify_uvdm)
+		svid_data->ops->dfp_notify_uvdm(pd_port, svid_data, ack);
+
+	pd_update_dpm_request_state(pd_port, 
+		ack ? DPM_REQ_E_UVDM_ACK : DPM_REQ_E_UVDM_NAK);
+
+	tcpci_notify_uvdm(pd_port->tcpc_dev, ack);	
+}
+
+#endif	/* CONFIG_USB_PD_UVDM */
+
 
 /*
  * DRP : Inform Source/Sink Cap

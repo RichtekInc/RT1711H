@@ -719,6 +719,9 @@ void dp_ufp_u_request_enter_mode(
 {
 	pd_port->dp_status = pd_port->dp_first_connected;
 
+	if (pd_port->dpm_caps & DPM_CAP_DP_PREFER_MF)
+		pd_port->dp_status |= DPSTS_DP_MF_PREF;
+
 	if (pd_port->dp_first_connected == DPSTS_DISCONNECT)
 		dp_ufp_u_set_state(pd_port, DP_UFP_U_STARTUP);
 	else
@@ -794,37 +797,42 @@ bool dp_ufp_u_is_valid_dp_config(pd_port_t *pd_port, uint32_t dp_config)
 	/* TODO: Check it later .... */
 	uint32_t sel_config;
 	bool retval = false;
+	uint32_t local_pin;
 	svdm_svid_data_t *svid_data = &pd_port->svid_data[0];
 	uint32_t local_mode = svid_data->local_mode.mode_vdo[0];
+	uint32_t remote_pin = PD_DP_CFG_PIN(dp_config);
 
 	sel_config = MODE_DP_PORT_CAP(dp_config);
 	switch (sel_config) {
-	case 0: /* USB */
+	case DP_CONFIG_USB:
 		retval = true;
 		break;
-	case MODE_DP_SRC:
-		if ((MODE_DP_PORT_CAP(local_mode) & MODE_DP_SRC) == 0) {
-			retval = false;
-			break;
-		}
-		if ((((dp_config & local_mode) >> 8) & 0xff) == 0) {
-			retval = false;
-			break;
-		}
+		
+	case DP_CONFIG_DFP_D:
+		local_pin = PD_DP_DFP_D_PIN_CAPS(local_mode);
+		if ((local_pin & remote_pin) &&
+			(MODE_DP_PORT_CAP(local_mode) & MODE_DP_SRC))
+			retval = true;
 		break;
-	case MODE_DP_SNK:
-		if ((MODE_DP_PORT_CAP(local_mode) & MODE_DP_SNK) == 0) {
-			retval = false;
-			break;
-		}
-		if ((((dp_config & local_mode) >> 16) & 0xff) == 0) {
-			retval = false;
-			break;
-		}
+		
+	case DP_CONFIG_UFP_D:		
+		local_pin = PD_DP_UFP_D_PIN_CAPS(local_mode);
+		if ((local_pin & remote_pin) &&
+			(MODE_DP_PORT_CAP(local_mode) & MODE_DP_SNK))
+			retval = true;
 		break;
 	}
 
 	return retval;
+}
+
+static inline void dp_ufp_u_auto_attention(pd_port_t* pd_port)
+{
+#ifdef CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION
+	pd_port->mode_svid = USB_SID_DISPLAYPORT;
+	pd_port->dp_status |= 
+		DPSTS_DP_ENABLED | DPSTS_DP_HPD_STATUS;
+#endif	/* CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION */	
 }
 
 int dp_ufp_u_request_dp_config(pd_port_t *pd_port, pd_event_t *pd_event)
@@ -845,6 +853,7 @@ int dp_ufp_u_request_dp_config(pd_port_t *pd_port, pd_event_t *pd_event)
 
 		if (ack) {
 			tcpci_dp_configure(pd_port->tcpc_dev, dp_config);
+			dp_ufp_u_auto_attention(pd_port);
 			dp_ufp_u_set_state(pd_port, DP_UFP_U_OPERATION);
 		}
 		break;

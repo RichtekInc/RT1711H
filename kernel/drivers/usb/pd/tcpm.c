@@ -423,6 +423,36 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
+#ifdef CONFIG_USB_PD_UVDM
+int tcpm_send_uvdm(struct tcpc_device *tcpc_dev, 
+	uint8_t cnt, uint32_t *data, bool wait_resp)
+{
+	bool ret = false;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
+	if (tcpc_dev->typec_attach_old == TYPEC_UNATTACHED)
+		return TCPM_ERROR_UNATTACHED;
+
+	if (cnt > VDO_MAX_SIZE)
+		return TCPM_ERROR_PARAMETER;
+
+	mutex_lock(&pd_port->pd_lock);
+
+	pd_port->uvdm_cnt = cnt;
+	pd_port->uvdm_wait_resp = wait_resp;
+	memcpy(pd_port->uvdm_data, data, sizeof(uint32_t) * cnt);
+	
+	ret = vdm_put_dpm_vdm_request_event(
+		pd_port, PD_DPM_VDM_REQUEST_UVDM);
+
+	mutex_unlock(&pd_port->pd_lock);
+
+	if (!ret)
+		return TCPM_ERROR_PUT_EVENT;
+
+	return 0;
+}
+#endif	/* CONFIG_USB_PD_UVDM */
 
 int tcpm_notify_vbus_stable(
 	struct tcpc_device *tcpc_dev)

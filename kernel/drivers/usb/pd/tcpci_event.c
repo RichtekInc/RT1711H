@@ -561,7 +561,7 @@ void pd_notify_pe_idle(pd_port_t *pd_port)
 	pd_update_connect_state(pd_port, PD_CONNECT_NONE);
 
 	if (notify_pe_idle)
-		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PE_IDLE);
+		tcpc_enable_timer(tcpc_dev, TYPEC_RT_TIMER_PE_IDLE);
 }
 
 void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt)

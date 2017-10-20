@@ -157,20 +157,18 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 #endif /* CONFIG_USB_PD_DBG_ALWAYS_LOCAL_RP */
 
 	if (pull & TYPEC_CC_DRP) {
-		tcpc->typec_remote_cc[0] =
+		tcpc->typec_remote_cc[0] = 
 		tcpc->typec_remote_cc[1] =
 			TYPEC_CC_DRP_TOGGLING;
 	}
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	if ((pull == TYPEC_CC_DRP) &&
-			(tcpc->typec_legacy_cable_suspect >=
-						TCPC_LEGACY_CABLE_CONFIRM))
+	if ((pull == TYPEC_CC_DRP) && (tcpc->typec_legacy_cable))
 		pull = TYPEC_CC_DRP_1_5;
 #endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 	tcpc->typec_local_cc = pull;
-	return tcpc->ops->set_cc(tcpc, pull);
+    return tcpc->ops->set_cc(tcpc, pull);
 }
 
 static inline int tcpci_set_polarity(struct tcpc_device *tcpc, int polarity)
@@ -529,6 +527,29 @@ static inline int tcpci_dp_notify_config_done(struct tcpc_device *tcpc,
 }
 
 #endif	/* CONFIG_USB_PD_ALT_MODE */
+
+#ifdef CONFIG_USB_PD_UVDM
+static inline int tcpci_notify_uvdm(struct tcpc_device *tcpc, bool ack)
+{
+	struct tcp_notify tcp_noti;
+	pd_port_t *pd_port = &tcpc->pd_port;
+
+	tcp_noti.uvdm_msg.ack = ack;
+
+	if (ack) {
+		tcp_noti.uvdm_msg.uvdm_cnt = pd_port->uvdm_cnt;
+		tcp_noti.uvdm_msg.uvdm_svid = pd_port->uvdm_svid;
+		tcp_noti.uvdm_msg.uvdm_data = pd_port->uvdm_data;
+	}
+
+	srcu_notifier_call_chain(&tcpc->evt_nh,
+		TCP_NOTIFY_UVDM, &tcp_noti);
+
+	return 0;
+}
+
+#endif	/* CONFIG_USB_PD_UVDM */
+
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
 #endif /* #ifndef __LINUX_RT_TCPC_H */

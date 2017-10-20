@@ -31,17 +31,58 @@ enum typec_attach_type {
 	TYPEC_ATTACHED_SRC,
 	TYPEC_ATTACHED_AUDIO,
 	TYPEC_ATTACHED_DEBUG,
+	
+#ifdef CONFIG_TYPEC_CAP_DBGACC_SNK	
+	TYPEC_ATTACHED_DBGACC_SNK,		/* Rp, Rp */
+#endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
+
+#ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
+	TYPEC_ATTACHED_CUSTOM_SRC,		/* Same Rp */
+#endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */	
 };
 
 enum pd_connect_result {
 	PD_CONNECT_NONE = 0,
-	PD_CONNECT_TYPEC_ONLY,
+	PD_CONNECT_TYPEC_ONLY,	/* Internal Only */
 	PD_CONNECT_TYPEC_ONLY_SNK_DFT,
 	PD_CONNECT_TYPEC_ONLY_SNK,
 	PD_CONNECT_TYPEC_ONLY_SRC,
-	PD_CONNECT_PE_READY,
+	PD_CONNECT_PE_READY,	/* Internal Only */
 	PD_CONNECT_PE_READY_SNK,
 	PD_CONNECT_PE_READY_SRC,
+	
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC	
+	PD_CONNECT_PE_READY_DBGACC_UFP,
+	PD_CONNECT_PE_READY_DBGACC_DFP,
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */	
+};
+
+enum dpm_request_state {
+
+	DPM_REQ_NULL,
+	DPM_REQ_QUEUE,
+	DPM_REQ_RUNNING,
+	DPM_REQ_SUCCESS,
+	DPM_REQ_FAILED,
+
+	/* Request failed */
+
+	DPM_REQ_ERR_IDLE = DPM_REQ_FAILED,
+
+	DPM_REQ_ERR_NOT_READY,
+	DPM_REQ_ERR_WRONG_ROLE,
+
+	DPM_REQ_ERR_RECV_HRESET,
+	DPM_REQ_ERR_RECV_SRESET,
+	DPM_REQ_ERR_SEND_HRESET,
+	DPM_REQ_ERR_SEND_SRESET,
+	DPM_REQ_ERR_SEND_BIST,
+
+	/* Internal */
+	DPM_REQ_SUCCESS_CODE,
+
+	DPM_REQ_E_UVDM_ACK,
+	DPM_REQ_E_UVDM_NAK,
 };
 
 /* Power role */
@@ -70,6 +111,10 @@ enum {
 
 	TCP_NOTIFY_TYPEC_STATE,
 	TCP_NOTIFY_PD_STATE,
+
+#ifdef CONFIG_USB_PD_UVDM
+	TCP_NOTIFY_UVDM,
+#endif /* CONFIG_USB_PD_UVDM */	
 };
 
 struct tcp_ny_pd_state {
@@ -150,6 +195,13 @@ struct tcp_ny_ama_dp_hpd_state {
 	bool state : 1;
 };
 
+struct tcp_ny_uvdm {
+	bool ack;
+	uint8_t uvdm_cnt;
+	uint16_t uvdm_svid;
+	uint32_t* uvdm_data;	
+};
+
 struct tcp_notify {
 	union {
 		struct tcp_ny_enable_state en_state;
@@ -160,6 +212,7 @@ struct tcp_notify {
 		struct tcp_ny_ama_dp_state ama_dp_state;
 		struct tcp_ny_ama_dp_attention ama_dp_attention;
 		struct tcp_ny_ama_dp_hpd_state ama_dp_hpd_state;
+		struct tcp_ny_uvdm uvdm_msg;
 	};
 };
 
@@ -178,7 +231,9 @@ extern int unregister_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 enum tcpm_error_list {
 	TCPM_SUCCESS = 0,
 	TCPM_ERROR_UNKNOWN = -1,
-	TCPM_ERROR_PUT_EVENT = -2,
+	TCPM_ERROR_UNATTACHED = -2,
+	TCPM_ERROR_PARAMETER = -3,
+	TCPM_ERROR_PUT_EVENT = -4,
 };
 
 #define TCPM_PDO_MAX_SIZE	7
@@ -299,5 +354,19 @@ extern int tcpm_dp_configuration(
 /* Notify TCPM */
 
 extern int tcpm_notify_vbus_stable(struct tcpc_device *tcpc_dev);
+
+
+
+#ifdef CONFIG_USB_PD_UVDM
+
+#define PD_UVDM_HDR(vid, custom)	\
+	(((vid) << 16) | ((custom) & 0x7FFF))
+
+#define PD_UVDM_HDR_CMD(hdr)	\
+	(hdr & 0x7FFF)
+
+extern int tcpm_send_uvdm(struct tcpc_device *tcpc_dev, 
+	uint8_t cnt, uint32_t *data, bool wait_resp);
+#endif	/* CONFIG_USB_PD_UVDM */
 
 #endif /* TCPM_H_ */

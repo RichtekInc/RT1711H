@@ -228,6 +228,16 @@ DECL_PE_STATE_REACTION(PD_TIMER_VDM_RESPONSE);
 static inline bool pd_process_ctrl_msg_good_crc(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
+#ifdef CONFIG_USB_PD_ALT_MODE
+#ifdef CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION
+	if (pd_port->pe_state_curr == PE_UFP_VDM_DP_CONFIGURE) {
+		PE_TRANSIT_STATE(pd_port, 
+			PE_UFP_VDM_ATTENTION_REQUEST);
+		return true;
+	}
+#endif	/* CONFIG_USB_PD_DBG_DP_UFP_U_AUTO_ATTENTION */
+#endif	/* CONFIG_USB_PD_ALT_MODE */
+
 	switch (pd_port->pe_state_curr) {
 	case PE_UFP_VDM_SEND_IDENTITY:
 	case PE_UFP_VDM_GET_IDENTITY_NAK:
@@ -287,10 +297,43 @@ static inline bool pd_process_ctrl_msg(
  * [BLOCK] Porcess Data MSG (UVDM)
  */
 
-static inline bool pd_process_uvdm(pd_port_t *pd_port, pd_event_t *pd_event)
+#ifdef CONFIG_USB_PD_UVDM
+
+static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
 {
+	/* support sop only */
+	if (pd_event->pd_msg->frame_type != TCPC_TX_SOP)
+		return false;
+
+	if (pd_port->data_role == PD_ROLE_UFP) {
+
+		pd_port->pe_vdm_state = pd_port->pe_pd_state;
+		pd_port->pe_state_curr = pd_port->pe_pd_state;
+		
+#if PE_DBG_RESET_VDM_DIS == 0		
+		PE_DBG("reset vdm_state\r\n");
+#endif	
+
+		if (pd_check_pe_state_ready(pd_port)) {
+			PE_TRANSIT_STATE(pd_port, PE_UFP_UVDM_RECV);
+			return true;
+		}
+	} else { /* DFP */
+		if (pd_port->pe_state_curr == PE_DFP_UVDM_SEND) {
+			PE_TRANSIT_STATE(pd_port, PE_DFP_UVDM_ACKED);
+			return true;
+		}
+	}
+
+	PE_DBG("659 : invalid, current status\r\n");
 	return false;
 }
+#else
+static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+{
+	return false;	
+}
+#endif	/* CONFIG_USB_PD_UVDM */
 
 /*
  * [BLOCK] Porcess Data MSG (VDM)
@@ -530,18 +573,24 @@ static inline bool pd_process_dpm_msg_ack(
 static inline bool pd_process_dpm_msg_vdm_request(
 		pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	/* TODO: We have to notify DPM this event is ignored */
+	bool is_dfp;
+	bool is_attention;
+	
 	if (!pd_check_pe_state_ready(pd_port)) {
-		PE_DBG("skip vdm_request, not ready_state (%d)\r\n",
-						pd_port->pe_state_curr);
+		pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_NOT_READY);
+		PE_DBG("skip vdm_request, not ready_state (%d)\r\n", pd_port->pe_state_curr);
 		return false;
 	}
 
-	/* TODO: Actually, UFP can send attention ... */
-	if (pd_port->data_role != PD_ROLE_DFP) {
+	is_dfp = pd_port->data_role == PD_ROLE_DFP;
+	is_attention = pd_event->msg_sec == PD_DPM_VDM_REQUEST_ATTENTION;
+
+	if ((is_dfp && is_attention) || (!is_dfp && !is_attention)){
+		pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_WRONG_ROLE);
 		PE_DBG("skip vdm_request, not dfp\r\n");
 		return false;
 	}
+
 	PE_TRANSIT_STATE(pd_port, pd_event->msg_sec);
 	return true;
 }

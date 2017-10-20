@@ -215,6 +215,17 @@ static int dpm_alt_mode_parse_svid_data(
 
 #endif /* CONFIG_USB_PD_ALT_MODE*/
 
+#ifdef CONFIG_USB_PD_RICHTEK_UVDM
+
+static int dpm_richtek_parse_svid_data(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
+{
+	svid_data->svid = USB_SID_RICHTEK;
+	return 0;
+}
+
+#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
+
 static void pd_core_parse_svid_data(pd_port_t *pd_port)
 {
 	int i = 0;
@@ -223,7 +234,11 @@ static void pd_core_parse_svid_data(pd_port_t *pd_port)
 
 #ifdef CONFIG_USB_PD_ALT_MODE
 	dpm_alt_mode_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
+
+#ifdef CONFIG_USB_PD_RICHTEK_UVDM
+	dpm_richtek_parse_svid_data(pd_port, &pd_port->svid_data[i++]);
+#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
 	pd_port->svid_data_cnt = i;
 }
@@ -554,11 +569,6 @@ int pd_init_role(pd_port_t *pd_port, uint8_t pr, uint8_t dr, bool vr)
 			pd_port->power_role, pd_port->data_role);
 }
 
-int pd_set_cc_res(pd_port_t *pd_port, int pull)
-{
-	return tcpci_set_cc(pd_port->tcpc_dev, pull);
-}
-
 int pd_set_vconn(pd_port_t *pd_port, int enable)
 {
 	pd_port->vconn_source = enable;
@@ -634,6 +644,7 @@ int pd_handle_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
 	pd_port->state_machine = state_machine;
 
 	pd_reset_protocol_layer(pd_port);
+	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_RECV_SRESET);
 	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
 
@@ -695,17 +706,19 @@ int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
 	pd_port->state_machine = state_machine;
 
 	pd_reset_protocol_layer(pd_port);
+	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_SRESET);
 	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_SOFT_RESET);
 }
 
 int pd_send_hard_reset(pd_port_t *pd_port)
 {
 	int ret;
-	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
-
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev; 
 	PE_DBG("Send HARD Reset\r\n");
+
 	pd_port->hard_reset_counter++;
 	pd_notify_pe_send_hard_reset(pd_port);
+	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_HRESET);
 	ret = tcpci_transmit(tcpc_dev, TCPC_TX_HARD_RESET, 0, NULL);
 	if (ret)
 		return ret;
@@ -722,6 +735,8 @@ int pd_send_hard_reset(pd_port_t *pd_port)
 int pd_send_bist_mode2(pd_port_t *pd_port)
 {
 	int ret = 0;
+
+	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_BIST);
 
 #ifdef CONFIG_USB_PD_TRANSMIT_BIST2
 	TCPC_DBG("BIST_MODE_2\r\n");
@@ -842,4 +857,60 @@ int pd_update_connect_state(pd_port_t *pd_port, uint8_t state)
 
 	pd_port->pd_connect_state = state;
 	return tcpci_notify_pd_state(pd_port->tcpc_dev, state);
+}
+
+void pd_update_dpm_request_state(pd_port_t *pd_port, uint8_t state)
+{
+#if 0
+	uint8_t pd_req;
+	uint8_t vdm_req;
+
+	/* No request or finished */
+	if (pd_port->dpm_req_state == DPM_REQ_NULL ||
+		pd_port->dpm_req_state >= DPM_REQ_SUCCESS)
+		return;
+
+	pd_req = pd_port->dpm_req_cmd & 0x0f;
+	vdm_req = (pd_port->dpm_req_cmd & 0xf0) >> 4;
+		
+	if (state >= DPM_REQ_SUCCESS_CODE) {
+
+	} else {
+
+		switch(state) {
+		case DPM_REQ_ERR_SEND_HRESET:
+			if (pd_req == PD_DPM_PD_REQUEST_HARDRESET)
+				state = DPM_REQ_SUCCESS;
+			break;
+				
+		case DPM_REQ_ERR_SEND_SRESET:
+			if (pd_req == PD_DPM_PD_REQUEST_SOFTRESET)
+				state = DPM_REQ_SUCCESS;
+			break;
+
+		default:
+		}
+	}
+
+	if (state < )
+
+	enum pd_dpm_pd_request_type {
+		PD_DPM_PD_REQUEST_PR_SWAP = 0,
+		PD_DPM_PD_REQUEST_DR_SWAP,
+		PD_DPM_PD_REQUEST_VCONN_SWAP,
+		PD_DPM_PD_REQUEST_GOTOMIN,
+
+		PD_DPM_PD_REQUEST_GET_SOURCE_CAP,
+		PD_DPM_PD_REQUEST_GET_SINK_CAP,
+	
+		PD_DPM_PD_REQUEST_PW_REQUEST,
+		PD_DPM_PD_REQUEST_NR,
+	};
+
+	
+	
+
+	DPM_REQ_ERR_RECV_SRESET
+	// pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_RECV_SRESET);
+#endif
 }

@@ -25,6 +25,7 @@ enum pd_pe_state_machine {
 	PE_STATE_MACHINE_DR_SWAP,
 	PE_STATE_MACHINE_PR_SWAP,
 	PE_STATE_MACHINE_VCONN_SWAP,
+	PE_STATE_MACHINE_DBGACC,
 };
 
 enum pd_pe_state {
@@ -136,7 +137,7 @@ enum pd_pe_state {
 #ifdef CONFIG_USB_PD_ALT_MODE
 	PE_UFP_VDM_DP_STATUS_UPDATE,
 	PE_UFP_VDM_DP_CONFIGURE,
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 	PE_DFP_UFP_VDM_IDENTITY_REQUEST,
 	PE_DFP_UFP_VDM_IDENTITY_ACKED,
@@ -171,7 +172,18 @@ enum pd_pe_state {
 	PE_DFP_VDM_DP_CONFIGURATION_REQUEST,
 	PE_DFP_VDM_DP_CONFIGURATION_ACKED,
 	PE_DFP_VDM_DP_CONFIGURATION_NAKED,
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_UVDM
+	PE_UFP_UVDM_RECV,
+	PE_DFP_UVDM_SEND,
+	PE_DFP_UVDM_ACKED,
+	PE_DFP_UVDM_NAKED,
+#endif	/* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	PE_DBG_READY,
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	PE_OVER_RECV_HRESET_LIMIT,
@@ -212,6 +224,10 @@ enum pd_dpm_vdm_request_type {
 	PD_DPM_VDM_REQUEST_DP_CONFIG =
 		PE_DFP_VDM_DP_CONFIGURATION_REQUEST,
 #endif
+#ifdef CONFIG_USB_PD_UVDM
+	PD_DPM_VDM_REQUEST_UVDM =
+		PE_DFP_UVDM_SEND,
+#endif     /* CONFIG_USB_PD_UVDM */
 };
 
 /*
@@ -403,8 +419,11 @@ void pe_ufp_vdm_attention_request_entry(
 void pe_ufp_vdm_dp_status_update_entry(
 				pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_ufp_vdm_dp_configure_entry(pd_port_t *pd_port, pd_event_t *pd_event);
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
+#ifdef CONFIG_USB_PD_UVDM
+void pe_ufp_uvdm_recv_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+#endif	/* CONFIG_USB_PD_UVDM */
 
 /* ---- Policy Engine (DFP) ---- */
 
@@ -458,6 +477,18 @@ void pe_dfp_vdm_dp_configuration_acked_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_dfp_vdm_dp_configuration_naked_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event);
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_UVDM
+void pe_dfp_uvdm_send_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_dfp_uvdm_acked_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_dfp_uvdm_naked_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+#endif	/* CONFIG_USB_PD_UVDM */
+
+/* ---- Policy Engine (DBG) ---- */
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+void pe_dbg_ready_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+#endif /* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #endif /* PD_POLICY_ENGINE_H_ */

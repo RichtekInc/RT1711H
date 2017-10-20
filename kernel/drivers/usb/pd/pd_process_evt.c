@@ -735,6 +735,10 @@ static inline bool pe_translate_pd_msg_event(
 static inline bool pe_exit_idle_state(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	pd_port->custom_dbgacc = false;
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
+
 	switch (pd_event->msg_sec) {
 	case TYPEC_ATTACHED_SNK:
 		pd_init_role(pd_port,
@@ -745,6 +749,14 @@ static inline bool pe_exit_idle_state(
 		pd_init_role(pd_port,
 			PD_ROLE_SOURCE, PD_ROLE_DFP, PD_ROLE_VCONN_ON);
 		break;
+		
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	case TYPEC_ATTACHED_DBGACC_SNK:	
+		pd_port->custom_dbgacc = true;
+		pd_init_role(pd_port,
+			PD_ROLE_SINK, PD_ROLE_UFP, PD_ROLE_VCONN_OFF);
+		break;		
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 	default:
 		return false;
@@ -846,6 +858,11 @@ bool pd_process_event(pd_port_t *pd_port, pd_event_t *pd_event, bool vdm_evt)
 
 	if (vdm_evt)
 		return pd_process_event_vdm(pd_port, pd_event);
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	if (pd_port->custom_dbgacc)
+		return pd_process_event_dbg(pd_port, pd_event);
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 	if ((pd_event->event_type == PD_EVT_CTRL_MSG) &&
 		(pd_event->msg != PD_CTRL_GOOD_CRC) &&

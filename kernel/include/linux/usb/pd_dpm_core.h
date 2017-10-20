@@ -87,6 +87,16 @@ void pd_dpm_dfp_inform_dp_configuration(
 		pd_port_t *pd_port, pd_event_t *pd_event, bool ack);
 #endif
 
+/* ---- UVDM  ---- */
+
+#ifdef CONFIG_USB_PD_UVDM
+
+void pd_dpm_ufp_recv_uvdm(pd_port_t* pd_port, pd_event_t* pd_event);
+void pd_dpm_dfp_send_uvdm(pd_port_t* pd_port, pd_event_t* pd_event);
+void pd_dpm_dfp_inform_uvdm(pd_port_t* pd_port, pd_event_t* pd_event, bool ack);
+
+#endif     /* CONFIG_USB_PD_UVDM */
+
 /* ---- DRP : Inform PowerCap ---- */
 
 void pd_dpm_dr_inform_sink_cap(pd_port_t *pd_port, pd_event_t *pd_event);
@@ -180,5 +190,12 @@ extern bool dp_reset_state(
 	pd_port_t *pd_port, svdm_svid_data_t *svid_data);
 
 #endif	/* CONFIG_USB_PD_ALT_MODE */
+
+#ifdef CONFIG_USB_PD_RICHTEK_UVDM
+bool richtek_dfp_notify_uvdm(pd_port_t* pd_port, 
+				svdm_svid_data_t *svid_data, bool ack);
+bool richtek_ufp_notify_uvdm(pd_port_t* pd_port,
+				svdm_svid_data_t *svid_data);
+#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
 #endif /* PD_DPM_CORE_H */

@@ -49,7 +49,7 @@ static const char *const pe_state_name[] = {
 	"PE_SRC_VDM_IDENTITY_REQUEST",
 	"PE_SRC_VDM_IDENTITY_ACKED",
 	"PE_SRC_VDM_IDENTITY_NAKED",
-#endif
+#endif	/* CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID */
 
 	"PE_SNK_STARTUP",
 	"PE_SNK_DISCOVERY",
@@ -137,7 +137,7 @@ static const char *const pe_state_name[] = {
 #ifdef CONFIG_USB_PD_ALT_MODE
 	"PE_UFP_VDM_DP_STATUS_UPDATE",
 	"PE_UFP_VDM_DP_CONFIGURE",
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 	"PE_DFP_UFP_VDM_IDENTITY_REQUEST",
 	"PE_DFP_UFP_VDM_IDENTITY_ACKED",
@@ -172,7 +172,18 @@ static const char *const pe_state_name[] = {
 	"PE_DFP_VDM_DP_CONFIGURATION_REQUEST",
 	"PE_DFP_VDM_DP_CONFIGURATION_ACKED",
 	"PE_DFP_VDM_DP_CONFIGURATION_NAKED",
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_UVDM
+	"PE_UFP_UVDM_RECV",
+	"PE_DFP_UVDM_SEND",
+	"PE_DFP_UVDM_ACKED",
+	"PE_DFP_UVDM_NAKED",
+#endif	/* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	"PE_DBG_READY",
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	"PE_OVER_RECV_HRESET_LIMIT",
@@ -217,7 +228,7 @@ static const char *const pe_state_name[] = {
 	"SRC_VDM_ID_REQ",
 	"SRC_VDM_ID_ACK",
 	"SRC_VDM_ID_NAK",
-#endif
+#endif	/* CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID */
 
 	"SNK_START",
 	"SNK_DISCOVERY",
@@ -301,7 +312,7 @@ static const char *const pe_state_name[] = {
 #ifdef CONFIG_USB_PD_ALT_MODE
 	"U_D_STATUS",
 	"U_D_CONFIG",
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 	"D_UID_REQ",
 	"D_UID_A",
@@ -336,7 +347,18 @@ static const char *const pe_state_name[] = {
 	"D_DP_CONFIG_REQ",
 	"D_DP_CONFIG_ACK",
 	"D_DP_CONFIG_NAK",
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_UVDM
+	"U_UVDM_RECV",
+	"D_UVDM_SEND",
+	"D_UVDM_ACKED",
+	"D_UVDM_NAKED",
+#endif	/* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	"DBG_READY",
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	"OVER_HRESET_LIMIT",
@@ -595,7 +617,7 @@ static const pe_state_actions_t pe_state_actions[] = {
 #ifdef CONFIG_USB_PD_ALT_MODE
 	PE_STATE_ACTIONS(pe_ufp_vdm_dp_status_update),
 	PE_STATE_ACTIONS(pe_ufp_vdm_dp_configure),
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 	/* dfp structured vdm */
 	PE_STATE_ACTIONS(pe_dfp_ufp_vdm_identity_request),
@@ -631,9 +653,20 @@ static const pe_state_actions_t pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_dfp_vdm_dp_configuration_request),
 	PE_STATE_ACTIONS(pe_dfp_vdm_dp_configuration_acked),
 	PE_STATE_ACTIONS(pe_dfp_vdm_dp_configuration_naked),
-#endif
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
+#ifdef CONFIG_USB_PD_UVDM
+	PE_STATE_ACTIONS(pe_ufp_uvdm_recv),
+	PE_STATE_ACTIONS(pe_dfp_uvdm_send),
+	PE_STATE_ACTIONS(pe_dfp_uvdm_acked),
+	PE_STATE_ACTIONS(pe_dfp_uvdm_naked),
+#endif	/* CONFIG_USB_PD_UVDM */
 
 	/* general activity */
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	PE_STATE_ACTIONS(pe_dbg_ready),
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
+
 #ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
 	PE_STATE_ACTIONS(pe_over_recv_hreset_limit),
 #endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
@@ -724,7 +757,6 @@ pe_state_action_fcn_t pe_get_exit_action(uint8_t pe_state)
 	case PE_VCS_WAIT_FOR_VCONN:
 		retval = pe_vcs_wait_for_vconn_exit;
 		break;
-
 	}
 
 	return retval;

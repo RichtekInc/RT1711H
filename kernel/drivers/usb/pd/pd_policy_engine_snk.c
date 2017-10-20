@@ -127,8 +127,7 @@ void pe_snk_transition_sink_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_event->msg == PD_CTRL_GOTO_MIN) {
 		if (pd_port->dpm_caps & DPM_CAP_LOCAL_GIVE_BACK) {
-			pd_port->request_i_new = -1;
-			pd_port->request_v_new = TCPC_VBUS_SINK_5V;
+			pd_port->request_i_new = pd_port->request_i_op;
 			pd_dpm_snk_transition_power(pd_port, pd_event);
 		}
 	}

@@ -25,7 +25,7 @@
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.0.8_G"
+#define TCPC_CORE_VERSION		"1.0.9_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -212,7 +212,7 @@ static ssize_t tcpc_store_property(struct device *dev,
 			return -EINVAL;
 		}
 
-		tcpc_typec_change_role(tcpc, val);
+		tcpm_typec_change_role(tcpc, val);
 		break;
 	case TCPC_DESC_TIMER:
 		ret = get_parameters((char *)buf, &val, 1);
@@ -390,8 +390,11 @@ static int tcpc_device_irq_enable(struct tcpc_device *tcpc)
 		pr_err("%s tcpc init fail\n", __func__);
 		return ret;
 	}
-
+	
+	tcpci_lock_typec(tcpc);
 	ret = tcpc_typec_init(tcpc, tcpc->desc.role_def + 1);
+	tcpci_unlock_typec(tcpc);
+	
 	if (ret < 0) {
 		pr_err("%s : tcpc typec init fail\n", __func__);
 		return ret;

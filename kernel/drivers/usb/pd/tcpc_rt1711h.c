@@ -723,9 +723,6 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	rt1711_i2c_write8(tcpc, RT1711H_REG_DRP_TOGGLE_CYCLE, 4);
 	rt1711_i2c_write16(tcpc, RT1711H_REG_DRP_DUTY_CTRL, 400);
 
-	/* For MQP CC Noise2 */
-	rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZSEL, 0x80);
-
 	/* Vconn OC */
 	rt1711_i2c_write8(tcpc, RT1711H_REG_VCONN_CLIMITEN, 1);
 
@@ -894,7 +891,7 @@ static int rt1711_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
 	if (*cc2 != TYPEC_CC_VOLT_OPEN)
 		*cc2 |= (act_as_sink << 2);
 
-	rt1711h_init_cc_params(tcpc,
+	rt1711h_init_cc_params(tcpc, 
 		(uint8_t)tcpc->typec_polarity ? *cc2 : *cc1);
 
 	return 0;
@@ -929,7 +926,7 @@ static int rt1711_set_polarity(struct tcpc_device *tcpc, int polarity)
 {
 	int data;
 
-	data = rt1711h_init_cc_params(tcpc,
+	data = rt1711h_init_cc_params(tcpc, 
 		tcpc->typec_remote_cc[polarity]);
 	if (data)
 		return data;

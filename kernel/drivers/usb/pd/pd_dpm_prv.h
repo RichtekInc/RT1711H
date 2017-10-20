@@ -82,6 +82,14 @@ typedef struct __svdm_svid_ops {
 		svdm_svid_data_t *svid_data);
 	int (*notify_pe_ready)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, pd_event_t *pd_event);
+	
+#ifdef CONFIG_USB_PD_UVDM
+	bool (*dfp_notify_uvdm)(pd_port_t* pd_port, 
+		svdm_svid_data_t *svid_data, bool ack);
+		
+	bool (*ufp_notify_uvdm)(pd_port_t* pd_port,
+		svdm_svid_data_t *svid_data);
+#endif
 
 	bool (*reset_state)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data);

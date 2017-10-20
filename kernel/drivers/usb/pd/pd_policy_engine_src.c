@@ -97,8 +97,7 @@ void pe_src_negotiate_capabilities_entry(
 void pe_src_transition_supply_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	if (pd_event->msg == PD_DPM_PD_REQUEST)	/* goto-min */ {
-		pd_port->request_i_new = -1;
-		pd_port->request_v_new = TCPC_VBUS_SOURCE_5V;
+		pd_port->request_i_new = pd_port->request_i_op;
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GOTO_MIN);
 	} else
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);

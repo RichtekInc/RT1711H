@@ -528,7 +528,15 @@
 #define DPSTS_UFP_D_CONNECTED	(1 << 1)
 #define DPSTS_BOTH_CONNECTED	(DPSTS_DFP_D_CONNECTED | DPSTS_UFP_D_CONNECTED)
 
+/* UFP_U only */
 #define DPSTS_DP_ENABLED		(1<<3)
+#define DPSTS_DP_MF_PREF		(1<<4)
+#define DPSTS_DP_USB_CONFIG		(1<<5)
+#define DPSTS_DP_EXIT_ALT_MODE	(1<<6)
+
+/* UFP_D only */
+#define DPSTS_DP_HPD_STATUS		(1<<7)
+#define DPSTS_DP_HPD_IRQ		(1<<8)
 
 /* Per DisplayPort Spec v1.3 Section 3.3 */
 #define HPD_USTREAM_DEBOUNCE_LVL (2*MSEC)
@@ -585,8 +593,14 @@
  * for backward compatibility, if it is null,
  * get the former sink pin assignment we used to be in <23:16>.
  */
+
+#if 0	/* unused code */
 #define PD_DP_CFG_PIN(x) ((((x) >> 8) & 0xff) ? (((x) >> 8) & 0xff) \
 					      : (((x) >> 16) & 0xff))
+#endif
+
+#define PD_DP_CFG_PIN(x) (((x) >> 8) & 0xff)
+
 /*
  * ChromeOS specific PD device Hardware IDs. Used to identify unique
  * products and used in VDO_INFO. Note this field is 10 bits.
@@ -620,6 +634,7 @@
 /* USB-IF SIDs */
 #define USB_SID_PD		0xff00	/* power delivery */
 #define USB_SID_DISPLAYPORT	0xff01	/* display port */
+#define USB_SID_RICHTEK    	0x29cf  /* direct charge */
 
 
 /* DPM Flags */
@@ -692,6 +707,7 @@ enum dpm_cap_dr_check_prefer {
 #define DPM_CAP_DR_SWAP_REJECT_AS_DFP		(1<<24)
 #define DPM_CAP_DR_SWAP_REJECT_AS_UFP		(1<<25)
 
+#define DPM_CAP_DP_PREFER_MF				(1<<29)
 #define DPM_CAP_SNK_PREFER_LOW_VOLTAGE		(1<<30)
 #define DPM_CAP_SNK_IGNORE_MISMATCH_CURRENT	(1<<31)
 
@@ -802,6 +818,8 @@ typedef struct __pd_port {
 	int request_i;
 	int request_v_new;
 	int request_i_new;
+	int request_i_op;
+	int request_i_max;
 
 	uint8_t local_selected_cap;
 	uint8_t remote_selected_cap;
@@ -836,6 +854,17 @@ typedef struct __pd_port {
 	uint8_t dp_first_connected;
 	uint8_t dp_second_connected;
 #endif
+
+#ifdef CONFIG_USB_PD_UVDM
+	bool uvdm_wait_resp;
+	uint8_t uvdm_cnt;
+	uint16_t uvdm_svid;
+	uint32_t uvdm_data[VDO_MAX_SIZE];
+#endif	/* CONFIG_USB_PD_UVDM */
+
+#ifdef CONFIG_USB_PD_CUSTOM_DBGACC
+	bool custom_dbgacc;
+#endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 } pd_port_t;
 
 extern int pd_core_init(struct tcpc_device *tcpc_dev);
@@ -923,6 +952,7 @@ void pd_lock_msg_output(pd_port_t *pd_port);
 void pd_unlock_msg_output(pd_port_t *pd_port);
 
 int pd_update_connect_state(pd_port_t *pd_port, uint8_t state);
+void pd_update_dpm_request_state(pd_port_t *pd_port, uint8_t state);
 
 /* ---- PD notify TCPC Policy Engine State Changed ---- */
 
@@ -1223,5 +1253,22 @@ static inline int pd_reply_svdm_request_simply(
 {
 	return pd_reply_svdm_request(pd_port, pd_event, reply, 0, NULL);
 }
+
+#ifdef CONFIG_USB_PD_UVDM
+static inline int pd_send_uvdm(pd_port_t *pd_port, uint8_t sop_type)
+{
+	return pd_send_data_msg(
+			pd_port, sop_type, PD_DATA_VENDOR_DEF, 
+			pd_port->uvdm_cnt, pd_port->uvdm_data);
+}
+
+static inline int pd_reply_uvdm(pd_port_t *pd_port, uint8_t sop_type,
+	uint8_t cnt, uint32_t* payload)
+{
+	return pd_send_data_msg(
+			pd_port, sop_type, PD_DATA_VENDOR_DEF, 
+			cnt, payload);
+}
+#endif	/* CONFIG_USB_PD_UVDM */
 
 #endif /* PD_CORE_H_ */
