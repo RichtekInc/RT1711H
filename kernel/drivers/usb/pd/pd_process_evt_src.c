@@ -540,7 +540,7 @@ static inline bool pd_process_timer_msg(
 		if (pd_port->pe_state_curr == PE_SRC_READY)
 			pd_dpm_notify_dfp_delay_done(pd_port, pd_event);
 		break;
-#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */		
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 	}
 
 	return false;

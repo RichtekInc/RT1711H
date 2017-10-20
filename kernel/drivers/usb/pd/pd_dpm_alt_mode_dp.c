@@ -149,7 +149,7 @@ int dp_dfp_u_notify_pe_ready(
 	pd_port_t *pd_port, svdm_svid_data_t *svid_data, pd_event_t *pd_event)
 {
 	DPM_DBG("dp_dfp_u_notify_pe_ready\r\n");
-	BUG_ON(pd_port->data_role != PD_ROLE_DFP);
+	PD_BUG_ON(pd_port->data_role != PD_ROLE_DFP);
 
 	if (pd_port->dp_dfp_u_state != DP_DFP_U_DISCOVER_MODES)
 		return 0;
@@ -762,7 +762,7 @@ int dp_ufp_u_request_dp_status(pd_port_t *pd_port, pd_event_t *pd_event)
 	bool ack = true;
 	uint32_t dp_status;
 
-	BUG_ON(pd_event->pd_msg == NULL);
+	PD_BUG_ON(pd_event->pd_msg == NULL);
 	dp_status = pd_event->pd_msg->payload[1];
 
 	switch (pd_port->dp_ufp_u_state) {
@@ -833,7 +833,7 @@ int dp_ufp_u_request_dp_config(pd_port_t *pd_port, pd_event_t *pd_event)
 	bool ack = false;
 	uint32_t dp_config;
 
-	BUG_ON(pd_event->pd_msg == NULL);
+	PD_BUG_ON(pd_event->pd_msg == NULL);
 	dp_config = pd_event->pd_msg->payload[1];
 
 	DPM_DBG("dp_config: 0x%x\r\n", dp_config);
@@ -865,7 +865,7 @@ void dp_ufp_u_send_dp_attention(pd_port_t *pd_port, pd_event_t *pd_event)
 	case DP_UFP_U_OPERATION:
 		svid_data = dpm_get_svdm_svid_data(
 				pd_port, USB_SID_DISPLAYPORT);
-		BUG_ON(svid_data == NULL);
+		PD_BUG_ON(svid_data == NULL);
 
 		pd_send_vdm_dp_attention(pd_port, TCPC_TX_SOP,
 			svid_data->active_mode, pd_port->dp_status);

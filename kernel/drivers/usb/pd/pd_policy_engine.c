@@ -391,8 +391,6 @@ typedef struct __pe_state_actions {
 #define PE_STATE_ACTIONS(state) { .entry_action = state##_entry, }
 
 
-
-
 /*
  * Policy Engine General State Activity
  */
@@ -795,8 +793,8 @@ static void pd_pe_state_change(
 	uint8_t old_state = pd_port->pe_state_curr;
 	uint8_t new_state = pd_port->pe_state_next;
 
-	BUG_ON(old_state >= PD_NR_PE_STATES);
-	BUG_ON(new_state >= PD_NR_PE_STATES);
+	PD_BUG_ON(old_state >= PD_NR_PE_STATES);
+	PD_BUG_ON(new_state >= PD_NR_PE_STATES);
 
 	if ((new_state == PE_IDLE1) || (new_state == PE_IDLE2))
 		prev_exit_action = NULL;

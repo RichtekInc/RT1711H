@@ -249,6 +249,9 @@ enum tcpm_error_list {
 	TCPM_ERROR_UNATTACHED = -2,
 	TCPM_ERROR_PARAMETER = -3,
 	TCPM_ERROR_PUT_EVENT = -4,
+	TCPM_ERROR_UNSUPPORT = -5,
+	TCPM_ERROR_NO_PD_CONNECTED = -6,
+	TCPM_ERROR_NO_POWER_CABLE = -7,
 };
 
 #define TCPM_PDO_MAX_SIZE	7
@@ -293,6 +296,90 @@ enum typec_role_defination {
 	TYPEC_ROLE_NR,
 };
 
+enum pd_cable_current_limit {
+	PD_CABLE_CURR_UNKNOWN = 0,
+	PD_CABLE_CURR_1A5 = 1,
+	PD_CABLE_CURR_3A = 2,
+	PD_CABLE_CURR_5A = 3,
+};
+
+/* DPM Flags */
+
+#define DPM_FLAGS_PARTNER_DR_POWER		(1<<0)
+#define DPM_FLAGS_PARTNER_DR_DATA		(1<<1)
+#define DPM_FLAGS_PARTNER_EXTPOWER		(1<<2)
+#define DPM_FLAGS_PARTNER_USB_COMM		(1<<3)
+#define DPM_FLAGS_PARTNER_USB_SUSPEND	(1<<4)
+#define DPM_FLAGS_PARTNER_HIGH_CAP		(1<<5)
+
+#define DPM_FLAGS_PARTNER_MISMATCH		(1<<7)
+#define DPM_FLAGS_PARTNER_GIVE_BACK		(1<<8)
+#define DPM_FLAGS_PARTNER_NO_SUSPEND	(1<<9)
+
+#define DPM_FLAGS_RESET_PARTNER_MASK	\
+	(DPM_FLAGS_PARTNER_DR_POWER | DPM_FLAGS_PARTNER_DR_DATA|\
+	DPM_FLAGS_PARTNER_EXTPOWER | DPM_FLAGS_PARTNER_USB_COMM)
+
+#define DPM_FLAGS_CHECK_DC_MODE			(1<<20)
+#define DPM_FLAGS_CHECK_UFP_SVID		(1<<21)
+#define DPM_FLAGS_CHECK_EXT_POWER		(1<<22)
+#define DPM_FLAGS_CHECK_DP_MODE			(1<<23)
+#define DPM_FLAGS_CHECK_SINK_CAP		(1<<24)
+#define DPM_FLAGS_CHECK_SOURCE_CAP		(1<<25)
+#define DPM_FLAGS_CHECK_UFP_ID			(1<<26)
+#define DPM_FLAGS_CHECK_CABLE_ID		(1<<27)
+#define DPM_FLAGS_CHECK_CABLE_ID_DFP		(1<<28)
+#define DPM_FLAGS_CHECK_PR_ROLE			(1<<29)
+#define DPM_FLAGS_CHECK_DR_ROLE			(1<<30)
+
+/* DPM_CAPS */
+
+#define DPM_CAP_LOCAL_DR_POWER			(1<<0)
+#define DPM_CAP_LOCAL_DR_DATA			(1<<1)
+#define DPM_CAP_LOCAL_EXT_POWER			(1<<2)
+#define DPM_CAP_LOCAL_USB_COMM			(1<<3)
+#define DPM_CAP_LOCAL_USB_SUSPEND		(1<<4)
+#define DPM_CAP_LOCAL_HIGH_CAP			(1<<5)
+#define DPM_CAP_LOCAL_GIVE_BACK			(1<<6)
+#define DPM_CAP_LOCAL_NO_SUSPEND		(1<<7)
+#define DPM_CAP_LOCAL_VCONN_SUPPLY		(1<<8)
+
+#define DPM_CAP_ATTEMP_ENTER_DC_MODE		(1<<11)
+#define DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP	(1<<12)
+#define DPM_CAP_ATTEMP_ENTER_DP_MODE		(1<<13)
+#define DPM_CAP_ATTEMP_DISCOVER_CABLE		(1<<14)
+#define DPM_CAP_ATTEMP_DISCOVER_ID		(1<<15)
+
+enum dpm_cap_pr_check_prefer {
+	DPM_CAP_PR_CHECK_DISABLE = 0,
+	DPM_CAP_PR_CHECK_PREFER_SNK = 1,
+	DPM_CAP_PR_CHECK_PREFER_SRC = 2,
+};
+
+#define DPM_CAP_PR_CHECK_PROP(cap)			((cap & 0x03) << 16)
+#define DPM_CAP_EXTRACT_PR_CHECK(raw)		((raw >> 16) & 0x03)
+#define DPM_CAP_PR_SWAP_REJECT_AS_SRC		(1<<18)
+#define DPM_CAP_PR_SWAP_REJECT_AS_SNK		(1<<19)
+#define DPM_CAP_PR_SWAP_CHECK_GP_SRC		(1<<20)
+#define DPM_CAP_PR_SWAP_CHECK_GP_SNK		(1<<21)
+#define DPM_CAP_PR_SWAP_CHECK_GOOD_POWER	\
+	(DPM_CAP_PR_SWAP_CHECK_GP_SRC | DPM_CAP_PR_SWAP_CHECK_GP_SNK)
+
+enum dpm_cap_dr_check_prefer {
+	DPM_CAP_DR_CHECK_DISABLE = 0,
+	DPM_CAP_DR_CHECK_PREFER_UFP = 1,
+	DPM_CAP_DR_CHECK_PREFER_DFP = 2,
+};
+
+#define DPM_CAP_DR_CHECK_PROP(cap)		((cap & 0x03) << 22)
+#define DPM_CAP_EXTRACT_DR_CHECK(raw)		((raw >> 22) & 0x03)
+#define DPM_CAP_DR_SWAP_REJECT_AS_DFP		(1<<24)
+#define DPM_CAP_DR_SWAP_REJECT_AS_UFP		(1<<25)
+
+#define DPM_CAP_DP_PREFER_MF				(1<<29)
+#define DPM_CAP_SNK_PREFER_LOW_VOLTAGE		(1<<30)
+#define DPM_CAP_SNK_IGNORE_MISMATCH_CURRENT	(1<<31)
+
 extern int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev,
 	uint8_t *cc1, uint8_t *cc2, bool from_ic);
 extern int tcpm_inquire_vbus_level(struct tcpc_device *tcpc_dev, bool from_ic);
@@ -303,6 +390,9 @@ extern uint8_t tcpm_inquire_typec_local_rp(struct tcpc_device *tcpc_dev);
 
 extern int tcpm_typec_set_rp_level(
 	struct tcpc_device *tcpc_dev, uint8_t level);
+
+extern int tcpm_typec_role_swap(
+	struct tcpc_device *tcpc_dev);
 
 extern int tcpm_typec_change_role(
 	struct tcpc_device *tcpc_dev, uint8_t typec_role);
@@ -323,6 +413,21 @@ extern uint8_t tcpm_inquire_pd_power_role(
 
 extern uint8_t tcpm_inquire_pd_vconn_role(
 	struct tcpc_device *tcpc_dev);
+
+extern uint8_t tcpm_inquire_cable_current(
+	struct tcpc_device *tcpc_dev);
+
+extern uint32_t tcpm_inquire_dpm_flags(
+	struct tcpc_device *tcpc_dev);
+
+extern uint32_t tcpm_inquire_dpm_caps(
+	struct tcpc_device *tcpc_dev);
+
+extern void tcpm_set_dpm_flags(
+	struct tcpc_device *tcpc_dev, uint32_t flags);
+
+extern void tcpm_set_dpm_caps(
+	struct tcpc_device *tcpc_dev, uint32_t caps);
 
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
@@ -349,7 +454,7 @@ extern int tcpm_discover_cable(
 	struct tcpc_device *tcpc_dev, uint32_t *vdos);
 
 extern int tcpm_vdm_request_id(
-	struct tcpc_device *tcpc_dev, uint8_t *cnt, uint8_t *payload);
+	struct tcpc_device *tcpc_dev, uint8_t *cnt, uint32_t *vdos);
 
 /* Request TCPM to send PD-DP Request */
 

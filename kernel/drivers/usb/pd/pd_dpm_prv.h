@@ -132,7 +132,7 @@ static inline void dpm_vdm_get_svid_ops(
 {
 	uint32_t vdm_hdr;
 
-	BUG_ON(pd_event->pd_msg == NULL);
+	PD_BUG_ON(pd_event->pd_msg == NULL);
 	vdm_hdr = pd_event->pd_msg->payload[0];
 	if (svid)
 		*svid = PD_VDO_VID(vdm_hdr);

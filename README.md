@@ -2,6 +2,17 @@
 
 ## Changelog
 
+### v012
+- [PE] Fixed Cable VDO index wrong.
+- [PE] Using PD_BUG_ON instead of BUG_ON()
+- [PE] Fixed HResetAlert issue during unattach 
+- [DPM] Improve auto dr_swap flow
+- [TypeC] Support TypeC Role Swap
+- [TypeC] Improve Legacy Cable Support
+- [TCPM] Add error code
+- [RT1711] Fixed kzalloc bug
+- [RT1711] Disable AutoIdle if Vconn On
+
 ### v011
 - [TypeC] Notify Rp-Level Change during Attached.SNK
 - [SRC] Add PD VSafe0V timeout for Compatibility

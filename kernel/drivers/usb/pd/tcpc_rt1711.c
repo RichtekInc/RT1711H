@@ -446,7 +446,7 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	int len;
 
 	len = strlen(chip->tcpc_desc->name);
-	name = kzalloc(sizeof(len+5), GFP_KERNEL);
+	name = kzalloc(len+5, GFP_KERNEL);
 	sprintf(name, "%s-IRQ", chip->tcpc_desc->name);
 
 	pr_info("%s name = %s\n", __func__, chip->tcpc_desc->name);
@@ -1043,7 +1043,7 @@ static void check_printk_performance(void)
 		nsrem = do_div(t2, 1000000000);
 		pr_info("t2-t1 = %lu\n",
 				(unsigned long)nsrem /  1000);
-		BUG_ON(nsrem > 100*1000);
+		PD_BUG_ON(nsrem > 100*1000);
 	}
 #endif /* CONFIG_PD_DBG_INFO */
 }

@@ -148,6 +148,7 @@ static inline int tcpci_get_cc(struct tcpc_device *tcpc)
 
 	tcpc->typec_remote_cc[0] = cc1;
 	tcpc->typec_remote_cc[1] = cc2;
+
 	return 1;
 }
 
@@ -158,16 +159,16 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 		pull = tcpc->typec_local_rp_level;
 #endif /* CONFIG_USB_PD_DBG_ALWAYS_LOCAL_RP */
 
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	if (pull == TYPEC_CC_DRP && tcpc->typec_legacy_cable)
+		pull = TYPEC_CC_RP_1_5;
+#endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
+
 	if (pull & TYPEC_CC_DRP) {
 		tcpc->typec_remote_cc[0] =
 		tcpc->typec_remote_cc[1] =
 			TYPEC_CC_DRP_TOGGLING;
 	}
-
-#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	if ((pull == TYPEC_CC_DRP) && (tcpc->typec_legacy_cable))
-		pull = TYPEC_CC_RP_1_5;
-#endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 	tcpc->typec_local_cc = pull;
 	return tcpc->ops->set_cc(tcpc, pull);
@@ -322,6 +323,23 @@ static inline int tcpci_notify_pd_state(
 		&tcpc->evt_nh, TCP_NOTIFY_PD_STATE, &tcp_noti);
 }
 
+static inline int tcpci_enable_watchdog(struct tcpc_device *tcpc, bool en)
+{
+	TCPC_DBG("enable_WG: %d\r\n", en);
+
+#ifdef CONFIG_TCPC_WATCHDOG_EN
+	if (tcpc->ops->set_watchdog)
+		tcpc->ops->set_watchdog(tcpc, en);
+#endif	/* CONFIG_TCPC_WATCHDOG_EN */
+
+#ifdef CONFIG_TCPC_INTRST_EN
+	if (tcpc->ops->set_intrst)
+		tcpc->ops->set_intrst(tcpc, en);
+#endif	/* CONFIG_TCPC_INTRST_EN */
+
+	return 0;
+}
+
 static inline int tcpci_source_vbus(
 	struct tcpc_device *tcpc, uint8_t type, int mv, int ma)
 {
@@ -330,7 +348,7 @@ static inline int tcpci_source_vbus(
 #ifdef CONFIG_USB_POWER_DELIVERY
 	if (type >= TCP_VBUS_CTRL_PD && tcpc->pd_port.pd_prev_connected)
 		type |= TCP_VBUS_CTRL_PD_DETECT;
-#endif
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 
 	if (ma < 0) {
 		if (mv != 0) {
@@ -343,7 +361,7 @@ static inline int tcpci_source_vbus(
 				break;
 			default:
 			case TYPEC_CC_RP_DFT:
-				ma = 500;
+				ma = CONFIG_TYPEC_SRC_CURR_DFT;
 				break;
 			}
 		} else
@@ -354,6 +372,7 @@ static inline int tcpci_source_vbus(
 	tcp_noti.vbus_state.mv = mv;
 	tcp_noti.vbus_state.type = type;
 
+	tcpci_enable_watchdog(tcpc, mv != 0);
 	TCPC_DBG("source_vbus: %d mV, %d mA\r\n", mv, ma);
 	return srcu_notifier_call_chain(&tcpc->evt_nh,
 				TCP_NOTIFY_SOURCE_VBUS, &tcp_noti);
@@ -367,7 +386,7 @@ static inline int tcpci_sink_vbus(
 #ifdef CONFIG_USB_POWER_DELIVERY
 	if (type >= TCP_VBUS_CTRL_PD && tcpc->pd_port.pd_prev_connected)
 		type |= TCP_VBUS_CTRL_PD_DETECT;
-#endif
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 
 	if (ma < 0) {
 		if (mv != 0) {
@@ -380,7 +399,7 @@ static inline int tcpci_sink_vbus(
 				break;
 			default:
 			case TYPEC_CC_VOLT_SNK_DFT:
-				ma = 500;
+				ma = CONFIG_TYPEC_SNK_CURR_DFT;
 				break;
 			}
 		} else
@@ -402,6 +421,7 @@ static inline int tcpci_disable_vbus_control(struct tcpc_device *tcpc)
 	struct tcp_notify tcp_noti;
 
 	TCPC_DBG("disable_vbus\r\n");
+	tcpci_enable_watchdog(tcpc, false);
 	return srcu_notifier_call_chain(
 		&tcpc->evt_nh, TCP_NOTIFY_DIS_VBUS_CTRL, &tcp_noti);
 #else

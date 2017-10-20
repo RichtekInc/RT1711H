@@ -467,12 +467,11 @@ static inline bool pd_process_timer_msg(
 #endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
 
 #ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
-		case PD_TIMER_DFP_FLOW_DELAY:
-			if (pd_port->pe_state_curr == PE_SNK_READY)
-				pd_dpm_notify_dfp_delay_done(pd_port, pd_event);
-			break;
-#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
-
+	case PD_TIMER_DFP_FLOW_DELAY:
+		if (pd_port->pe_state_curr == PE_SNK_READY)
+			pd_dpm_notify_dfp_delay_done(pd_port, pd_event);
+		break;
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */		
 	}
 
 	return ret;

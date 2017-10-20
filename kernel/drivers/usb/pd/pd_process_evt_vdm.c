@@ -422,13 +422,6 @@ static inline void print_vdm_msg(pd_port_t *pd_port, pd_event_t *pd_event)
 static inline bool pd_process_ufp_vdm(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-#if 0
-	if (pd_port->reset_vdm) {
-		pd_port->reset_vdm = false;
-		curr_engine_state = pd_pe_get_ready_state(port);
-	}
-#endif
-
 	if (!pd_check_pe_state_ready(pd_port)) {
 		PE_DBG("659 : invalid, current status\r\n");
 		return false;
@@ -447,12 +440,6 @@ static inline bool pd_process_dfp_vdm(
 
 	if ((PD_VDO_CMDT(vdm_hdr) == CMDT_INIT) &&
 			PD_VDO_CMD(vdm_hdr) == CMD_ATTENTION) {
-#if 0
-		if (port->reset_vdm) {
-			port->reset_vdm = false;
-			curr_engine_state = pd_pe_get_ready_state(port);
-		}
-#endif
 		if (!pd_check_pe_state_ready(pd_port)) {
 			PE_DBG("670 : invalid, current status\r\n");
 			return false;

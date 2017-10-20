@@ -205,12 +205,12 @@ static int dpm_alt_mode_parse_svid_data(
 		}
 	}
 	/* 2nd connection must not be BOTH */
-	BUG_ON(pd_port->dp_second_connected == DPSTS_BOTH_CONNECTED);
+	PD_BUG_ON(pd_port->dp_second_connected == DPSTS_BOTH_CONNECTED);
 	/* UFP or DFP can't both be invalid */
-	BUG_ON(ufp_d_pin_cap == 0 && dfp_d_pin_cap == 0);
+	PD_BUG_ON(ufp_d_pin_cap == 0 && dfp_d_pin_cap == 0);
 	if (pd_port->dp_first_connected == DPSTS_BOTH_CONNECTED) {
-		BUG_ON(ufp_d_pin_cap == 0);
-		BUG_ON(dfp_d_pin_cap == 0);
+		PD_BUG_ON(ufp_d_pin_cap == 0);
+		PD_BUG_ON(dfp_d_pin_cap == 0);
 	}
 
 	return 0;
@@ -272,7 +272,7 @@ static void pd_core_parse_svid_data(pd_port_t *pd_port)
 
 	pd_port->svid_data_cnt = i;
 
-	BUG_ON(i > PD_SVID_DATA_NR);
+	PD_BUG_ON(i > PD_SVID_DATA_NR);
 }
 
 static const struct {
@@ -812,7 +812,7 @@ int pd_send_svdm_request(pd_port_t *pd_port,
 	int ret;
 	uint32_t payload[VDO_MAX_SIZE];
 
-	BUG_ON(cnt >= (VDO_MAX_SIZE-1));
+	PD_BUG_ON(cnt >= (VDO_MAX_SIZE-1));
 
 	payload[0] = VDO_S(svid, CMDT_INIT, vdm_cmd, obj_pos);
 	memcpy(&payload[1], data_obj, sizeof(uint32_t) * cnt);
@@ -832,15 +832,15 @@ int pd_reply_svdm_request(pd_port_t *pd_port, pd_event_t *pd_event,
 	uint32_t vdo;
 	uint32_t payload[VDO_MAX_SIZE];
 
-	BUG_ON(cnt >= (VDO_MAX_SIZE-1));
-	BUG_ON(pd_event->pd_msg == NULL);
+	PD_BUG_ON(cnt >= (VDO_MAX_SIZE-1));
+	PD_BUG_ON(pd_event->pd_msg == NULL);
 
 	vdo = pd_event->pd_msg->payload[0];
 	payload[0] = VDO_S(
 		PD_VDO_VID(vdo), reply, PD_VDO_CMD(vdo), PD_VDO_OPOS(vdo));
 
 	if (cnt > 0) {
-		BUG_ON(data_obj == NULL);
+		PD_BUG_ON(data_obj == NULL);
 		memcpy(&payload[1], data_obj, sizeof(uint32_t) * cnt);
 	}
 

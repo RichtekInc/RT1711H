@@ -568,7 +568,7 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 	rt1711_write_word(chip->client, TCPC_V10_REG_ALERT, 0xffff);
 
 	len = strlen(chip->tcpc_desc->name);
-	name = kzalloc(sizeof(len+5), GFP_KERNEL);
+	name = kzalloc(len+5, GFP_KERNEL);
 	sprintf(name, "%s-IRQ", chip->tcpc_desc->name);
 
 	pr_info("%s name = %s\n", __func__, chip->tcpc_desc->name);
@@ -945,6 +945,7 @@ static int rt1711_set_polarity(struct tcpc_device *tcpc, int polarity)
 
 static int rt1711_set_vconn(struct tcpc_device *tcpc, int enable)
 {
+	int rv;
 	int data;
 
 	data = rt1711_i2c_read8(tcpc, TCPC_V10_REG_POWER_CTRL);
@@ -954,7 +955,14 @@ static int rt1711_set_vconn(struct tcpc_device *tcpc, int enable)
 	data &= ~TCPC_V10_REG_POWER_CTRL_VCONN;
 	data |= enable ? TCPC_V10_REG_POWER_CTRL_VCONN : 0;
 
-	return rt1711_i2c_write8(tcpc, TCPC_V10_REG_POWER_CTRL, data);
+	rv = rt1711_i2c_write8(tcpc, TCPC_V10_REG_POWER_CTRL, data);
+	if (rv < 0)
+		return rv;
+
+	rv = rt1711_i2c_write8(tcpc, RT1711H_REG_IDLE_CTRL, 
+		RT1711H_REG_IDLE_SET(0, 1, enable ? 0 : 1, 2));
+
+	return rv;
 }
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
@@ -1216,7 +1224,7 @@ static void check_printk_performance(void)
 		nsrem = do_div(t2, 1000000000);
 		pr_info("t2-t1 = %lu\n",
 				(unsigned long)nsrem /  1000);
-		BUG_ON(nsrem > 100*1000);
+		PD_BUG_ON(nsrem > 100*1000);
 	}
 #endif /* CONFIG_PD_DBG_INFO */
 }

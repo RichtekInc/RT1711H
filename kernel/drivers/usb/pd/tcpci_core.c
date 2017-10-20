@@ -28,7 +28,7 @@
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.1_G"
+#define TCPC_CORE_VERSION		"1.1.2_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -51,9 +51,9 @@ static struct device_type tcpc_dev_type;
 static struct device_attribute tcpc_device_attributes[] = {
 	TCPC_DEVICE_ATTR(role_def, S_IRUGO),
 	TCPC_DEVICE_ATTR(rp_lvl, S_IRUGO),
-	TCPC_DEVICE_ATTR(pd_test, S_IRUGO | S_IWOTH),
+	TCPC_DEVICE_ATTR(pd_test, S_IRUGO | S_IWUSR | S_IWGRP),
 	TCPC_DEVICE_ATTR(info, S_IRUGO),
-	TCPC_DEVICE_ATTR(timer, S_IRUGO | S_IWOTH),
+	TCPC_DEVICE_ATTR(timer, S_IRUGO | S_IWUSR | S_IWGRP),
 	TCPC_DEVICE_ATTR(caps_info, S_IRUGO),
 };
 
@@ -302,7 +302,7 @@ static void tcpc_device_release(struct device *dev)
 	struct tcpc_device *tcpc_dev = to_tcpc_device(dev);
 
 	pr_info("%s : %s device release\n", __func__, dev_name(dev));
-	BUG_ON(tcpc_dev == NULL);
+	PD_BUG_ON(tcpc_dev == NULL);
 	/* Un-init pe thread */
 #ifdef CONFIG_USB_POWER_DELIVERY
 	tcpci_event_deinit(tcpc_dev);

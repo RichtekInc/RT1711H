@@ -130,6 +130,8 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_RT_TIMER_PE_IDLE",
 	"TYPEC_RT_TIMER_SAFE0V_DELAY",
 	"TYPEC_RT_TIMER_SAFE0V_TOUT",
+	"TYPEC_RT_TIMER_ROLE_SWAP",
+	"TYPEC_RT_TIMER_LEGACY",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -142,6 +144,8 @@ const char *tcpc_timer_name[] = {
 #else
 	"TYPEC_RT_TIMER_SAFE0V_DELAY",
 	"TYPEC_RT_TIMER_SAFE0V_TOUT",
+	"TYPEC_RT_TIMER_ROLE_SWAP",
+	"TYPEC_RT_TIMER_LEGACY",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -207,6 +211,9 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(1),				/* TYPEC_RT_TIMER_PE_IDLE */
 	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
 	TIMEOUT_VAL(650),		/* TYPEC_RT_TIMER_SAFE0V_TOUT */
+	/* TYPEC_RT_TIMER_ROLE_SWAP */
+	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
+	TIMEOUT_VAL(3000),				/* TYPEC_RT_TIMER_LEGACY */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -223,6 +230,9 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	/* TYPEC-RT-TIMER */
 	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
 	TIMEOUT_VAL(650),			/* TYPEC_RT_TIMER_SAFE0V_TOUT */
+	/* TYPEC_RT_TIMER_ROLE_SWAP */
+	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
+	TIMEOUT_VAL(3000),				/* TYPEC_RT_TIMER_LEGACY */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -272,8 +282,10 @@ static inline void on_pe_timer_timeout(
 		
 			TCPC_INFO("VSafe0V TOUT: now:%d, org:%d\r\n", 
 				tcpc_dev->vbus_level, vbus_level);
+
+			if (!tcpci_check_vbus_valid(tcpc_dev))
+				pd_put_vbus_safe0v_event(tcpc_dev);
 		}
-		pd_put_vbus_safe0v_event(tcpc_dev);
 		break;
 #endif	/* CONFIG_USB_PD_SAFE0V_TIMEOUT */
 
@@ -647,6 +659,26 @@ static enum hrtimer_restart tcpc_timer_rt_vsafe0v_tout(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_rt_role_swap(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_ROLE_SWAP;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart tcpc_timer_rt_legacy(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_LEGACY;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart tcpc_timer_try_drp_try(struct hrtimer *timer)
 {
 	int index = TYPEC_TRY_TIMER_DRP_TRY;
@@ -742,6 +774,8 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_RT_TIMER_PE_IDLE] = tcpc_timer_rt_pe_idle,
 	[TYPEC_RT_TIMER_SAFE0V_DELAY] = tcpc_timer_rt_vsafe0v_delay,
 	[TYPEC_RT_TIMER_SAFE0V_TOUT] = tcpc_timer_rt_vsafe0v_tout,
+	[TYPEC_RT_TIMER_ROLE_SWAP] = tcpc_timer_rt_role_swap,
+	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,
@@ -754,6 +788,8 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 #else
 	[TYPEC_RT_TIMER_SAFE0V_DELAY] = tcpc_timer_rt_vsafe0v_delay,
 	[TYPEC_RT_TIMER_SAFE0V_TOUT] = tcpc_timer_rt_vsafe0v_tout,
+	[TYPEC_RT_TIMER_ROLE_SWAP] = tcpc_timer_rt_role_swap,
+	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,
@@ -807,7 +843,7 @@ void tcpc_enable_timer(struct tcpc_device *tcpc, uint32_t timer_id)
 	uint32_t r, mod;
 
 	TCPC_TIMER_EN_DBG(tcpc, timer_id);
-	BUG_ON(timer_id >= PD_TIMER_NR);
+	PD_BUG_ON(timer_id >= PD_TIMER_NR);
 
 	mutex_lock(&tcpc->timer_lock);
 	if (timer_id >= TYPEC_TIMER_START_ID)
@@ -832,7 +868,7 @@ void tcpc_disable_timer(struct tcpc_device *tcpc_dev, uint32_t timer_id)
 	mask = rt_get_value((uint64_t *)&tcpc_dev->timer_enable_mask);
 	up(&tcpc_dev->timer_enable_mask_lock);
 
-	BUG_ON(timer_id >= PD_TIMER_NR);
+	PD_BUG_ON(timer_id >= PD_TIMER_NR);
 	if (mask&(((uint64_t)1)<<timer_id)) {
 		hrtimer_try_to_cancel(&tcpc_dev->tcpc_timer[timer_id]);
 		rt_clear_bit(timer_id,

@@ -117,7 +117,7 @@ static int tcpc_dual_role_set_prop(struct dual_role_phy_instance *dual_role,
 	case DUAL_ROLE_PROP_PR:
 	case DUAL_ROLE_PROP_DR:
 	case DUAL_ROLE_PROP_VCONN_SUPPLY:
-		tcpc_typec_swap_role(tcpc);
+		tcpm_typec_role_swap(tcpc);
 	default:
 		break;
 	#endif /* CONFIG_USB_POWER_DELIVERY */

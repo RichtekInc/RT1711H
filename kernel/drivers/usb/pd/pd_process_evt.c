@@ -756,31 +756,38 @@ static inline bool pe_translate_pd_msg_event(
 static inline bool pe_exit_idle_state(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
+	bool act_as_sink;
+
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	pd_port->custom_dbgacc = false;
 #endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 	switch (pd_event->msg_sec) {
 	case TYPEC_ATTACHED_SNK:
-		pd_init_role(pd_port,
-			PD_ROLE_SINK, PD_ROLE_UFP, PD_ROLE_VCONN_OFF);
+		act_as_sink = true;
 		break;
 
 	case TYPEC_ATTACHED_SRC:
-		pd_init_role(pd_port,
-			PD_ROLE_SOURCE, PD_ROLE_DFP, PD_ROLE_VCONN_ON);
+		act_as_sink = false;
 		break;
 
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	case TYPEC_ATTACHED_DBGACC_SNK:
+		act_as_sink = true;
 		pd_port->custom_dbgacc = true;
-		pd_init_role(pd_port,
-			PD_ROLE_SINK, PD_ROLE_UFP, PD_ROLE_VCONN_OFF);
 		break;
 #endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
 
 	default:
 		return false;
+	}
+
+	if (act_as_sink) {
+		pd_init_role(pd_port,
+			PD_ROLE_SINK, PD_ROLE_UFP, PD_ROLE_VCONN_OFF);
+	} else {
+		pd_init_role(pd_port,
+			PD_ROLE_SOURCE, PD_ROLE_DFP, PD_ROLE_VCONN_ON);
 	}
 
 	pd_port->cap_counter = 0;
@@ -806,17 +813,20 @@ static inline bool pe_exit_idle_state(
 	pd_port->during_swap = false;
 	pd_port->dpm_ack_immediately = false;
 
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
 #ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP
 	pd_port->dpm_dfp_flow_delay_done = false;
 #else
 	pd_port->dpm_dfp_flow_delay_done = true;	
 #endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP */
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
 	pd_port->remote_src_cap.nr = 0;
 	pd_port->remote_snk_cap.nr = 0;
 
 	memset(pd_port->cable_vdos, 0, sizeof(uint32_t) * VDO_MAX_SIZE);
 
+	pd_notify_pe_running(pd_port);
 	pd_dpm_notify_pe_startup(pd_port);
 	return true;
 }

@@ -68,6 +68,8 @@
 #define PE_EVT_INFO_VDM_DIS		0
 #define PE_DBG_RESET_VDM_DIS	1
 
+#define PD_BUG_ON(x)
+
 struct tcpc_device;
 
 struct tcpc_desc {
@@ -203,7 +205,7 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
 
-#define TCPC_LEGACY_CABLE_CONFIRM	50
+#define TCPC_LEGACY_CABLE_CONFIRM	10
 
 struct tcpc_device {
 	struct i2c_client *client;
@@ -256,8 +258,13 @@ struct tcpc_device {
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	bool typec_legacy_cable;
+	bool typec_legacy_polling;
 	uint8_t typec_legacy_cable_suspect;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
+
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	bool typec_during_role_swap;
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
 	struct dual_role_phy_instance *dr_usb;
@@ -285,6 +292,7 @@ struct tcpc_device {
 	pd_msg_t pd_msg_buffer[PD_MSG_BUF_SIZE];
 	pd_event_t pd_event_ring_buffer[PD_EVENT_BUF_SIZE];
 
+	bool pd_pe_running;
 	bool pd_wait_pe_idle;
 	bool pd_hard_reset_event_pending;
 	bool pd_wait_hard_reset_complete;

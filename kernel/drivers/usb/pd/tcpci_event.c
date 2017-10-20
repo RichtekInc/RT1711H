@@ -60,7 +60,7 @@ pd_msg_t *__pd_alloc_msg(struct tcpc_device *tcpc_dev)
 	}
 
 	PD_ERR("pd_alloc_msg failed\r\n");
-	BUG_ON(true);
+	PD_BUG_ON(true);
 
 	return (pd_msg_t *)NULL;
 }
@@ -81,7 +81,7 @@ static void __pd_free_msg(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg)
 	int index = pd_msg - tcpc_dev->pd_msg_buffer;
 	uint8_t mask = 1 << index;
 
-	BUG_ON((mask & tcpc_dev->pd_msg_buffer_allocated) == 0);
+	PD_BUG_ON((mask & tcpc_dev->pd_msg_buffer_allocated) == 0);
 	tcpc_dev->pd_msg_buffer_allocated &= (~mask);
 }
 
@@ -248,7 +248,7 @@ bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
 
 	if (from_port_partner) {
 
-		BUG_ON(pd_msg == NULL);
+		PD_BUG_ON(pd_msg == NULL);
 		/* pd_msg->time_stamp = 0; */
 		tcpc_dev->pd_last_vdm_msg = *pd_msg;
 		reset_pe_vdm_state(&tcpc_dev->pd_port, pd_msg->payload[0]);
@@ -383,7 +383,8 @@ void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev)
 	tcpc_dev->pd_transmit_state = PD_TX_STATE_HARD_RESET;
 
 	if ((!tcpc_dev->pd_hard_reset_event_pending) &&
-		(!tcpc_dev->pd_wait_pe_idle)) {
+		(!tcpc_dev->pd_wait_pe_idle) &&
+		tcpc_dev->pd_pe_running) {
 		__pd_event_buf_reset(tcpc_dev);
 		__pd_put_hw_event(tcpc_dev, PD_HW_RECV_HARD_RESET);
 		tcpc_dev->pd_bist_mode = PD_BIST_MODE_DISABLE;
@@ -570,6 +571,15 @@ void pd_try_put_pe_idle_event(pd_port_t *pd_port)
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
+void pd_notify_pe_running(pd_port_t *pd_port)
+{
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+
+	mutex_lock(&tcpc_dev->access_lock);
+	tcpc_dev->pd_pe_running = true;
+	mutex_unlock(&tcpc_dev->access_lock);	
+}
+
 void pd_notify_pe_idle(pd_port_t *pd_port)
 {
 	bool notify_pe_idle = false;
@@ -578,6 +588,7 @@ void pd_notify_pe_idle(pd_port_t *pd_port)
 	mutex_lock(&tcpc_dev->access_lock);
 	if (tcpc_dev->pd_wait_pe_idle) {
 		notify_pe_idle = true;
+		tcpc_dev->pd_pe_running = false;
 		tcpc_dev->pd_wait_pe_idle = false;
 	}
 
@@ -603,6 +614,7 @@ void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt)
 	case PD_WAIT_VBUS_INVALID_ONCE:
 		pd_put_vbus_changed_event(tcpc_dev, false);
 		break;
+
 	case PD_WAIT_VBUS_SAFE0V_ONCE:
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT
 		if (tcpci_check_vsafe0v(tcpc_dev, true)) {

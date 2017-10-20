@@ -373,7 +373,7 @@ static bool dpm_build_request_info(
 	pd_port_t *pd_port, struct dpm_rdo_info_t *req_info)
 {
 	bool find_cap = false;
-	int i, max_uw = 0;
+	int i, max_uw = -1;
 	pd_port_power_caps *snk_cap = &pd_port->local_snk_cap;
 	pd_port_power_caps *src_cap = &pd_port->remote_src_cap;
 
@@ -402,7 +402,7 @@ static bool dpm_build_request_info(
 		}
 	}
 
-	return max_uw != 0;
+	return max_uw > 0;
 }
 
 static bool dpm_build_default_request_info(
@@ -496,10 +496,12 @@ bool pd_dpm_send_request(pd_port_t *pd_port, int mv, int ma)
 
 	find_cap = dpm_find_match_req_info(&req_info,
 		snk_pdo, src_cap->nr, src_cap->pdos,
-		0, pd_port->dpm_caps);
+		-1, pd_port->dpm_caps);
 
-	if (!find_cap)
+	if (!find_cap) {
+		DPM_DBG("Can't find match_cap\r\n");
 		return false;
+	}
 
 	dpm_update_request(pd_port, &req_info);
 	return pd_put_dpm_pd_request_event(pd_port,
@@ -516,7 +518,7 @@ void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port_power_caps *snk_cap = &pd_port->local_snk_cap;
 	pd_port_power_caps *src_cap = &pd_port->remote_src_cap;
 
-	BUG_ON(pd_msg == NULL);
+	PD_BUG_ON(pd_msg == NULL);
 
 	sink_nr = snk_cap->nr;
 	source_nr = PD_HEADER_CNT(pd_msg->msg_hdr);
@@ -577,7 +579,7 @@ void pd_dpm_src_evaluate_request(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_msg_t *pd_msg = pd_event->pd_msg;
 	pd_port_power_caps *src_cap = &pd_port->local_src_cap;
 
-	BUG_ON(pd_msg == NULL);
+	PD_BUG_ON(pd_msg == NULL);
 
 	rdo = pd_msg->payload[0];
 	rdo_pos = RDO_POS(rdo);
@@ -666,7 +668,7 @@ void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_event->pd_msg)
 		memcpy(pd_port->cable_vdos, pd_event->pd_msg->payload, size);
-
+	
 	pd_put_dpm_ack_event(pd_port);
 }
 
@@ -761,7 +763,7 @@ static inline uint32_t dpm_vdm_get_svid(pd_event_t *pd_event)
 {
 	pd_msg_t *pd_msg = pd_event->pd_msg;
 
-	BUG_ON(pd_msg == NULL);
+	PD_BUG_ON(pd_msg == NULL);
 	return PD_VDO_VID(pd_msg->payload[0]);
 }
 
@@ -795,7 +797,7 @@ void pd_dpm_ufp_request_enter_mode(pd_port_t *pd_port, pd_event_t *pd_event)
 	uint16_t svid;
 	uint8_t ops;
 
-	BUG_ON(pd_event->pd_msg == NULL);
+	PD_BUG_ON(pd_event->pd_msg == NULL);
 	dpm_vdm_get_svid_ops(pd_event, &svid, &ops);
 	ack = dpm_ufp_update_svid_data_enter_mode(pd_port, svid, ops);
 
@@ -828,7 +830,7 @@ int pd_dpm_ufp_response_svids(pd_port_t *pd_port, pd_event_t *pd_event)
 	uint32_t svids[VDO_MAX_DATA_SIZE];
 	uint8_t i = 0, j = 0, cnt = pd_port->svid_data_cnt;
 
-	BUG_ON(pd_port->svid_data_cnt >= VDO_MAX_SVID_SIZE);
+	PD_BUG_ON(pd_port->svid_data_cnt >= VDO_MAX_SVID_SIZE);
 
 	if (unlikely(cnt >= VDO_MAX_SVID_SIZE))
 		cnt = VDO_MAX_SVID_SIZE;
@@ -1215,7 +1217,7 @@ void pd_dpm_dr_inform_sink_cap(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port_power_caps *snk_cap = &pd_port->remote_snk_cap;
 
 	if (pd_event_msg_match(pd_event, PD_EVT_DATA_MSG, PD_DATA_SINK_CAP)) {
-		BUG_ON(pd_msg == NULL);
+		PD_BUG_ON(pd_msg == NULL);
 		snk_cap->nr = PD_HEADER_CNT(pd_msg->msg_hdr);
 		memcpy(snk_cap->pdos, pd_msg->payload,
 					sizeof(uint32_t) * snk_cap->nr);
@@ -1239,7 +1241,7 @@ void pd_dpm_dr_inform_source_cap(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_port_power_caps *src_cap = &pd_port->remote_src_cap;
 
 	if (pd_event_msg_match(pd_event, PD_EVT_DATA_MSG, PD_DATA_SOURCE_CAP)) {
-		BUG_ON(pd_msg == NULL);
+		PD_BUG_ON(pd_msg == NULL);
 		src_cap->nr = PD_HEADER_CNT(pd_msg->msg_hdr);
 		memcpy(src_cap->pdos, pd_msg->payload,
 				sizeof(uint32_t) * src_cap->nr);
@@ -1274,11 +1276,13 @@ void pd_dpm_drs_change_role(pd_port_t *pd_port, uint8_t role)
 	/* pd_put_dpm_ack_event(pd_port); */
 	pd_port->dpm_ack_immediately = true;
 
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
 #ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_DRSWAP
 	pd_port->dpm_dfp_flow_delay_done = false;
 #else
 	pd_port->dpm_dfp_flow_delay_done = true;	
-#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_DRSWAP */	
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_DRSWAP */
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 }
 
 /*
@@ -1453,6 +1457,10 @@ static inline int pd_dpm_ready_data_role_swap(pd_port_t *pd_port)
 		return 0;
 
 	pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_DR_ROLE;
+
+	if (!(pd_port->dpm_flags & DPM_FLAGS_PARTNER_DR_DATA))
+		return false;
+	
 	prefer_role = DPM_CAP_EXTRACT_DR_CHECK(pd_port->dpm_caps);
 
 	if (pd_port->data_role == PD_ROLE_DFP
@@ -1501,15 +1509,28 @@ static inline int pd_dpm_ready_get_source_cap(pd_port_t *pd_port)
 	return 1;
 }
 
-static inline int pd_dpm_ready_attempt_get_extbit(pd_port_t *pd_port)
+static inline int pd_dpm_ready_attempt_get_flags(pd_port_t *pd_port)
 {
+	uint32_t prefer_role;
+	bool attemp_get_flags = false;
+
 	if (pd_port->remote_src_cap.nr >= 1)
 		return 0;
 
 	if (pd_port->remote_snk_cap.nr >= 1)
 		return 0;
 
-	if (!(pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER))
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_DR_ROLE) {
+		prefer_role = DPM_CAP_EXTRACT_DR_CHECK(pd_port->dpm_caps);
+
+		if (prefer_role == DPM_CAP_DR_CHECK_PREFER_UFP)
+			attemp_get_flags = true;
+	}
+
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER)
+		attemp_get_flags = true;
+
+	if (!attemp_get_flags)
 		return 0;
 
 	if (pd_port->get_snk_cap_count >= PD_GET_SNK_CAP_RETRIES)
@@ -1524,7 +1545,7 @@ static inline int pd_dpm_ready_attempt_get_extbit(pd_port_t *pd_port)
 static inline int pd_dpm_notify_pe_src_ready(
 		pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	return pd_dpm_ready_attempt_get_extbit(pd_port);
+	return pd_dpm_ready_attempt_get_flags(pd_port);
 }
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
@@ -1694,16 +1715,13 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	int ret = 0;
 
-	if (pd_dpm_ready_power_role_swap(pd_port))
-		return 1;
-
-	if (pd_dpm_ready_data_role_swap(pd_port))
-		return 1;
-
 	if (pd_dpm_ready_get_source_cap(pd_port))
 		return 1;
 
 	if (pd_dpm_ready_get_sink_cap(pd_port))
+		return 1;
+
+	if (pd_dpm_ready_power_role_swap(pd_port))
 		return 1;
 
 	if (pd_port->power_role == PD_ROLE_SOURCE)
@@ -1711,6 +1729,9 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (ret != 0)
 		return ret;
+
+	if (pd_dpm_ready_data_role_swap(pd_port))
+		return 1;
 
 	if (pd_port->data_role == PD_ROLE_DFP)
 		ret = pd_dpm_notify_pe_dfp_ready(pd_port, pd_event);

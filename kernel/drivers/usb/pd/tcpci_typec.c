@@ -177,6 +177,11 @@ enum TYPEC_CONNECTION_STATE {
 	typec_attached_custom_src,
 #endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
 
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	typec_role_swap_snk,
+	typec_role_swap_src,
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
 	typec_unattachwait_pe,	/* Wait Policy Engine go to Idle */
 };
 
@@ -215,6 +220,11 @@ static const char *const typec_state_name[] = {
 #ifdef CONFIG_TYPEC_CAP_CUSTOM_SRC
 	"Custom.SRC",
 #endif	/* CONFIG_TYPEC_CAP_CUSTOM_SRC */
+
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	"RoleSwap.SNK",
+	"RoleSwap.SRC",
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 	"UnattachWait.PE",
 };
@@ -330,6 +340,11 @@ static void typec_unattached_entry(struct tcpc_device *tcpc_dev)
 {
 	typec_unattached_power_entry(tcpc_dev);
 
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	if (tcpc_dev->typec_during_role_swap)
+		return;
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
 	switch (tcpc_dev->typec_role) {
 	case TYPEC_ROLE_SNK:
 		TYPEC_NEW_STATE(typec_unattached_snk);
@@ -408,6 +423,13 @@ static inline void typec_source_attached_entry(struct tcpc_device *tcpc_dev)
 
 	tcpc_disable_timer(tcpc_dev, TYPEC_TRY_TIMER_DRP_TRY);
 
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	if (tcpc_dev->typec_during_role_swap) {
+		tcpc_dev->typec_during_role_swap = false;
+		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_ROLE_SWAP);
+	}
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
 	typec_set_plug_orient(tcpc_dev,
 		tcpc_dev->typec_local_rp_level, 
 		typec_check_cc2(TYPEC_CC_VOLT_RD));
@@ -434,6 +456,13 @@ static inline void typec_sink_attached_entry(struct tcpc_device *tcpc_dev)
 	if (tcpc_dev->typec_role >= TYPEC_ROLE_DRP)
 		tcpc_reset_typec_try_timer(tcpc_dev);
 #endif	/* CONFIG_TYPEC_CAP_TRY_STATE */
+
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	if (tcpc_dev->typec_during_role_swap) {
+		tcpc_dev->typec_during_role_swap = false;
+		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_ROLE_SWAP);
+	}
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 	typec_set_plug_orient(tcpc_dev, TYPEC_CC_RD,
 		typec_check_cc2_unequal(TYPEC_CC_VOLT_OPEN));
@@ -521,6 +550,20 @@ static inline void typec_sink_dbg_acc_attached_entry(
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SOURCE
 
+static inline bool typec_role_is_try_src(
+	struct tcpc_device *tcpc_dev)
+{
+	if (tcpc_dev->typec_role != TYPEC_ROLE_TRY_SRC)
+		return false;
+
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	if (tcpc_dev->typec_during_role_swap)
+		return false;
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
+	return true;
+}
+
 static inline void typec_try_src_entry(struct tcpc_device *tcpc_dev)
 {
 	TYPEC_NEW_STATE(typec_try_src);
@@ -558,13 +601,27 @@ static inline void typec_trywait_snk_pe_entry(struct tcpc_device *tcpc_dev)
 	typec_trywait_snk_entry(tcpc_dev);
 }
 
-#endif /* #ifdef CONFIG_TYPEC_CAP_TRY_SOURCE */
+#endif /* CONFIG_TYPEC_CAP_TRY_SOURCE */
 
 /*
  * [BLOCK] Try.SNK / TryWait.SRC
  */
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SINK
+
+static inline bool typec_role_is_try_sink(
+	struct tcpc_device *tcpc_dev)
+{
+	if (tcpc_dev->typec_role != TYPEC_ROLE_TRY_SNK)
+		return false;
+
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	if (tcpc_dev->typec_during_role_swap)
+		return false;
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
+	return true;	
+}
 
 static inline void typec_try_snk_entry(struct tcpc_device *tcpc_dev)
 {
@@ -585,20 +642,6 @@ static inline void typec_trywait_src_entry(struct tcpc_device *tcpc_dev)
 	tcpc_enable_timer(tcpc_dev, TYPEC_TRY_TIMER_DRP_TRY);
 }
 
-#ifndef CONFIG_USB_POWER_DELIVERY
-static inline void typec_trywait_src_pe_entry(struct tcpc_device *tcpc_dev)
-{
-	tcpc_dev->typec_attach_new = TYPEC_UNATTACHED;
-
-	if (tcpc_dev->typec_attach_old) {
-		TYPEC_NEW_STATE(typec_trywait_src_pe);
-		return;
-	}
-
-	typec_trywait_src_entry(tcpc_dev);
-}
-#endif
-
 #endif /* CONFIG_TYPEC_CAP_TRY_SINK */
 
 /*
@@ -616,7 +659,7 @@ static inline void typec_cc_snk_detect_vsafe5v_entry(
 	}
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SOURCE
-	if (tcpc_dev->typec_role == TYPEC_ROLE_TRY_SRC) {
+	if (typec_role_is_try_src(tcpc_dev)) {
 		if (tcpc_dev->typec_state == typec_attachwait_snk) {
 			typec_try_src_entry(tcpc_dev);
 			return;
@@ -655,7 +698,7 @@ static inline void typec_cc_src_detect_vsafe0v_entry(
 	typec_wait_ps_change(tcpc_dev, TYPEC_WAIT_PS_DISABLE);
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SINK
-	if (tcpc_dev->typec_role == TYPEC_ROLE_TRY_SNK) {
+	if (typec_role_is_try_sink(tcpc_dev)) {
 		if (tcpc_dev->typec_state == typec_attachwait_src) {
 			typec_try_snk_entry(tcpc_dev);
 			return;
@@ -683,7 +726,7 @@ static inline void typec_cc_src_remove_entry(struct tcpc_device *tcpc_dev)
 	typec_wait_ps_change(tcpc_dev, TYPEC_WAIT_PS_DISABLE);
 
 #ifdef CONFIG_TYPEC_CAP_TRY_SOURCE
-	if (tcpc_dev->typec_role == TYPEC_ROLE_TRY_SRC) {
+	if (typec_role_is_try_src(tcpc_dev)) {
 		switch (tcpc_dev->typec_state) {
 		case typec_attached_src:
 			typec_trywait_snk_pe_entry(tcpc_dev);
@@ -838,6 +881,12 @@ static inline bool typec_check_legacy_cable(
 		if (tcpci_get_cc(tcpc_dev) != 0) {
 			TYPEC_INFO("LC->Confirm\r\n");
 			tcpc_dev->typec_legacy_cable = true;
+
+			if (tcpc_dev->vbus_level != TCPC_VBUS_INVALID) {
+				TYPEC_INFO("LC->Confirm2\r\n");
+				tcpc_enable_timer(tcpc_dev, 
+					TYPEC_RT_TIMER_LEGACY);
+			}
 			return true;
 		}
 
@@ -846,6 +895,31 @@ static inline bool typec_check_legacy_cable(
 	}
 
 	return false;
+}
+
+static inline void typec_polling_legacy_cable(
+	struct tcpc_device *tcpc_dev)
+{
+	if (tcpc_dev->typec_legacy_cable) {
+		tcpc_dev->typec_legacy_polling = true;
+		tcpci_set_cc(tcpc_dev, TYPEC_CC_RP);
+		mdelay(1);
+		tcpci_get_cc(tcpc_dev);
+		
+		if (typec_is_cc_open()) {
+			TYPEC_INFO("LC->Detached (Res)\r\n");
+			tcpc_dev->typec_legacy_cable = false;
+			tcpc_dev->typec_legacy_polling = false;
+			tcpci_set_cc(tcpc_dev, TYPEC_CC_DRP);
+			typec_enable_low_power_mode(tcpc_dev, TYPEC_CC_DRP);
+		} else {
+			TYPEC_INFO("LC->Polling\r\n");
+			tcpci_set_cc(tcpc_dev, TYPEC_CC_RP_3_0);
+			mdelay(1);
+			tcpci_set_cc(tcpc_dev, TYPEC_CC_RP_1_5);
+			tcpc_enable_timer(tcpc_dev, TYPEC_RT_TIMER_LEGACY);
+		}
+	}
 }
 
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
@@ -1049,6 +1123,7 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 			suspect_legacy = true;
 		else {
 			tcpc_dev->typec_legacy_cable = false;
+			tcpc_dev->typec_legacy_polling = false;
 			tcpc_dev->typec_legacy_cable_suspect = 0;
 		}
 	}
@@ -1163,8 +1238,10 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 	if (tcpc_dev->typec_legacy_cable && !typec_is_cc_open()) {
 		TYPEC_INFO("LC->Detached (CC)\r\n");
 		tcpc_dev->typec_legacy_cable = false;
+		tcpc_dev->typec_legacy_polling = false;
 		tcpci_set_cc(tcpc_dev, TYPEC_CC_DRP);
 		typec_enable_low_power_mode(tcpc_dev, TYPEC_CC_DRP);
+		tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_LEGACY);
 		return 0;
 	}
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
@@ -1404,6 +1481,21 @@ int tcpc_typec_handle_timeout(struct tcpc_device *tcpc_dev, uint32_t timer_id)
 		ret = typec_handle_src_toggle_timeout(tcpc_dev);
 		break;
 
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
+	case TYPEC_RT_TIMER_ROLE_SWAP:
+		if (tcpc_dev->typec_during_role_swap) {
+			TYPEC_INFO("TypeC Role Swap Failed\r\n");
+			tcpc_dev->typec_during_role_swap = false;
+			tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
+			break;
+		}
+#endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
+
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	case TYPEC_RT_TIMER_LEGACY:
+		typec_polling_legacy_cable(tcpc_dev);
+		break;
+#endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 	}
 
 	return ret;
@@ -1482,12 +1574,12 @@ int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc_dev, int vbus_level)
 		if (vbus_level) {
 			TYPEC_INFO("LC->Attached\r\n");
 			tcpc_dev->typec_legacy_cable = false;
+			tcpc_dev->typec_legacy_polling = false;
 			tcpci_set_cc(tcpc_dev, TYPEC_CC_RD);
-		} else {
+			tcpc_disable_timer(tcpc_dev, TYPEC_RT_TIMER_LEGACY);
+		} else if (!tcpc_dev->typec_legacy_polling){
 			TYPEC_INFO("LC->Detached (PS)\r\n");
-			tcpc_dev->typec_legacy_cable = false;
-			tcpci_set_cc(tcpc_dev, TYPEC_CC_DRP);
-			typec_enable_low_power_mode(tcpc_dev, TYPEC_CC_DRP);
+			typec_polling_legacy_cable(tcpc_dev);
 		}
 		return 0;
 	}
@@ -1573,32 +1665,37 @@ static const char *const typec_role_name[] = {
 	"TrySNK",
 };
 
-#ifndef CONFIG_USB_POWER_DELIVERY
+#ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
 int tcpc_typec_swap_role(struct tcpc_device *tcpc_dev)
 {
+	bool do_swap = false;
+	
 	if (tcpc_dev->typec_role < TYPEC_ROLE_DRP)
 		return -1;
-	TYPEC_INFO("tcpc_typec_swap_role\r\n");
-
-	switch (tcpc_dev->typec_state) {
-	case typec_attached_src:
-#ifdef CONFIG_TYPEC_CAP_TRY_SOURCE
-		typec_trywait_snk_pe_entry(tcpc_dev);
-#else
-		TYPEC_INFO("SRC->SNK (X)\r\n");
-#endif /* CONFIG_TYPEC_CAP_TRY_SOURCR */
+	
+	switch (tcpc_dev->typec_attach_old) {
+	case TYPEC_ATTACHED_SNK:
+		do_swap = true;
+		TYPEC_NEW_STATE(typec_role_swap_src);
+		tcpci_set_cc(tcpc_dev, TYPEC_CC_RP);
 		break;
-	case typec_attached_snk:
-#ifdef CONFIG_TYPEC_CAP_TRY_SINK
-		typec_trywait_src_pe_entry(tcpc_dev);
-#else
-		TYPEC_INFO("SNK->SRC (X)\r\n");
-#endif /* CONFIG_TYPEC_CAP_TRY_SINK */
+	case TYPEC_ATTACHED_SRC:
+		do_swap = true;
+		TYPEC_NEW_STATE(typec_role_swap_snk);
+		tcpci_set_cc(tcpc_dev, TYPEC_CC_RD);
 		break;
 	}
-	return typec_alert_attach_state_change(tcpc_dev);
+	
+	if (do_swap) {
+		TYPEC_INFO("TypeC Role Swap Start\r\n");
+		tcpc_dev->typec_during_role_swap = true;
+		tcpc_enable_timer(tcpc_dev, TYPEC_RT_TIMER_ROLE_SWAP);
+		return 0;
+	}
+
+	return -1;
 }
-#endif /* ifndef CONFIG_USB_POWER_DELIVERY */
+#endif /* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 int tcpc_typec_set_rp_level(struct tcpc_device *tcpc_dev, uint8_t res)
 {
@@ -1696,7 +1793,7 @@ static int typec_init_power_off_charge(struct tcpc_device *tcpc_dev)
 
 int tcpc_typec_init(struct tcpc_device *tcpc_dev, uint8_t typec_role)
 {
-	int ret;
+	int ret = 0;
 
 	if (typec_role >= TYPEC_ROLE_NR) {
 		TYPEC_INFO("Wrong TypeC-Role: %d\r\n", typec_role);
@@ -1714,6 +1811,7 @@ int tcpc_typec_init(struct tcpc_device *tcpc_dev, uint8_t typec_role)
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	tcpc_dev->typec_legacy_cable = false;
+	tcpc_dev->typec_legacy_polling = false;
 	tcpc_dev->typec_legacy_cable_suspect = 0;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
