@@ -406,6 +406,7 @@ static inline void pd_report_typec_only_charger(pd_port_t *pd_port)
 	/* TODO: pd_set_rx_enable(pd_port, PD_RX_CAP_PE_DISABLE);*/
 	PE_INFO("TYPE-C Only Charger!\r\n");
 	pd_dpm_sink_vbus(pd_port, true);
+	pd_notify_pe_hard_reset_completed(pd_port);
 	pd_update_connect_state(pd_port, PD_CONNECT_TYPEC_ONLY);
 }
 

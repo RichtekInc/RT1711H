@@ -172,12 +172,6 @@ void pe_src_transition_to_default_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 	pd_enable_timer(pd_port, PD_TIMER_NO_RESPONSE);
 }
 
-void pe_src_give_source_cap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
-{
-	pd_dpm_send_source_caps(pd_port);
-	pd_free_pd_event(pd_port, pd_event);
-}
-
 void pe_src_get_sink_cap_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_GET_SINK_CAP);

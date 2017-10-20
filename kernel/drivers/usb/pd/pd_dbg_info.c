@@ -36,11 +36,11 @@ static struct {
 } pd_dbg_buffer[2];
 
 static struct mutex buff_lock;
-static struct mutex dbg_info_lock;
 static unsigned int using_buf;
-static atomic_t running = ATOMIC_INIT(1);
-
+static bool event_loop_thead_stop;
+static wait_queue_head_t event_loop_wait_que;
 static atomic_t busy = ATOMIC_INIT(0);
+static atomic_t pending_event = ATOMIC_INIT(0);
 
 void pd_dbg_info_lock(void)
 {
@@ -52,38 +52,55 @@ void pd_dbg_info_unlock(void)
 	atomic_dec_if_positive(&busy);
 }
 
+static inline bool pd_dbg_print_out(void)
+{
+	char temp;
+	int used;
+	unsigned int index, i;
+
+	mutex_lock(&buff_lock);
+	index = using_buf;
+	using_buf ^= 0x01; /* exchange buffer */
+	mutex_unlock(&buff_lock);
+
+	used = pd_dbg_buffer[index].used;
+
+	if (used == 0)
+		return false;
+
+	pd_dbg_buffer[index].buf[used] = '\0';
+
+	pr_info("///PD dbg info %ud\n", used);
+
+	for (i = 0; i < used; i += OUT_BUF_MAX) {
+		temp = pd_dbg_buffer[index].buf[OUT_BUF_MAX + i];
+		pd_dbg_buffer[index].buf[OUT_BUF_MAX + i] = '\0';
+
+		/* while (atomic_read(&busy)); */
+		printk(pd_dbg_buffer[index].buf + i);
+		pd_dbg_buffer[index].buf[OUT_BUF_MAX + i] = temp;
+		/* msleep(2); */
+	}
+
+	pr_info("PD dbg info///\n");
+	pd_dbg_buffer[index].used = 0;
+	msleep(MSG_POLLING_MS);
+	return true;
+}
+
 static int print_out_thread_fn(void *arg)
 {
-	unsigned int index, i;
-	char temp;
-
-	while (atomic_read(&running)) {
-		mutex_lock(&buff_lock);
-		index = using_buf;
-		using_buf ^= 0x01; /* exchange buffer */
-		mutex_unlock(&buff_lock);
-		if (pd_dbg_buffer[index].used) {
-			pd_dbg_buffer[index].
-				buf[pd_dbg_buffer[index].used] = '\0';
-			pr_info("///PD dbg info %ud\n",
-					pd_dbg_buffer[index].used);
-			for (i = 0; i < pd_dbg_buffer[index].used;
-							i += OUT_BUF_MAX) {
-				temp = pd_dbg_buffer[index].
-							buf[OUT_BUF_MAX + i];
-				pd_dbg_buffer[index].
-						buf[OUT_BUF_MAX + i] = '\0';
-				/* while (atomic_read(&busy)); */
-				printk(pd_dbg_buffer[index].buf + i);
-				pd_dbg_buffer[index].
-						buf[OUT_BUF_MAX + i] = temp;
-				/* msleep(2); */
-			}
-			pr_info("PD dbg info///\n");
-		}
-		pd_dbg_buffer[index].used = 0;
-		msleep(MSG_POLLING_MS);
+	while (true) {
+		wait_event_interruptible(event_loop_wait_que,
+				atomic_read(&pending_event) |
+				event_loop_thead_stop);
+		if (kthread_should_stop() || event_loop_thead_stop)
+			break;
+		do {
+			atomic_dec_if_positive(&pending_event);
+		} while (pd_dbg_print_out());
 	}
+
 	return 0;
 }
 
@@ -139,6 +156,12 @@ int pd_dbg_info(const char *fmt, ...)
 			PD_INFO_BUF_SIZE - used, fmt, args);
 	if (r > 0)
 		used += r;
+
+	if (pd_dbg_buffer[index].used == 0) {
+		atomic_inc(&pending_event);
+		wake_up_interruptible(&event_loop_wait_que);
+	}
+
 	pd_dbg_buffer[index].used = used;
 	mutex_unlock(&buff_lock);
 	va_end(args);
@@ -153,17 +176,18 @@ int pd_dbg_info_init(void)
 {
 	pr_info("%s\n", __func__);
 	mutex_init(&buff_lock);
-	mutex_init(&dbg_info_lock);
 	print_out_tsk = kthread_create(
 			print_out_thread_fn, NULL, "pd_dbg_info");
-	atomic_set(&running, 1);
+	init_waitqueue_head(&event_loop_wait_que);
+	atomic_set(&pending_event, 0);
 	wake_up_process(print_out_tsk);
 	return 0;
 }
 
 void pd_dbg_info_exit(void)
 {
-	atomic_set(&running, 0);
+	event_loop_thead_stop = true;
+	wake_up_interruptible(&event_loop_wait_que);
 	kthread_stop(print_out_tsk);
 	mutex_destroy(&buff_lock);
 }

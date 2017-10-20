@@ -52,6 +52,7 @@ static const svdm_svid_ops_t svdm_svid_ops[] = {
 #endif	/* #ifdef CONFIG_USB_PD_ALT_MODE_DFP */
 
 		.reset_state = dp_reset_state,
+		.parse_svid_data = dp_parse_svid_data,
 	},
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
@@ -62,6 +63,9 @@ static const svdm_svid_ops_t svdm_svid_ops[] = {
 
 		.dfp_notify_uvdm = richtek_dfp_notify_uvdm,
 		.ufp_notify_uvdm = richtek_ufp_notify_uvdm,
+
+		.notify_pe_startup = richtek_dfp_notify_pe_startup,
+		.notify_pe_ready = richtek_dfp_notify_pe_ready,
 	},
 #endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
@@ -82,6 +86,9 @@ static const svdm_svid_ops_t svdm_svid_ops[] = {
 
 		.dfp_notify_uvdm = dc_dfp_notify_uvdm,
 		.ufp_notify_uvdm = dc_ufp_notify_uvdm,
+
+		.parse_svid_data = dc_parse_svid_data,
+		.reset_state = dc_reset_state,
 	},
 #endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 };
@@ -508,15 +515,24 @@ void pd_dpm_snk_hard_reset(pd_port_t *pd_port, pd_event_t *pd_event)
 	 */
 
 	int mv = 0, ma = 0;
+	bool ignore_hreset = false;
 
 #ifdef CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW
 	if (!pd_port->pd_prev_connected) {
+#ifdef CONFIG_USB_PD_SNK_IGNORE_HRESET_IF_TYPEC_ONLY
+		ignore_hreset = true;
+#else
 		ma = -1;
 		mv = TCPC_VBUS_SINK_5V;
+#endif	/* CONFIG_USB_PD_SNK_IGNORE_HRESET_IF_TYPEC_ONLY */
 	}
 #endif	/* CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW */
 
-	tcpci_sink_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_HRESET, mv, ma);
+	if (!ignore_hreset) {
+		tcpci_sink_vbus(
+			pd_port->tcpc_dev, TCP_VBUS_CTRL_HRESET, mv, ma);
+	}
+
 	pd_put_pe_event(pd_port, PD_PE_POWER_ROLE_AT_DEFAULT);
 }
 
@@ -943,6 +959,13 @@ void pd_dpm_dfp_inform_id(pd_port_t *pd_port, pd_event_t *pd_event, bool ack)
 				pd_msg->payload[2], pd_msg->payload[3]);
 
 		dpm_dfp_update_partner_id(pd_port, pd_msg);
+	} else {
+		/*
+		 * For PD compliance test,
+		 * If device doesn't reply discoverID,
+		 * then don't send discoverSVID
+		 */
+		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_UFP_SVID;
 	}
 
 	svdm_dfp_inform_id(pd_port, pd_event, ack);
@@ -1276,14 +1299,22 @@ static inline int dpm_check_good_power(pd_port_t *pd_port)
 void pd_dpm_prs_evaluate_swap(pd_port_t *pd_port, uint8_t role)
 {
 	int good_power;
-	bool accept = true;
-	bool sink, check_src, check_snk, check_ext;
+	bool sink, accept = true;
 
-	check_src = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC) ? 1 : 0;
-	check_snk = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK) ? 1 : 0;
-	check_ext = (pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER) ? 1 : 0;
+	bool check_src =
+		(pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC) ? 1 : 0;
+	bool check_snk =
+		(pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK) ? 1 : 0;
 
-	if (check_src|check_snk|check_ext) {
+#ifdef CONFIG_USB_PD_SRC_REJECT_PR_SWAP_IF_GOOD_PW
+	bool check_ext =
+		(pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER) ? 1 : 0;
+
+	if (check_ext)
+		check_src = true;
+#endif	/* CONFIG_USB_PD_SRC_REJECT_PR_SWAP_IF_GOOD_PW */
+
+	if (check_src|check_snk) {
 		sink = pd_port->power_role == PD_ROLE_SINK;
 		good_power = dpm_check_good_power(pd_port);
 
@@ -1294,12 +1325,8 @@ void pd_dpm_prs_evaluate_swap(pd_port_t *pd_port, uint8_t role)
 			break;
 
 		case GOOD_PW_LOCAL:
-			if ((!sink) && (check_src || check_ext))
+			if ((!sink) && (check_src))
 				accept = false;
-			break;
-
-		case GOOD_PW_NONE:
-			accept = true;
 			break;
 
 		default:
@@ -1359,7 +1386,11 @@ void pd_dpm_vcs_enable_vconn(pd_port_t *pd_port, bool en)
 	 * Vconn Controller should pd_put_dpm_ack_event()
 	 */
 
+#if CONFIG_USB_PD_VCONN_READY_TOUT == 0
 	pd_port->dpm_ack_immediately = true;
+#else
+	pd_enable_timer(pd_port, PD_TIMER_VCONN_READY);
+#endif
 }
 
 /*
@@ -1383,6 +1414,7 @@ static inline bool pd_dpm_is_request_pr_swap_as_src(pd_port_t *pd_port)
 	uint32_t prefer_role = DPM_CAP_EXTRACT_PR_CHECK(pd_port->dpm_caps);
 	return prefer_role == DPM_CAP_PR_CHECK_PREFER_SRC;
 }
+
 static inline int pd_dpm_ready_power_role_swap(pd_port_t *pd_port)
 {
 	uint8_t event = TCP_DPM_EVT_UNKONW;
@@ -1548,7 +1580,16 @@ static inline int pd_dpm_ready_attempt_discover_cable(
 
 	return 0;
 }
-#endif	/* #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+#endif	/* CONFIG_USB_PD_DFP_READY_DISCOVER_ID */
+
+static inline void pd_dpm_update_pe_ready(pd_port_t *pd_port)
+{
+	if (!pd_port->pe_ready) {
+		pd_port->pe_ready = true;
+		DPM_DBG("PE_READY\r\n");
+		pd_update_connect_state(pd_port, PD_CONNECT_PE_READY);
+	}
+}
 
 static inline int pd_dpm_notify_pe_dfp_ready(
 	pd_port_t *pd_port, pd_event_t *pd_event)
@@ -1735,10 +1776,24 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event)
 	if (ret != 0)
 		return ret;
 
-	if (!pd_port->pe_ready) {
-		pd_port->pe_ready = true;
-		pd_update_connect_state(pd_port, PD_CONNECT_PE_READY);
-	}
+	pd_dpm_update_pe_ready(pd_port);
+
+	return 0;
+}
+
+int pd_dpm_notify_svdm_done(pd_port_t *pd_port)
+{
+	pd_event_t pd_event = {
+		.event_type = PD_EVT_DPM_MSG,
+		.msg = PD_DPM_ACK,
+	};
+
+#ifdef CONFIG_USB_PD_MODE_OPERATION
+	if (svdm_notify_pe_ready(pd_port, &pd_event))
+		return 1;
+#endif	/* CONFIG_USB_PD_MODE_OPERATION */
+
+	pd_dpm_update_pe_ready(pd_port);
 
 	return 0;
 }
@@ -1775,10 +1830,24 @@ int pd_dpm_notify_ufp_delay_done(
 
 int pd_dpm_core_init(pd_port_t *pd_port)
 {
-	int i;
+	int i, j;
+	bool ret;
+	uint8_t svid_ops_nr = ARRAY_SIZE(svdm_svid_ops);
 
-	for (i = 0; i < ARRAY_SIZE(svdm_svid_ops); i++)
-		dpm_register_svdm_ops(pd_port, &svdm_svid_ops[i]);
+	pd_port->svid_data = devm_kzalloc(&pd_port->tcpc_dev->dev,
+		sizeof(svdm_svid_data_t) * svid_ops_nr, GFP_KERNEL);
+
+	if (!pd_port->svid_data)
+		return -ENOMEM;
+
+	for (i = 0, j = 0; i < svid_ops_nr; i++) {
+		ret = dpm_register_svdm_ops(pd_port,
+			&pd_port->svid_data[j], &svdm_svid_ops[i]);
+
+		if (ret)
+			j++;
+	}
+	pd_port->svid_data_cnt = j;
 
 	return 0;
 }

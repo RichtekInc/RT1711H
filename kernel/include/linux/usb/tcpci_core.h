@@ -49,6 +49,7 @@
 #define DP_DBG_ENABLE		1
 
 #define UVDM_INFO_ENABLE		1
+#define TCPM_DBG_ENABLE		1
 
 #ifdef CONFIG_USB_PD_ALT_MODE_RTDC
 #define DC_INFO_ENABLE			1
@@ -61,7 +62,8 @@
 		PE_STATE_INFO_ENABLE|TCPC_INFO_ENABLE|\
 		TCPC_TIMER_DBG_EN|TYPEC_DBG_ENABLE|\
 		TYPEC_INFO_ENABLE|\
-		DP_INFO_ENABLE|DP_DBG_ENABLE|UVDM_INFO_ENABLE)
+		DP_INFO_ENABLE|DP_DBG_ENABLE|\
+		UVDM_INFO_ENABLE|TCPM_DBG_ENABLE)
 
 /* Disable VDM DBG Msg */
 #define PE_STATE_INFO_VDM_DIS	0
@@ -134,6 +136,8 @@ struct tcpc_desc {
 #define TCPC_FLAGS_CHECK_CC_STABLE		(1<<2)
 #define TCPC_FLAGS_LPM_WAKEUP_WATCHDOG		(1<<3)
 #define TCPC_FLAGS_CHECK_RA_DETACHE		(1<<4)
+#define TCPC_FLAGS_PREFER_LEGACY2		(1<<5)
+#define TCPC_FLAGS_PD_REV30		(1<<8)
 
 enum tcpc_cc_pull {
 	TYPEC_CC_RA = 0,
@@ -175,7 +179,6 @@ enum tcpm_rx_cap_type {
 	TCPC_RX_CAP_CABLE_RESET = 1 << 6,
 };
 
-
 struct tcpc_ops {
 	int (*init)(struct tcpc_device *tcpc, bool sw_reset);
 	int (*alert_status_clear)(struct tcpc_device *tcpc, uint32_t mask);
@@ -190,6 +193,7 @@ struct tcpc_ops {
 	int (*deinit)(struct tcpc_device *tcpc);
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
+	int (*is_low_power_mode)(struct tcpc_device *tcpc);
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
 #endif /* CONFIG_TCPC_LOW_POWER_MODE */
 
@@ -227,11 +231,11 @@ struct tcpc_ops {
 	int (*retransmit)(struct tcpc_device *tcpc);
 #endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
 
-#ifdef CONFIG_USB_PD_SRC_FORCE_DISCHARGE
+#ifdef CONFIG_TYPEC_CAP_FORCE_DISCHARGE
 #ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
 	int (*set_force_discharge)(struct tcpc_device *tcpc, bool en, int mv);
 #endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
-#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
+#endif	/* CONFIG_TYPEC_CAP_FORCE_DISCHARGE */
 
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 };
@@ -242,7 +246,9 @@ struct tcpc_ops {
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
 
+#define TCPC_LOW_POWER_MODE_RETRY	5
 #define TCPC_LEGACY_CABLE_CONFIRM	3
+#define TCPC_LEGACY_CABLE2_CONFIRM		3
 
 /*
  * tcpc device
@@ -302,9 +308,20 @@ struct tcpc_device {
 
 	int typec_usb_sink_curr;
 
+#ifdef CONFIG_TYPEC_CAP_CUSTOM_HV
+	bool typec_during_custom_hv;
+#endif	/* CONFIG_TYPEC_CAP_CUSTOM_HV */
+
+	uint8_t typec_lpm_pull;
+	uint8_t typec_lpm_retry;
+
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	bool typec_legacy_cable;
+	uint8_t typec_legacy_cable;
 	uint8_t typec_legacy_cable_suspect;
+
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE2
+	uint8_t typec_legacy_cable_once;
+#endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE2 */
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 #ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
@@ -372,11 +389,11 @@ struct tcpc_device {
 	bool pd_discard_pending;
 #endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
 
-#ifdef CONFIG_USB_PD_SRC_FORCE_DISCHARGE
+#ifdef CONFIG_TYPEC_CAP_FORCE_DISCHARGE
 #ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
 	bool pd_force_discharge;
 #endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
-#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
+#endif	/* CONFIG_TYPEC_CAP_FORCE_DISCHARGE */
 
 	pd_port_t pd_port;
 #endif /* CONFIG_USB_POWER_DELIVERY */
@@ -488,6 +505,13 @@ struct tcpc_device {
 	RT_DBG_INFO("UVDM:" format, ## args)
 #else
 #define UVDM_INFO(format, args...)
+#endif
+
+#if TCPM_DBG_ENABLE
+#define TCPM_DBG(format, args...)	\
+	RT_DBG_INFO("TCPM:" format, ## args)
+#else
+#define TCPM_DBG(format, args...)
 #endif
 
 #ifdef CONFIG_USB_PD_ALT_MODE_RTDC

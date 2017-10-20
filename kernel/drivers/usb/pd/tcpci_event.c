@@ -39,7 +39,7 @@ static void postpone_vdm_event(struct tcpc_device *tcpc_dev)
 	 * maybe interrupt by some PD event ....
 	 */
 
-	 pd_event_t *vdm_event = &tcpc_dev->pd_vdm_event;
+	pd_event_t *vdm_event = &tcpc_dev->pd_vdm_event;
 
 	if (tcpc_dev->pd_pending_vdm_event && vdm_event->pd_msg) {
 		tcpc_dev->pd_postpone_vdm_timeout = false;
@@ -379,7 +379,7 @@ void pd_notify_current_tcp_event_result(pd_port_t *pd_port, int ret)
 {
 	tcp_dpm_event_t *tcp_event = &pd_port->tcp_event;
 
-	if (tcp_event->event_id >= TCP_DPM_EVT_UNKONW)
+	if (tcp_event->event_id == TCP_DPM_EVT_UNKONW)
 		return;
 
 	TCPC_DBG("tcp_event_cb=%d\r\n", ret);
@@ -507,7 +507,7 @@ void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev)
 
 #ifdef CONFIG_USB_PD_RETRY_CRC_DISCARD
 	tcpc_dev->pd_discard_pending = false;
-#endif
+#endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
 
 	mutex_unlock(&tcpc_dev->access_lock);
 }
@@ -762,6 +762,7 @@ void pd_notify_pe_error_recovery(pd_port_t *pd_port)
 	tcpc_dev->pd_wait_hard_reset_complete = false;
 	tcpc_dev->pd_wait_pr_swap_complete = false;
 	tcpc_dev->pd_wait_error_recovery = true;
+	__tcp_event_buf_reset(tcpc_dev, TCP_DPM_RET_DROP_ERROR_REOCVERY);
 	mutex_unlock(&tcpc_dev->access_lock);
 
 	tcpci_set_cc(pd_port->tcpc_dev, TYPEC_CC_OPEN);

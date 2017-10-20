@@ -30,7 +30,6 @@
 
 /* From DTS */
 
-
 static int pd_parse_pdata(pd_port_t *pd_port)
 {
 	u32 val;
@@ -98,188 +97,6 @@ static int pd_parse_pdata(pd_port_t *pd_port)
 	}
 
 	return 0;
-}
-
-#define DEFAULT_DP_ROLE_CAP				(MODE_DP_SRC)
-#define DEFAULT_DP_FIRST_CONNECTED		(DPSTS_DFP_D_CONNECTED)
-#define DEFAULT_DP_SECOND_CONNECTED		(DPSTS_DFP_D_CONNECTED)
-
-#ifdef CONFIG_USB_PD_ALT_MODE
-static const struct {
-	const char *prop_name;
-	uint32_t mode;
-} supported_dp_pin_modes[] = {
-	{ "pin_assignment,mode_a", MODE_DP_PIN_A },
-	{ "pin_assignment,mode_b", MODE_DP_PIN_B },
-	{ "pin_assignment,mode_c", MODE_DP_PIN_C },
-	{ "pin_assignment,mode_d", MODE_DP_PIN_D },
-	{ "pin_assignment,mode_e", MODE_DP_PIN_E },
-	{ "pin_assignment,mode_f", MODE_DP_PIN_F },
-};
-
-static const struct {
-	const char *conn_mode;
-	uint32_t val;
-} dp_connect_mode[] = {
-	{"both", DPSTS_BOTH_CONNECTED},
-	{"dfp_d", DPSTS_DFP_D_CONNECTED},
-	{"ufp_d", DPSTS_UFP_D_CONNECTED},
-};
-
-static int dpm_alt_mode_parse_svid_data(
-	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
-{
-	struct device_node *np, *ufp_np, *dfp_np;
-	const char *connection;
-	uint32_t ufp_d_pin_cap = 0;
-	uint32_t dfp_d_pin_cap = 0;
-	uint32_t signal = MODE_DP_V13;
-	uint32_t receptacle = 1;
-	uint32_t usb2 = 0;
-	int i = 0;
-
-	np = of_find_node_by_name(
-		pd_port->tcpc_dev->dev.of_node, "displayport");
-	if (np == NULL) {
-		pd_port->svid_data_cnt = 0;
-		pr_err("%s get displayport data fail\n", __func__);
-		return -1;
-	}
-
-	pr_info("dp, svid\r\n");
-	svid_data->svid = USB_SID_DISPLAYPORT;
-	ufp_np = of_find_node_by_name(np, "ufp_d");
-	dfp_np = of_find_node_by_name(np, "dfp_d");
-
-	if (ufp_np) {
-		pr_info("dp, ufp_np\n");
-		for (i = 0; i < ARRAY_SIZE(supported_dp_pin_modes) - 1; i++) {
-			if (of_property_read_bool(ufp_np,
-				supported_dp_pin_modes[i].prop_name))
-				ufp_d_pin_cap |=
-					supported_dp_pin_modes[i].mode;
-		}
-	}
-
-	if (dfp_np) {
-		pr_info("dp, dfp_np\n");
-		for (i = 0; i < ARRAY_SIZE(supported_dp_pin_modes); i++) {
-			if (of_property_read_bool(dfp_np,
-				supported_dp_pin_modes[i].prop_name))
-				dfp_d_pin_cap |=
-					supported_dp_pin_modes[i].mode;
-		}
-	}
-
-	if (of_property_read_bool(np, "signal,dp_v13"))
-		signal |= MODE_DP_V13;
-	if (of_property_read_bool(np, "signal,dp_gen2"))
-		signal |= MODE_DP_GEN2;
-	if (of_property_read_bool(np, "usbr20_not_used"))
-		usb2 = 1;
-	if (of_property_read_bool(np, "typec,receptacle"))
-		receptacle = 1;
-
-	svid_data->local_mode.mode_cnt = 1;
-	svid_data->local_mode.mode_vdo[0] = VDO_MODE_DP(
-		ufp_d_pin_cap, dfp_d_pin_cap,
-		usb2, receptacle, signal, (ufp_d_pin_cap ? MODE_DP_SNK : 0)
-		| (dfp_d_pin_cap ? MODE_DP_SRC : 0));
-
-	pd_port->dp_first_connected = DEFAULT_DP_FIRST_CONNECTED;
-	pd_port->dp_second_connected = DEFAULT_DP_SECOND_CONNECTED;
-
-	if (of_property_read_string(np, "1st_connection", &connection) == 0) {
-		pr_info("dp, 1st_connection\n");
-		for (i = 0; i < ARRAY_SIZE(dp_connect_mode); i++) {
-			if (strcasecmp(connection,
-				dp_connect_mode[i].conn_mode) == 0) {
-				pd_port->dp_first_connected =
-					dp_connect_mode[i].val;
-				break;
-			}
-		}
-	}
-
-	if (of_property_read_string(np, "2nd_connection", &connection) == 0) {
-		pr_info("dp, 2nd_connection\n");
-		for (i = 0; i < ARRAY_SIZE(dp_connect_mode); i++) {
-			if (strcasecmp(connection,
-				dp_connect_mode[i].conn_mode) == 0) {
-				pd_port->dp_second_connected =
-					dp_connect_mode[i].val;
-				break;
-			}
-		}
-	}
-	/* 2nd connection must not be BOTH */
-	PD_BUG_ON(pd_port->dp_second_connected == DPSTS_BOTH_CONNECTED);
-	/* UFP or DFP can't both be invalid */
-	PD_BUG_ON(ufp_d_pin_cap == 0 && dfp_d_pin_cap == 0);
-	if (pd_port->dp_first_connected == DPSTS_BOTH_CONNECTED) {
-		PD_BUG_ON(ufp_d_pin_cap == 0);
-		PD_BUG_ON(dfp_d_pin_cap == 0);
-	}
-
-	return 0;
-}
-
-#endif /* CONFIG_USB_PD_ALT_MODE*/
-
-#ifdef CONFIG_USB_PD_RICHTEK_UVDM
-
-static int dpm_richtek_parse_svid_data(
-	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
-{
-	svid_data->svid = USB_SID_DIRECTCHARGE;
-	return 0;
-}
-
-#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
-
-#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
-
-static int dpm_alt_rtdc_parse_svid_data(
-	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
-{
-	svid_data->svid = USB_SID_DIRECTCHARGE;
-
-	svid_data->local_mode.mode_cnt = 1;
-	svid_data->local_mode.mode_vdo[0] = 0x00;
-
-	pd_port->dpm_caps |= DPM_CAP_ATTEMP_ENTER_DC_MODE;
-	return 0;
-}
-
-#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
-
-static void pd_core_parse_svid_data(pd_port_t *pd_port)
-{
-	int ret, i = 0;
-
-	/* TODO: dynamic allocate svid_data from DTS */
-
-#ifdef CONFIG_USB_PD_ALT_MODE
-	ret = dpm_alt_mode_parse_svid_data(pd_port, &pd_port->svid_data[i]);
-	if (ret == 0)
-		i++;
-#endif  /* CONFIG_USB_PD_ALT_MODE */
-
-#ifdef CONFIG_USB_PD_RICHTEK_UVDM
-	ret = dpm_richtek_parse_svid_data(pd_port, &pd_port->svid_data[i]);
-	if (ret == 0)
-		i++;
-#endif  /* CONFIG_USB_PD_RICHTEK_UVDM */
-
-#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
-	ret = dpm_alt_rtdc_parse_svid_data(pd_port, &pd_port->svid_data[i]);
-	if (ret == 0)
-		i++;
-#endif /* CONFIG_USB_PD_ALT_MODE_RTDC */
-
-	pd_port->svid_data_cnt = i;
-
-	PD_BUG_ON(i > PD_SVID_DATA_NR);
 }
 
 static const struct {
@@ -382,7 +199,6 @@ int pd_core_init(struct tcpc_device *tcpc_dev)
 	if (ret)
 		return ret;
 
-	pd_core_parse_svid_data(pd_port);
 	pd_core_power_flags_init(pd_port);
 
 	pd_dpm_core_init(pd_port);

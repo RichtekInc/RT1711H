@@ -67,10 +67,12 @@ static	int tcpc_dual_role_prop_is_writeable(
 	struct tcpc_device *tcpc = dev_get_drvdata(dual_role->dev.parent);
 
 	switch (prop) {
-	case DUAL_ROLE_PROP_PR:
 #ifdef CONFIG_USB_POWER_DELIVERY
+	case DUAL_ROLE_PROP_PR:
 	case DUAL_ROLE_PROP_DR:
 	case DUAL_ROLE_PROP_VCONN_SUPPLY:
+#else
+	case DUAL_ROLE_PROP_MODE:
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 		if (tcpc->dual_role_supported_modes ==
 			DUAL_ROLE_SUPPORTED_MODES_DFP_AND_UFP)
@@ -182,17 +184,17 @@ static int tcpc_dual_role_set_prop_vconn(
 
 #else	/* TypeC Only */
 
-static int tcpc_dual_role_set_prop_pr(
+static int tcpc_dual_role_set_prop_mode(
 	struct tcpc_device *tcpc, unsigned int val)
 {
 	int ret;
 	uint8_t role;
 
 	switch (val) {
-	case DUAL_ROLE_PROP_PR_SRC:
+	case DUAL_ROLE_PROP_MODE_DFP:
 		role = PD_ROLE_SOURCE;
 		break;
-	case DUAL_ROLE_PROP_PR_SNK:
+	case DUAL_ROLE_PROP_MODE_UFP:
 		role = PD_ROLE_SINK;
 		break;
 	default:
@@ -231,8 +233,8 @@ static int tcpc_dual_role_set_prop(struct dual_role_phy_instance *dual_role,
 		tcpc_dual_role_set_prop_vconn(tcpc, *val);
 		break;
 #else /* TypeC Only */
-	case DUAL_ROLE_PROP_PR:
-		tcpc_dual_role_set_prop_pr(tcpc, *val);
+	case DUAL_ROLE_PROP_MODE:
+		tcpc_dual_role_set_prop_mode(tcpc, *val);
 		break;
 #endif /* CONFIG_USB_POWER_DELIVERY */
 

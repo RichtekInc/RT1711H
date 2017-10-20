@@ -93,8 +93,10 @@ void dp_dfp_u_set_state(pd_port_t *pd_port, uint8_t state)
 
 	if (pd_port->dp_dfp_u_state < DP_DFP_U_STATE_NR)
 		DP_DBG("%s\r\n", dp_dfp_u_state_name[state]);
-	else
+	else {
 		DP_DBG("dp_dfp_u_stop (%d)\r\n", state);
+		pd_dpm_notify_svdm_done(pd_port);
+	}
 }
 
 bool dp_dfp_u_notify_pe_startup(
@@ -672,8 +674,10 @@ static void dp_ufp_u_set_state(pd_port_t *pd_port, uint8_t state)
 
 	if (pd_port->dp_ufp_u_state < DP_UFP_U_STATE_NR)
 		DPM_DBG("%s\r\n", dp_ufp_u_state_name[state]);
-	else
+	else {
 		DPM_DBG("dp_ufp_u_stop\r\n");
+		pd_dpm_notify_svdm_done(pd_port);
+	}
 }
 
 void dp_ufp_u_request_enter_mode(
@@ -895,6 +899,131 @@ bool dp_reset_state(pd_port_t *pd_port, svdm_svid_data_t *svid_data)
 	pd_port->dp_dfp_u_state = DP_DFP_U_NONE;
 	return true;
 }
+
+#define DEFAULT_DP_ROLE_CAP				(MODE_DP_SRC)
+#define DEFAULT_DP_FIRST_CONNECTED		(DPSTS_DFP_D_CONNECTED)
+#define DEFAULT_DP_SECOND_CONNECTED		(DPSTS_DFP_D_CONNECTED)
+
+#ifdef CONFIG_USB_PD_ALT_MODE
+static const struct {
+	const char *prop_name;
+	uint32_t mode;
+} supported_dp_pin_modes[] = {
+	{ "pin_assignment,mode_a", MODE_DP_PIN_A },
+	{ "pin_assignment,mode_b", MODE_DP_PIN_B },
+	{ "pin_assignment,mode_c", MODE_DP_PIN_C },
+	{ "pin_assignment,mode_d", MODE_DP_PIN_D },
+	{ "pin_assignment,mode_e", MODE_DP_PIN_E },
+	{ "pin_assignment,mode_f", MODE_DP_PIN_F },
+};
+
+static const struct {
+	const char *conn_mode;
+	uint32_t val;
+} dp_connect_mode[] = {
+	{"both", DPSTS_BOTH_CONNECTED},
+	{"dfp_d", DPSTS_DFP_D_CONNECTED},
+	{"ufp_d", DPSTS_UFP_D_CONNECTED},
+};
+
+bool dp_parse_svid_data(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
+{
+	struct device_node *np, *ufp_np, *dfp_np;
+	const char *connection;
+	uint32_t ufp_d_pin_cap = 0;
+	uint32_t dfp_d_pin_cap = 0;
+	uint32_t signal = MODE_DP_V13;
+	uint32_t receptacle = 1;
+	uint32_t usb2 = 0;
+	int i = 0;
+
+	np = of_find_node_by_name(
+		pd_port->tcpc_dev->dev.of_node, "displayport");
+	if (np == NULL) {
+		pd_port->svid_data_cnt = 0;
+		pr_err("%s get displayport data fail\n", __func__);
+		return false;
+	}
+
+	pr_info("dp, svid\r\n");
+	svid_data->svid = USB_SID_DISPLAYPORT;
+	ufp_np = of_find_node_by_name(np, "ufp_d");
+	dfp_np = of_find_node_by_name(np, "dfp_d");
+
+	if (ufp_np) {
+		pr_info("dp, ufp_np\n");
+		for (i = 0; i < ARRAY_SIZE(supported_dp_pin_modes) - 1; i++) {
+			if (of_property_read_bool(ufp_np,
+				supported_dp_pin_modes[i].prop_name))
+				ufp_d_pin_cap |=
+					supported_dp_pin_modes[i].mode;
+		}
+	}
+
+	if (dfp_np) {
+		pr_info("dp, dfp_np\n");
+		for (i = 0; i < ARRAY_SIZE(supported_dp_pin_modes); i++) {
+			if (of_property_read_bool(dfp_np,
+				supported_dp_pin_modes[i].prop_name))
+				dfp_d_pin_cap |=
+					supported_dp_pin_modes[i].mode;
+		}
+	}
+
+	if (of_property_read_bool(np, "signal,dp_v13"))
+		signal |= MODE_DP_V13;
+	if (of_property_read_bool(np, "signal,dp_gen2"))
+		signal |= MODE_DP_GEN2;
+	if (of_property_read_bool(np, "usbr20_not_used"))
+		usb2 = 1;
+	if (of_property_read_bool(np, "typec,receptacle"))
+		receptacle = 1;
+
+	svid_data->local_mode.mode_cnt = 1;
+	svid_data->local_mode.mode_vdo[0] = VDO_MODE_DP(
+		ufp_d_pin_cap, dfp_d_pin_cap,
+		usb2, receptacle, signal, (ufp_d_pin_cap ? MODE_DP_SNK : 0)
+		| (dfp_d_pin_cap ? MODE_DP_SRC : 0));
+
+	pd_port->dp_first_connected = DEFAULT_DP_FIRST_CONNECTED;
+	pd_port->dp_second_connected = DEFAULT_DP_SECOND_CONNECTED;
+
+	if (of_property_read_string(np, "1st_connection", &connection) == 0) {
+		pr_info("dp, 1st_connection\n");
+		for (i = 0; i < ARRAY_SIZE(dp_connect_mode); i++) {
+			if (strcasecmp(connection,
+				dp_connect_mode[i].conn_mode) == 0) {
+				pd_port->dp_first_connected =
+					dp_connect_mode[i].val;
+				break;
+			}
+		}
+	}
+
+	if (of_property_read_string(np, "2nd_connection", &connection) == 0) {
+		pr_info("dp, 2nd_connection\n");
+		for (i = 0; i < ARRAY_SIZE(dp_connect_mode); i++) {
+			if (strcasecmp(connection,
+				dp_connect_mode[i].conn_mode) == 0) {
+				pd_port->dp_second_connected =
+					dp_connect_mode[i].val;
+				break;
+			}
+		}
+	}
+	/* 2nd connection must not be BOTH */
+	PD_BUG_ON(pd_port->dp_second_connected == DPSTS_BOTH_CONNECTED);
+	/* UFP or DFP can't both be invalid */
+	PD_BUG_ON(ufp_d_pin_cap == 0 && dfp_d_pin_cap == 0);
+	if (pd_port->dp_first_connected == DPSTS_BOTH_CONNECTED) {
+		PD_BUG_ON(ufp_d_pin_cap == 0);
+		PD_BUG_ON(dfp_d_pin_cap == 0);
+	}
+
+	return true;
+}
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 #endif	/* CONFIG_USB_POWER_DELIVERY */

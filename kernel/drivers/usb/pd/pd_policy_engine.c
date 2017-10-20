@@ -39,7 +39,6 @@ static const char *const pe_state_name[] = {
 	"PE_SRC_HARD_RESET",
 	"PE_SRC_HARD_RESET_RECEIVED",
 	"PE_SRC_TRANSITION_TO_DEFAULT",
-	"PE_SRC_GIVE_SOURCE_CAP",
 	"PE_SRC_GET_SINK_CAP",
 	"PE_SRC_WAIT_NEW_CAPABILITIES",
 
@@ -218,7 +217,6 @@ static const char *const pe_state_name[] = {
 	"SRC_HRESET",
 	"SRC_HRESET_RECV",
 	"SRC_TRANS_DFT",
-	"SRC_GIVE_CAP",
 	"SRC_GET_CAP",
 	"SRC_WAIT_CAP",
 
@@ -515,7 +513,6 @@ static const pe_state_actions_t pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_src_hard_reset),
 	PE_STATE_ACTIONS(pe_src_hard_reset_received),
 	PE_STATE_ACTIONS(pe_src_transition_to_default),
-	PE_STATE_ACTIONS(pe_src_give_source_cap),
 	PE_STATE_ACTIONS(pe_src_get_sink_cap),
 	PE_STATE_ACTIONS(pe_src_wait_new_capabilities),
 

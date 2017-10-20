@@ -157,6 +157,10 @@ static inline bool pd_process_timer_msg(
 	case PD_TIMER_VCONN_ON:
 		ret = PE_MAKE_STATE_TRANSIT_VIRT(PD_TIMER_VCONN_ON);
 		break;
+
+	case PD_TIMER_VCONN_READY:
+		pd_port->dpm_ack_immediately = true;
+		break;
 	}
 
 	return ret;

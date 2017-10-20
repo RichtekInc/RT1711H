@@ -577,6 +577,11 @@ static inline bool pd_process_dpm_msg_ack(
 		case PE_DFP_VDM_MODE_EXIT_REQUEST:
 		case PE_DFP_VDM_MODE_EXIT_ACKED:
 		case PE_DFP_VDM_ATTENTION_REQUEST:
+
+#ifdef CONFIG_USB_PD_UVDM
+		case PE_DFP_UVDM_ACKED:
+		case PE_DFP_UVDM_NAKED:
+#endif	/* CONFIG_USB_PD_UVDM */
 			PE_TRANSIT_READY_STATE(pd_port);
 			return true;
 		default:
@@ -697,7 +702,7 @@ static inline bool pd_process_tcp_cable_event(
 #else
 	ret = false;
 	tcp_ret = TCP_DPM_RET_DENIED_NO_SUPPORT;
-#endif
+#endif	/* CONFIG_PD_DISCOVER_CABLE_ID */
 
 	pd_notify_current_tcp_event_result(pd_port, tcp_ret);
 	return ret;

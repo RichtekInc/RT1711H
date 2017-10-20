@@ -173,17 +173,34 @@ int tcpm_typec_set_rp_level(
 	return tcpc_typec_set_rp_level(tcpc_dev, res);
 }
 
+int tcpm_typec_set_custom_hv(struct tcpc_device *tcpc, bool en)
+{
+#ifdef CONFIG_TYPEC_CAP_CUSTOM_HV
+	int ret = TCPM_SUCCESS;
+
+	mutex_lock(&tcpc->access_lock);
+	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
+		ret = TCPM_ERROR_UNATTACHED;
+	else
+		tcpc->typec_during_custom_hv = en;
+	mutex_unlock(&tcpc->access_lock);
+
+	return ret;
+#else
+	return TCPM_ERROR_NO_SUPPORT;
+#endif	/* CONFIG_TYPEC_CAP_CUSTOM_HV */
+}
+
 int tcpm_typec_role_swap(struct tcpc_device *tcpc_dev)
 {
 	if (tcpc_dev->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
 
 #ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
-	if (tcpc_typec_swap_role(tcpc_dev) == 0)
-		return TCPM_SUCCESS;
-#endif /* CONFIG_TYPEC_CAP_ROLE_SWAP */
-
+	return tcpc_typec_swap_role(tcpc_dev) == 0)
+#else
 	return TCPM_ERROR_NO_SUPPORT;
+#endif /* CONFIG_TYPEC_CAP_ROLE_SWAP */
 }
 
 int tcpm_typec_change_role(
@@ -811,5 +828,23 @@ int tcpm_set_pd_charging_policy(struct tcpc_device *tcpc, uint8_t policy)
 	return 0;
 }
 EXPORT_SYMBOL(tcpm_set_pd_charging_policy);
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+int tcpm_set_direct_charge_en(struct tcpc_device *tcpc, bool en)
+{
+	pd_port_t *pd_port = &tcpc->pd_port;
+
+	mutex_lock(&pd_port->pd_lock);
+	tcpc->pd_during_direct_charge = en;
+	mutex_unlock(&pd_port->pd_lock);
+
+	return 0;
+}
+
+bool tcpm_inquire_during_direct_charge(struct tcpc_device *tcpc)
+{
+	return tcpc->pd_during_direct_charge;
+}
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #endif /* CONFIG_USB_POWER_DELIVERY */

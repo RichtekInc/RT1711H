@@ -37,7 +37,7 @@ void dpm_extract_pdo_info(
 		break;
 
 	case DPM_PDO_TYPE_VAR:
-		info->ma = PDO_VAR_OP_CURR(pdo);
+		info->ma = PDO_VAR_EXTRACT_CURR(pdo);
 		info->vmin = PDO_VAR_EXTRACT_MIN_VOLT(pdo);
 		info->vmax = PDO_VAR_EXTRACT_MAX_VOLT(pdo);
 		info->uw = info->ma * info->vmax;
@@ -176,6 +176,12 @@ static bool dpm_select_pdo_from_max_power(
 {
 	bool overload;
 	int uw;
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	/* Variable for direct charge only */
+	if (sink->type == DPM_PDO_TYPE_VAR)
+		return false;
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 	if (!dpm_is_valid_pdo_pair(sink, source, select_info->policy))
 		return false;

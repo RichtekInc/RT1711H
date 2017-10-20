@@ -2,6 +2,32 @@
 
 ## Changelog
 
+### v016
+- [CONFIG] Change force discharge config name
+  - New: CONFIG_TYPEC_CAP_FORCE_DISCHARGE 
+  - Old: CONFIG_USB_PD_SRC_FORCE_DISCHARGE 
+- [TCPC] Postpone Enter Lower Power Mode
+- [TCPC] Retry Enter Lower Power Mode	
+  - CONFIG_TCPC_LPM_CONFIRM
+  - CONFIG_TCPC_LPM_POSTPONE
+- [TCPC] Handle Ra-detach independently
+- [TCPC] pd_dbg_info_thread : Using wakeup instead of polling	
+- [TYPEC] Still DRP Toggling after Rd detect if VBUS not vsafe0v
+- [TYPEC] Add CustomHV flag for legacy cable
+  - CONFIG_TYPEC_CAP_CUSTOM_HV
+- [TYPEC] Add legacy cable solution for another type TA
+  - CONFIG_TYPEC_CHECK_LEGACY_CABLE2
+- [TYPEC] Fixed AttachWait_Sink notification
+- [PE] Postpone reply ps_ready for Vconn Swap to On
+- [PE] AMS flow : get_source_cap from sink
+- [PE] Ignore hreset if type_c only (Against Spec)
+  - CONFIG_USB_PD_SNK_IGNORE_HRESET_IF_TYPEC_ONLY
+- [PE] Fixed Sink still wait hreset after 3 times retry
+- [DPM] If device doesn't reply discoverID, doesn't send discoverSVID
+- [DPM] Fixed PD_STATE notification
+- [VDM] Dynamic allocate svid_data	
+- [DUAL_ROLE] Using mode operation for TYPEC_ONLY
+
 ### v015
 - [LINUX] Fix Coding Style
 - [RT1711] Optimize I2C access

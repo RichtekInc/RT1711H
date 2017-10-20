@@ -17,7 +17,6 @@
 
 #include <linux/usb/tcpci_config.h>
 
-
 #ifdef CONFIG_USB_POWER_DELIVERY
 #ifdef CONFIG_USB_PD_LEGACY_TCPM
 

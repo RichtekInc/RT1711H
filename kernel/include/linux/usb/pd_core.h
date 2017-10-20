@@ -202,10 +202,6 @@
 #define PD_HEADER_PR(header)	(((header) >> 8) & 1)
 #define PD_HEADER_DR(header)	(((header) >> 5) & 1)
 
-
-
-
-
 /*
  * VDO : Vendor Defined Message Object
  * VDM object is minimum of VDM header + 6 additional data objects.
@@ -664,8 +660,6 @@ typedef struct __pd_port_power_cababilities {
 	uint32_t pdos[7];
 } pd_port_power_caps;
 
-#define PD_SVID_DATA_NR		2	/* must < 11 */
-
 typedef struct __svdm_mode {
 	uint8_t mode_cnt;
 	uint32_t mode_vdo[VDO_MAX_NR];
@@ -758,7 +752,7 @@ typedef struct __pd_port {
 #endif	/* CONFIG_USB_PD_KEEP_SVIDS */
 
 	uint8_t svid_data_cnt;
-	svdm_svid_data_t svid_data[PD_SVID_DATA_NR];
+	svdm_svid_data_t *svid_data;
 
 	bool during_swap;	/* pr or dr swap */
 
@@ -830,6 +824,10 @@ typedef struct __pd_port {
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	bool custom_dbgacc;
 #endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
+
+#ifdef CONFIG_USB_PD_RICHTEK_UVDM
+	bool richtek_init_done;
+#endif	/* CONFIG_USB_PD_RICHTEK_UVDM */
 
 	tcp_dpm_event_t tcp_event;
 } pd_port_t;

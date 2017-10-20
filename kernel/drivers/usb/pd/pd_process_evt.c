@@ -118,6 +118,9 @@ static inline void print_dpm_msg_event(uint8_t msg)
 }
 
 static const char *const tcp_dpm_evt_name[] = {
+	/* TCP_DPM_EVT_UNKONW */
+	"unknown",
+
 	/* TCP_DPM_EVT_PD_COMMAND */
 	"pr_swap_snk",
 	"pr_swap_src",
@@ -420,6 +423,7 @@ bool pd_process_ctrl_msg_pr_swap(
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
 		return false;
 	}
+
 	pd_port->during_swap = false;
 	pd_port->state_machine = PE_STATE_MACHINE_PR_SWAP;
 
@@ -440,6 +444,7 @@ bool pd_process_ctrl_msg_vconn_swap(
 		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
 		return false;
 	}
+
 	pd_port->state_machine = PE_STATE_MACHINE_VCONN_SWAP;
 	PE_TRANSIT_STATE(pd_port, PE_VCS_EVALUATE_SWAP);
 	return true;
@@ -716,6 +721,8 @@ static inline int pd_process_tcp_dpm_event(
 	pd_notify_current_tcp_event_result(pd_port, ret);
 	return ret == TCP_DPM_RET_SENT;
 }
+
+/*---------------------------------------------------------------------------*/
 
 /*
  *

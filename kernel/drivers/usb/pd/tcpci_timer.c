@@ -126,6 +126,7 @@ static const char *const tcpc_timer_name[] = {
 	"PD_TIMER_UVDM_RESPONSE",
 	"PD_TIMER_DFP_FLOW_DELAY",
 	"PD_TIMER_UFP_FLOW_DELAY",
+	"PD_TIMER_VCONN_READY",
 	"PD_PE_VDM_POSTPONE",
 
 	"TYPEC_RT_TIMER_PE_IDLE",
@@ -135,7 +136,10 @@ static const char *const tcpc_timer_name[] = {
 	"TYPEC_RT_TIMER_ROLE_SWAP_STOP",
 	"TYPEC_RT_TIMER_LEGACY",
 	"TYPEC_RT_TIMER_NOT_LEGACY",
+	"TYPEC_RT_TIMER_LEGACY_STABLE",
+	"TYPEC_RT_TIMER_LEGACY_RECYCLE",
 	"TYPEC_RT_TIMER_AUTO_DISCHARGE",
+	"TYPEC_RT_TIMER_LOW_POWER_MODE",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -152,7 +156,10 @@ static const char *const tcpc_timer_name[] = {
 	"TYPEC_RT_TIMER_ROLE_SWAP_STOP",
 	"TYPEC_RT_TIMER_LEGACY",
 	"TYPEC_RT_TIMER_NOT_LEGACY",
+	"TYPEC_RT_TIMER_LEGACY_STABLE",
+	"TYPEC_RT_TIMER_LEGACY_RECYCLE",
 	"TYPEC_RT_TIMER_AUTO_DISCHARGE",
+	"TYPEC_RT_TIMER_LOW_POWER_MODE",
 
 	"TYPEC_TRY_TIMER_DRP_TRY",
 	"TYPEC_TRY_TIMER_DRP_TRYWAIT",
@@ -213,6 +220,8 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(CONFIG_USB_PD_UVDM_TOUT),
 	TIMEOUT_VAL(30),		/* PD_TIMER_DFP_FLOW_DELAY */
 	TIMEOUT_VAL(300),		/* PD_TIMER_UFP_FLOW_DELAY */
+	/* PD_TIMER_VCONN_READY */
+	TIMEOUT_VAL(CONFIG_USB_PD_VCONN_READY_TOUT),
 	TIMEOUT_VAL_US(3000),   /* PD_PE_VDM_POSTPONE */
 
 	/* TYPEC-RT-TIMER */
@@ -224,8 +233,11 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
 	TIMEOUT_VAL(50),	/* TYPEC_RT_TIMER_LEGACY */
 	TIMEOUT_VAL(5000),	/* TYPEC_RT_TIMER_NOT_LEGACY */
+	TIMEOUT_VAL(30*1000),		/* TYPEC_RT_TIMER_LEGACY_STABLE */
+	TIMEOUT_VAL(300*1000),		/* TYPEC_RT_TIMER_LEGACY_RECYCLE */
 	/* TYPEC_RT_TIMER_AUTO_DISCHARGE */
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_AUTO_DISCHARGE_TOUT),
+	TIMEOUT_VAL(500),	/* TYPEC_RT_TIMER_LOW_POWER_MODE */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -247,8 +259,11 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
 	TIMEOUT_VAL(50),	/* TYPEC_RT_TIMER_LEGACY */
 	TIMEOUT_VAL(5000),	/* TYPEC_RT_TIMER_NOT_LEGACY */
+	TIMEOUT_VAL(30*1000),		/* TYPEC_RT_TIMER_LEGACY_STABLE */
+	TIMEOUT_VAL(300*1000),		/* TYPEC_RT_TIMER_LEGACY_RECYCLE */
 	/* TYPEC_RT_TIMER_AUTO_DISCHARGE */
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_AUTO_DISCHARGE_TOUT),
+	TIMEOUT_VAL(500),	/* TYPEC_RT_TIMER_LOW_POWER_MODE */
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -264,10 +279,10 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 
 typedef enum hrtimer_restart (*tcpc_hrtimer_call)(struct hrtimer *timer);
 
+#ifdef CONFIG_USB_POWER_DELIVERY
 static inline void on_pe_timer_timeout(
 		struct tcpc_device *tcpc_dev, uint32_t timer_id)
 {
-#ifdef CONFIG_USB_POWER_DELIVERY
 	pd_event_t pd_event;
 
 	pd_event.event_type = PD_EVT_TIMER_MSG;
@@ -333,10 +348,10 @@ static inline void on_pe_timer_timeout(
 		pd_put_event(tcpc_dev, &pd_event, false);
 		break;
 	}
-#endif
 
 	tcpc_disable_timer(tcpc_dev, timer_id);
 }
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 
 #define TCPC_TIMER_TRIGGER()	do \
 {				\
@@ -642,6 +657,15 @@ static enum hrtimer_restart tcpc_timer_ufp_flow_delay(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_vconn_ready(struct hrtimer *timer)
+{
+	int index = PD_TIMER_VCONN_READY;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart pd_pe_vdm_postpone_timeout(struct hrtimer *timer)
 {
 	int index = PD_PE_VDM_POSTPONE;
@@ -723,9 +747,39 @@ static enum hrtimer_restart tcpc_timer_rt_not_legacy(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_rt_legacy_stable(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_LEGACY_STABLE;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart tcpc_timer_rt_legacy_recycle(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_LEGACY_RECYCLE;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart tcpc_timer_rt_auto_discharge(struct hrtimer *timer)
 {
 	int index = TYPEC_RT_TIMER_AUTO_DISCHARGE;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart tcpc_timer_rt_low_power_mode(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_LOW_POWER_MODE;
 	struct tcpc_device *tcpc_dev =
 		container_of(timer, struct tcpc_device, tcpc_timer[index]);
 
@@ -824,6 +878,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[PD_TIMER_UVDM_RESPONSE] = tcpc_timer_uvdm_response,
 	[PD_TIMER_DFP_FLOW_DELAY] = tcpc_timer_dfp_flow_delay,
 	[PD_TIMER_UFP_FLOW_DELAY] = tcpc_timer_ufp_flow_delay,
+	[PD_TIMER_VCONN_READY] = tcpc_timer_vconn_ready,
 	[PD_PE_VDM_POSTPONE] = pd_pe_vdm_postpone_timeout,
 
 	[TYPEC_RT_TIMER_PE_IDLE] = tcpc_timer_rt_pe_idle,
@@ -833,7 +888,11 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_RT_TIMER_ROLE_SWAP_STOP] = tcpc_timer_rt_role_swap_stop,
 	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 	[TYPEC_RT_TIMER_NOT_LEGACY] = tcpc_timer_rt_not_legacy,
+	[TYPEC_RT_TIMER_LEGACY_STABLE] = tcpc_timer_rt_legacy_stable,
+	[TYPEC_RT_TIMER_LEGACY_RECYCLE] = tcpc_timer_rt_legacy_recycle,
+
 	[TYPEC_RT_TIMER_AUTO_DISCHARGE] = tcpc_timer_rt_auto_discharge,
+	[TYPEC_RT_TIMER_LOW_POWER_MODE] = tcpc_timer_rt_low_power_mode,
 
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,
@@ -850,7 +909,11 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_RT_TIMER_ROLE_SWAP_STOP] = tcpc_timer_rt_role_swap_stop,
 	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 	[TYPEC_RT_TIMER_NOT_LEGACY] = tcpc_timer_rt_not_legacy,
+	[TYPEC_RT_TIMER_LEGACY_STABLE] = tcpc_timer_rt_legacy_stable,
+	[TYPEC_RT_TIMER_LEGACY_RECYCLE] = tcpc_timer_rt_legacy_recycle,
+
 	[TYPEC_RT_TIMER_AUTO_DISCHARGE] = tcpc_timer_rt_auto_discharge,
+	[TYPEC_RT_TIMER_LOW_POWER_MODE] = tcpc_timer_rt_low_power_mode,
 
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,

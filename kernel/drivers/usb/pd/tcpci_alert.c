@@ -258,6 +258,20 @@ static int tcpci_alert_wakeup(struct tcpc_device *tcpc_dev)
 }
 #endif /* CONFIG_TYPEC_CAP_LPM_WAKEUP_WATCHDOG */
 
+#ifdef CONFIG_TYPEC_CAP_RA_DETACH
+static int tcpci_alert_ra_detach(struct tcpc_device *tcpc_dev)
+{
+	if (tcpc_dev->tcpc_flags & TCPC_FLAGS_CHECK_RA_DETACHE) {
+		TCPC_DBG("RA_DETACH\r\n");
+		if (tcpc_dev->typec_remote_cc[0] == TYPEC_CC_DRP_TOGGLING &&
+			tcpc_dev->typec_remote_cc[1] == TYPEC_CC_DRP_TOGGLING)
+			tcpc_typec_handle_ra_detach(tcpc_dev);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_TYPEC_CAP_RA_DETACH */
+
 typedef struct __tcpci_alert_handler {
 	uint32_t bit_mask;
 	int (*handler)(struct tcpc_device *tcpc_dev);
@@ -283,6 +297,11 @@ const tcpci_alert_handler_t tcpci_alert_handlers[] = {
 #ifdef CONFIG_TYPEC_CAP_LPM_WAKEUP_WATCHDOG
 	DECL_TCPCI_ALERT_HANDLER(16, tcpci_alert_wakeup),
 #endif /* CONFIG_TYPEC_CAP_LPM_WAKEUP_WATCHDOG */
+
+#ifdef CONFIG_TYPEC_CAP_RA_DETACH
+	DECL_TCPCI_ALERT_HANDLER(21, tcpci_alert_ra_detach),
+#endif /* CONFIG_TYPEC_CAP_RA_DETACH */
+
 	DECL_TCPCI_ALERT_HANDLER(9, tcpci_alert_fault),
 	DECL_TCPCI_ALERT_HANDLER(0, tcpci_alert_cc_changed),
 	DECL_TCPCI_ALERT_HANDLER(1, tcpci_alert_power_status_changed),
@@ -318,12 +337,6 @@ static inline int __tcpci_alert(struct tcpc_device *tcpc_dev)
 
 	if (alert_status & TCPC_REG_ALERT_EXT_VBUS_80)
 		alert_status |= TCPC_REG_ALERT_POWER_STATUS;
-
-#ifdef CONFIG_TYPEC_CAP_RA_DETACH
-	if ((alert_status & TCPC_REG_ALERT_EXT_RA_DETACH) &&
-			(tcpc_dev->tcpc_flags & TCPC_FLAGS_CHECK_RA_DETACHE))
-		alert_status |= TCPC_REG_ALERT_CC_STATUS;
-#endif /* CONFIG_TYPEC_CAP_RA_DETACH */
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 #ifdef CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER

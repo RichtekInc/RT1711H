@@ -171,6 +171,13 @@ static inline int pd_dpm_source_vbus(pd_port_t *pd_port, bool en)
 
 /* Mode Operations */
 
+/*
+ * svdm owner have to call this function
+ *	after the enter_mode flow is finished
+ */
+
+int pd_dpm_notify_svdm_done(pd_port_t *pd_port);
+
 #ifdef CONFIG_USB_PD_ALT_MODE
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 
@@ -211,9 +218,17 @@ extern int dp_dfp_u_notify_pe_ready(pd_port_t *pd_port,
 extern bool dp_reset_state(
 	pd_port_t *pd_port, svdm_svid_data_t *svid_data);
 
+extern bool dp_parse_svid_data(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data);
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_RICHTEK_UVDM
+extern bool richtek_dfp_notify_pe_startup(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data);
+
+extern int richtek_dfp_notify_pe_ready(pd_port_t *pd_port,
+	svdm_svid_data_t *svid_data, pd_event_t *pd_event);
+
 extern bool richtek_dfp_notify_uvdm(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, bool ack);
 extern bool richtek_ufp_notify_uvdm(pd_port_t *pd_port,
@@ -248,6 +263,11 @@ extern bool dc_dfp_notify_uvdm(pd_port_t *pd_port,
 extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port,
 			svdm_svid_data_t *svid_data);
 
+extern bool dc_reset_state(pd_port_t *pd_port,
+	svdm_svid_data_t *svid_data);
+
+extern bool dc_parse_svid_data(pd_port_t *pd_port,
+			svdm_svid_data_t *svid_data);
 #endif /* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #endif /* PD_DPM_CORE_H */

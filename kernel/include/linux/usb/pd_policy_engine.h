@@ -42,7 +42,6 @@ enum pd_pe_state {
 	PE_SRC_HARD_RESET,
 	PE_SRC_HARD_RESET_RECEIVED,
 	PE_SRC_TRANSITION_TO_DEFAULT,
-	PE_SRC_GIVE_SOURCE_CAP,
 	PE_SRC_GET_SINK_CAP,
 	PE_SRC_WAIT_NEW_CAPABILITIES,
 
@@ -260,7 +259,6 @@ void pe_src_hard_reset_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_src_hard_reset_received_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_src_transition_to_default_entry(
 			pd_port_t *pd_port, pd_event_t *pd_event);
-void pe_src_give_source_cap_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_src_get_sink_cap_entry(pd_port_t *pd_port, pd_event_t *pd_event);
 void pe_src_wait_new_capabilities_entry(
 				pd_port_t *pd_port, pd_event_t *pd_event);

@@ -15,6 +15,9 @@
 #ifndef PD_DPM_PRV_H_INCLUDED
 #define PD_DPM_PRV_H_INCLUDED
 
+#include <linux/of.h>
+#include <linux/device.h>
+
 typedef struct __eval_snk_request_result {
 	int src_sel;
 	int snk_sel;
@@ -97,6 +100,9 @@ typedef struct __svdm_svid_ops {
 
 	bool (*reset_state)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data);
+
+	bool (*parse_svid_data)(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data);
 } svdm_svid_ops_t;
 
 static inline svdm_svid_data_t *
@@ -130,16 +136,21 @@ static inline void dpm_vdm_get_svid_ops(
 		*ops = PD_VDO_OPOS(vdm_hdr);
 }
 
-static inline bool dpm_register_svdm_ops(
-	pd_port_t *pd_port, const svdm_svid_ops_t *ops)
+static inline bool dpm_register_svdm_ops(pd_port_t *pd_port,
+	svdm_svid_data_t *svid_data, const svdm_svid_ops_t *ops)
 {
-	svdm_svid_data_t *svid_data =
-		dpm_get_svdm_svid_data(pd_port, ops->svid);
-	if (svid_data == NULL)
-		return false;
+	bool ret = true;
 
-	svid_data->ops = ops;
-	return true;
+	if (ops->parse_svid_data)
+		ret = ops->parse_svid_data(pd_port, svid_data);
+
+	if (ret) {
+		svid_data->ops = ops;
+		svid_data->svid = ops->svid;
+		DPM_DBG("register_svdm: 0x%x\r\n", ops->svid);
+	}
+
+	return ret;
 }
 
 static inline bool svdm_notify_pe_startup(pd_port_t *pd_port)

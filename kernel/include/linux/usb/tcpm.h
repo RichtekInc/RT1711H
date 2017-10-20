@@ -389,6 +389,9 @@ extern int tcpm_typec_set_usb_sink_curr(
 extern int tcpm_typec_set_rp_level(
 	struct tcpc_device *tcpc_dev, uint8_t level);
 
+extern int tcpm_typec_set_custom_hv(
+	struct tcpc_device *tcpc_dev, bool en);
+
 extern int tcpm_typec_role_swap(
 	struct tcpc_device *tcpc_dev);
 
@@ -457,6 +460,7 @@ struct tcp_dpm_event;
 enum {
 	TCP_DPM_RET_SUCCESS = 0,
 	TCP_DPM_RET_SENT = 0,
+	TCP_DPM_RET_VDM_ACK = 0,
 
 	TCP_DPM_RET_DENIED_UNKNOWM,
 	TCP_DPM_RET_DENIED_NOT_READY,
@@ -472,11 +476,18 @@ enum {
 	TCP_DPM_RET_DROP_RECV_SRESET,
 	TCP_DPM_RET_DROP_SENT_HRESET,
 	TCP_DPM_RET_DROP_RECV_HRESET,
+	TCP_DPM_RET_DROP_ERROR_REOCVERY,
 	TCP_DPM_RET_DROP_SEND_BIST,
+
+	TCP_DPM_RET_VDM_NAK,
+
+	TCP_DPM_RET_BK_TIMEOUT,
 };
 
 enum {
-	TCP_DPM_EVT_PD_COMMAND = 0,
+	TCP_DPM_EVT_UNKONW = 0,
+
+	TCP_DPM_EVT_PD_COMMAND,
 
 	TCP_DPM_EVT_PR_SWAP_AS_SNK = TCP_DPM_EVT_PD_COMMAND,
 	TCP_DPM_EVT_PR_SWAP_AS_SRC,
@@ -522,7 +533,6 @@ enum {
 	TCP_DPM_EVT_ERROR_RECOVERY,
 
 	TCP_DPM_EVT_NR,
-	TCP_DPM_EVT_UNKONW,
 };
 
 typedef int (*tcp_dpm_event_cb)(
@@ -784,6 +794,11 @@ extern int tcpm_set_pd_charging_policy(
 	struct tcpc_device *tcpc, uint8_t policy);
 
 extern uint8_t tcpm_inquire_pd_charging_policy(struct tcpc_device *tcpc);
+
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+extern int tcpm_set_direct_charge_en(struct tcpc_device *tcpc, bool en);
+extern bool tcpm_inquire_during_direct_charge(struct tcpc_device *tcpc);
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
 
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
