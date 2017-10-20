@@ -164,9 +164,8 @@ int tcpm_error_recovery(struct tcpc_device *tcpc_dev)
 	return TCPM_SUCCESS;
 }
 
-int tcpm_discover_cable(
-	struct tcpc_device *tcpc_dev, uint32_t *vdos)
-{	
+int tcpm_discover_cable(struct tcpc_device *tcpc_dev, uint32_t *vdos)
+{
 	bool ret;
 	pd_port_t *pd_port = &tcpc_dev->pd_port;
 
@@ -178,11 +177,11 @@ int tcpm_discover_cable(
 	if (!ret)
 		return TCPM_ERROR_PUT_EVENT;
 
-	return TCPM_SUCCESS;	
+	return TCPM_SUCCESS;
 }
 
-int tcpm_vdm_request_id(
-	struct tcpc_device *tcpc_dev, uint8_t* cnt, uint8_t* payload)
+int tcpm_vdm_request_id(struct tcpc_device *tcpc_dev,
+				uint8_t *cnt, uint8_t *payload)
 {
 	bool ret;
 	pd_port_t *pd_port = &tcpc_dev->pd_port;
@@ -210,6 +209,7 @@ int tcpm_dp_attention(
 
 	ret = vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_ATTENTION);
+
 
 	if (ret) {
 		pd_port->dp_status = dp_status;
@@ -279,6 +279,7 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 #endif	/* CONFIG_USB_PD_ALT_MODE */
+
 
 int tcpm_notify_vbus_stable(
 	struct tcpc_device *tcpc_dev)

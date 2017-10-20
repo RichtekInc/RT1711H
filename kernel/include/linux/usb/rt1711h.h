@@ -43,7 +43,7 @@
 #define RT1711H_REG_WATCHDOG_CTRL			(0x9D)
 #define RT1711H_REG_I2CRST_CTRL				(0X9E)
 
-#define RT1711H_REG_SWRESET					(0xA0)
+#define RT1711H_REG_SWRESET				(0xA0)
 #define RT1711H_REG_TTCPC_FILTER			(0xA1)
 #define RT1711H_REG_DRP_TOGGLE_CYCLE		(0xA2)
 #define RT1711H_REG_DRP_DUTY_CTRL			(0xA3)
@@ -70,7 +70,7 @@
  * RT1711H_REG_BMC_CTRL				(0x90)
  */
 
-#define RT1711H_REG_IDLE_EN					(1<<6)
+#define RT1711H_REG_IDLE_EN				(1<<6)
 #define RT1711H_REG_DISCHARGE_EN			(1<<5)
 #define RT1711H_REG_BMCIO_LPRPRD			(1<<4)
 #define RT1711H_REG_BMCIO_LPEN				(1<<3)
@@ -82,8 +82,8 @@
  * RT1711H_REG_RT_STATUS				(0x97)
  */
 
-#define RT1711H_REG_RA_DETACH				(1<<5) 
-#define RT1711H_REG_VBUS_80					(1<<1)
+#define RT1711H_REG_RA_DETACH				(1<<5)
+#define RT1711H_REG_VBUS_80				(1<<1)
 
 /*
  * RT1711H_REG_RT_INT				(0x98)
@@ -99,7 +99,7 @@
  */
 
 #define RT1711H_REG_M_RA_DETACH				(1<<5)
-#define RT1711H_REG_M_WATCHDOG				(1<<2) 
+#define RT1711H_REG_M_WATCHDOG				(1<<2)
 #define RT1711H_REG_M_VBUS_80				(1<<1)
 #define RT1711H_REG_M_WAKEUP				(1<<0)
 
@@ -111,7 +111,7 @@
 
 /* timeout = (tout+1) * 0.2sec */
 #define RT1711H_REG_INTRST_SET(en, tout) \
-		((en << 7) | (tout & 0x03))	
+	((en << 7) | (tout & 0x03))
 
 /*
  * RT1711H_REG_WATCHDOG_CTRL		(0x9D)
@@ -121,7 +121,7 @@
 
 /* timeout = (tout+1) * 0.4sec */
 #define RT1711H_REG_WATCHDOG_CTRL_SET(en, tout)	\
-		((en << 7) | (tout & 0x07))
+	((en << 7) | (tout & 0x07))
 
 #if ENABLE_RT1711_DBG
 #define RT1711H_INFO(format, args...) \

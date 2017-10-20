@@ -57,18 +57,24 @@ static int print_out_thread_fn(void *arg)
 	while (atomic_read(&running)) {
 		mutex_lock(&buff_lock);
 		index = using_buf;
-		using_buf ^= 0x01; // exchange buffer
+		using_buf ^= 0x01; /* exchange buffer */
 		mutex_unlock(&buff_lock);
 		if (pd_dbg_buffer[index].used) {
-			pd_dbg_buffer[index].buf[pd_dbg_buffer[index].used] = '\0';
-			printk("///PD dbg info %ud\n", pd_dbg_buffer[index].used);
-			for (i = 0; i < pd_dbg_buffer[index].used; i+= OUT_BUF_MAX) {
-				temp = pd_dbg_buffer[index].buf[OUT_BUF_MAX + i];
-				pd_dbg_buffer[index].buf[OUT_BUF_MAX + i] = '\0';
-				//while (atomic_read(&busy));
+			pd_dbg_buffer[index].
+				buf[pd_dbg_buffer[index].used] = '\0';
+			printk("///PD dbg info %ud\n",
+					pd_dbg_buffer[index].used);
+			for (i = 0; i < pd_dbg_buffer[index].used;
+							i += OUT_BUF_MAX) {
+				temp = pd_dbg_buffer[index].
+							buf[OUT_BUF_MAX + i];
+				pd_dbg_buffer[index].
+						buf[OUT_BUF_MAX + i] = '\0';
+				/* while (atomic_read(&busy)); */
 				printk(pd_dbg_buffer[index].buf + i);
-				pd_dbg_buffer[index].buf[OUT_BUF_MAX + i] = temp;
-				//msleep(2);
+				pd_dbg_buffer[index].
+						buf[OUT_BUF_MAX + i] = temp;
+				/* msleep(2); */
 			}
 			printk("PD dbg info///\n");
 		}
@@ -82,6 +88,7 @@ static int print_out_thread_fn(void *arg)
 static int print_out_thread_fn(void *arg)
 {
 	unsigned int index;
+
 	while (atomic_read(&running)) {
 		mutex_lock(&buff_lock);
 		index = using_buf;
@@ -90,8 +97,10 @@ static int print_out_thread_fn(void *arg)
 		if (pd_dbg_buffer[index].used) {
 			pd_dbg_buffer[index].
 				buf[pd_dbg_buffer[index].used] = '\0';
-			//pr_info("///PD dbg info\n%s\nPD dbg info///\n",
-			//			pd_dbg_buffer[index].buf);
+			/*
+			   pr_info("///PD dbg info\n%s\nPD dbg info///\n",
+						pd_dbg_buffer[index].buf);
+			*/
 			printk("///PD dbg info\n");
 			printk(pd_dbg_buffer[index].buf);
 			printk("PD dbg info///\n");
@@ -119,11 +128,12 @@ int pd_dbg_info(const char *fmt, ...)
 	index = using_buf;
 	used = pd_dbg_buffer[index].used;
 	r = snprintf(pd_dbg_buffer[index].buf + used,
-		PD_INFO_BUF_SIZE - used, "<%5lu.%03lu>", (unsigned long)ts, rem_usec);
+		PD_INFO_BUF_SIZE - used, "<%5lu.%03lu>",
+		(unsigned long)ts, rem_usec);
 	if (r > 0)
 		used += r;
-	r = vsnprintf(pd_dbg_buffer[index].buf + used,  PD_INFO_BUF_SIZE - used,
-			fmt, args);
+	r = vsnprintf(pd_dbg_buffer[index].buf + used,
+			PD_INFO_BUF_SIZE - used, fmt, args);
 	if (r > 0)
 		used += r;
 	pd_dbg_buffer[index].used = used;

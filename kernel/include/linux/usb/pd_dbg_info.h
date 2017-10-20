@@ -10,11 +10,12 @@ extern int pd_dbg_info(const char *fmt, ...);
 extern void pd_dbg_info_lock(void);
 extern void pd_dbg_info_unlock(void);
 #else
-static inline int pd_dbg_info(const char *fmt, ...) {
+static inline int pd_dbg_info(const char *fmt, ...)
+{
 	return 0;
 }
 static inline void pd_dbg_info_lock(void) {}
 static inline void pd_dbg_info_unlock(void) {}
 #endif	/* CONFIG_PD_DBG_INFO */
 
-#endif // PD_DBG_INFO_H_INCLUDED
+#endif /* PD_DBG_INFO_H_INCLUDED */

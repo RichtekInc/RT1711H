@@ -19,19 +19,6 @@
 #include <linux/usb/pd_dbg_info.h>
 #include <linux/usb/tcpci_config.h>
 
-//-----------------------------------------------------------------------------
-
-#ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
-#define CONFIG_PD_DISCOVER_CABLE_ID
-#endif
-
-#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
-#undef CONFIG_PD_DISCOVER_CABLE_ID
-#define CONFIG_PD_DISCOVER_CABLE_ID
-#endif
-
-//-----------------------------------------------------------------------------
-
 #define PD_SOP_NR	3
 
 /* Default retry count for transmitting */
@@ -96,7 +83,7 @@
 
 #define PDO_VAR_EXTRACT_MAX_VOLT(raw)	(PDO_VAR_EXTRACT_MAX_VOLT_RAW(raw) * 50)
 #define PDO_VAR_EXTRACT_MIN_VOLT(raw)	(PDO_VAR_EXTRACT_MIN_VOLT_RAW(raw) * 50)
-#define PDO_VAR_EXTRACT_CURR(raw)		(PDO_VAR_EXTRACT_CURR_RAW(raw) * 10)
+#define PDO_VAR_EXTRACT_CURR(raw)	(PDO_VAR_EXTRACT_CURR_RAW(raw) * 10)
 
 #define PDO_VAR_RESET_CURR(raw, ma)	\
 	((raw & ~0x3ff) | PDO_VAR_OP_CURR(ma))
@@ -115,9 +102,12 @@
 #define PDO_BATT_EXTRACT_MIN_VOLT_RAW(raw)	(((raw) >> 10) & 0x3ff)
 #define PDO_BATT_EXTRACT_OP_POWER_RAW(raw)	(((raw) >> 0) & 0x3ff)
 
-#define PDO_BATT_EXTRACT_MAX_VOLT(raw)	(PDO_BATT_EXTRACT_MAX_VOLT_RAW(raw) * 50)
-#define PDO_BATT_EXTRACT_MIN_VOLT(raw)	(PDO_BATT_EXTRACT_MIN_VOLT_RAW(raw) * 50)
-#define PDO_BATT_EXTRACT_OP_POWER(raw)	(PDO_BATT_EXTRACT_OP_POWER_RAW(raw) * 250)
+#define PDO_BATT_EXTRACT_MAX_VOLT(raw)	\
+	(PDO_BATT_EXTRACT_MAX_VOLT_RAW(raw) * 50)
+#define PDO_BATT_EXTRACT_MIN_VOLT(raw)	\
+	(PDO_BATT_EXTRACT_MIN_VOLT_RAW(raw) * 50)
+#define PDO_BATT_EXTRACT_OP_POWER(raw)	\
+	(PDO_BATT_EXTRACT_OP_POWER_RAW(raw) * 250)
 
 #define PDO_BATT(min_mv, max_mv, op_mw) \
 				(PDO_BATT_MIN_VOLT(min_mv) | \
@@ -224,7 +214,7 @@
 	 ((custom) & 0x7FFF))
 
 #define VDO_S(svid, cmd_type, cmd, obj)	\
-	VDO(svid, 1, VDO_CMDT(cmd_type) | VDO_OPOS(obj) | cmd )
+	VDO(svid, 1, VDO_CMDT(cmd_type) | VDO_OPOS(obj) | cmd)
 
 #define VDO_SVDM_TYPE     (1 << 15)
 #define VDO_SVDM_VERS(x)  (x << 13)
@@ -370,7 +360,8 @@
 #define CABLE_USBSS_U2_ONLY  0
 #define CABLE_USBSS_U31_GEN1 1
 #define CABLE_USBSS_U31_GEN2 2
-#define VDO_CABLE(hw, fw, cbl, gdr, lat, term, tx1d, tx2d, rx1d, rx2d, cur, vps, sopp, usbss) \
+#define VDO_CABLE(hw, fw, cbl, gdr, lat, term, tx1d,\
+			tx2d, rx1d, rx2d, cur, vps, sopp, usbss) \
 	(((hw) & 0x7) << 28 | ((fw) & 0x7) << 24 | ((cbl) & 0x3) << 18	\
 	 | (gdr) << 17 | ((lat) & 0x7) << 13 | ((term) & 0x3) << 11	\
 	 | (tx1d) << 10 | (tx2d) << 9 | (rx1d) << 8 | (rx2d) << 7	\
@@ -639,13 +630,12 @@
 	(DPM_FLAGS_PARTNER_DR_POWER | DPM_FLAGS_PARTNER_DR_DATA|\
 	DPM_FLAGS_PARTNER_EXTPOWER | DPM_FLAGS_PARTNER_USB_COMM)
 
-#define DPM_FLAGS_CHECK_EXT_POWER		(1<<22)
 #define DPM_FLAGS_CHECK_DP_MODE			(1<<23)
 #define DPM_FLAGS_CHECK_SINK_CAP		(1<<24)
 #define DPM_FLAGS_CHECK_SOURCE_CAP		(1<<25)
 #define DPM_FLAGS_CHECK_UFP_ID			(1<<26)
 #define DPM_FLAGS_CHECK_CABLE_ID		(1<<27)
-#define DPM_FLAGS_CHECK_CABLE_ID_DFP	(1<<28)
+#define DPM_FLAGS_CHECK_CABLE_ID_DFP		(1<<28)
 #define DPM_FLAGS_CHECK_PR_ROLE			(1<<29)
 #define DPM_FLAGS_CHECK_DR_ROLE			(1<<30)
 
@@ -664,7 +654,7 @@
 #define DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP	(1<<12)
 #define DPM_CAP_ATTEMP_ENTER_DP_MODE		(1<<13)
 #define DPM_CAP_ATTEMP_DISCOVER_CABLE		(1<<14)
-#define DPM_CAP_ATTEMP_DISCOVER_ID			(1<<15)
+#define DPM_CAP_ATTEMP_DISCOVER_ID		(1<<15)
 
 enum dpm_cap_pr_check_prefer {
 	DPM_CAP_PR_CHECK_DISABLE = 0,
@@ -672,7 +662,7 @@ enum dpm_cap_pr_check_prefer {
 	DPM_CAP_PR_CHECK_PREFER_SRC = 2,
 };
 
-#define DPM_CAP_PR_CHECK_PROP(cap)			((cap & 0x03) << 16)
+#define DPM_CAP_PR_CHECK_PROP(cap)			((cap << 16) & 0x03)
 #define DPM_CAP_EXTRACT_PR_CHECK(raw)		((raw >> 16) & 0x03)
 #define DPM_CAP_PR_SWAP_REJECT_AS_SRC		(1<<18)
 #define DPM_CAP_PR_SWAP_REJECT_AS_SNK		(1<<19)
@@ -687,7 +677,7 @@ enum dpm_cap_dr_check_prefer {
 	DPM_CAP_DR_CHECK_PREFER_DFP = 2,
 };
 
-#define DPM_CAP_DR_CHECK_PROP(cap)			((cap & 0x03) << 22)
+#define DPM_CAP_DR_CHECK_PROP(cap)			((cap << 22) & 0x03)
 #define DPM_CAP_EXTRACT_DR_CHECK(raw)		((raw >> 22) & 0x03)
 #define DPM_CAP_DR_SWAP_REJECT_AS_DFP		(1<<24)
 #define DPM_CAP_DR_SWAP_REJECT_AS_UFP		(1<<25)
@@ -754,7 +744,7 @@ typedef struct __pd_port {
 
 	uint8_t state_machine;
 	uint8_t pd_connect_state;
-	
+
 	bool reset_vdm_state;
 	uint8_t pe_pd_state;
 	uint8_t pe_vdm_state;
@@ -772,10 +762,6 @@ typedef struct __pd_port {
 	uint8_t src_cap_count;
 	uint8_t get_snk_cap_count;
 	uint8_t get_src_cap_count;
-
-#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
-	uint8_t recv_hard_reset_count;
-#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 
 	uint8_t msg_id_rx[PD_SOP_NR];
 	uint8_t msg_id_rx_init[PD_SOP_NR];
@@ -814,7 +800,7 @@ typedef struct __pd_port {
 	uint16_t mode_svid;
 	uint8_t mode_obj_pos;
 	bool modal_operation;
-	bool dpm_ack_immediately; 
+	bool dpm_ack_immediately;
 
 	uint32_t dpm_flags;
 	uint32_t dpm_init_flags;
@@ -869,14 +855,18 @@ static inline int pd_is_support_modal_operation(pd_port_t *pd_port)
 #define PD_RX_CAP_PE_DISABLE			(TCPC_RX_CAP_HARD_RESET)
 #define PD_RX_CAP_PE_STARTUP			(TCPC_RX_CAP_HARD_RESET)
 #define PD_RX_CAP_PE_HARDRESET			(0)
-#define PD_RX_CAP_PE_SEND_WAIT_CAP		(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
-#define PD_RX_CAP_PE_DISCOVER_CABLE		(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP_PRIME)
-#define PD_RX_CAP_PE_READY_UFP			(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
+#define PD_RX_CAP_PE_SEND_WAIT_CAP	\
+	(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
+#define PD_RX_CAP_PE_DISCOVER_CABLE	\
+	(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP_PRIME)
+#define PD_RX_CAP_PE_READY_UFP	\
+	(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
 
 #ifdef CONFIG_PD_DISCOVER_CABLE_ID
-#define PD_RX_CAP_PE_READY_DFP			(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP|TCPC_RX_CAP_SOP_PRIME)
+#define PD_RX_CAP_PE_READY_DFP	\
+	(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP|TCPC_RX_CAP_SOP_PRIME)
 #else
-#define PD_RX_CAP_PE_READY_DFP			(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
+#define PD_RX_CAP_PE_READY_DFP	(TCPC_RX_CAP_HARD_RESET|TCPC_RX_CAP_SOP)
 #endif
 
 enum {
@@ -900,7 +890,7 @@ void pd_extract_rdo_power(
 	uint32_t rdo, uint32_t pdo, uint32_t *op_curr, uint32_t *max_curr);
 
 void pd_extract_pdo_power(uint32_t pdo,
-	uint32_t* vmin, uint32_t* vmax, uint32_t* ioper);
+	uint32_t *vmin, uint32_t *vmax, uint32_t *ioper);
 
 uint32_t pd_extract_cable_curr(uint32_t vdo);
 
@@ -915,54 +905,51 @@ int pd_reset_local_hw(pd_port_t *pd_port);
 
 int pd_enable_bist_test_mode(pd_port_t *pd_port, bool en);
 
-void pd_lock_msg_output(pd_port_t* pd_port);
-void pd_unlock_msg_output(pd_port_t* pd_port);
+void pd_lock_msg_output(pd_port_t *pd_port);
+void pd_unlock_msg_output(pd_port_t *pd_port);
 
 int pd_update_connect_state(pd_port_t *pd_port, uint8_t state);
 
 /* ---- PD notify TCPC Policy Engine State Changed ---- */
-extern void pd_try_put_pe_idle_event(pd_port_t *pd_port);
+
 extern void pd_notify_pe_transit_to_default(pd_port_t *pd_port);
 extern void pd_notify_pe_hard_reset_completed(pd_port_t *pd_port);
-extern void pd_notify_pe_send_hard_reset(pd_port_t *pd_port);
+extern void pd_notify_pe_send_hard_reset_start(pd_port_t *pd_port);
+extern void pd_notify_pe_send_hard_reset_done(pd_port_t *pd_port);
 extern void pd_notify_pe_idle(pd_port_t *pd_port);
 extern void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt);
 extern void pd_notify_pe_error_recovery(pd_port_t *pd_port);
-extern void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port, bool start_swap);
-extern void pd_notify_pe_cancel_pr_swap(pd_port_t *pd_port);
+extern void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port);
 extern void pd_notify_pe_reset_protocol(pd_port_t *pd_port);
 extern void pd_noitfy_pe_bist_mode(pd_port_t *pd_port, uint8_t mode);
 extern void pd_notify_pe_pr_changed(pd_port_t *pd_port);
-extern void pd_notify_pe_src_explicit_contract(pd_port_t *pd_port);
 extern void pd_notify_pe_transmit_msg(pd_port_t *pd_port, uint8_t type);
 extern void pd_notify_pe_recv_ping_event(pd_port_t *pd_port);
 
-#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
-extern void pd_notify_pe_over_recv_hreset(pd_port_t *pd_port);
-#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+extern uint8_t pd_wait_tx_finished_event(pd_port_t *pd_port);
+
 
 /* ---- pd_timer ---- */
 
-static inline void pd_restart_timer(pd_port_t* pd_port, uint32_t timer_id)
+static inline void pd_restart_timer(pd_port_t *pd_port, uint32_t timer_id)
 {
 	return tcpc_restart_timer(pd_port->tcpc_dev, timer_id);
 }
 
-static inline void pd_enable_timer(pd_port_t* pd_port, uint32_t timer_id)
+static inline void pd_enable_timer(pd_port_t *pd_port, uint32_t timer_id)
 {
 	return tcpc_enable_timer(pd_port->tcpc_dev, timer_id);
 }
 
-static inline void pd_disable_timer(pd_port_t* pd_port, uint32_t timer_id)
+static inline void pd_disable_timer(pd_port_t *pd_port, uint32_t timer_id)
 {
 	return tcpc_disable_timer(pd_port->tcpc_dev, timer_id);
 }
 
 static inline void pd_reset_pe_timer(pd_port_t *pd_port)
 {
-    tcpc_reset_pe_timer(pd_port->tcpc_dev);
+	tcpc_reset_pe_timer(pd_port->tcpc_dev);
 }
-
 
 /* ---- pd_event ---- */
 
@@ -1075,7 +1062,7 @@ static inline bool vdm_put_hw_event(
 }
 
 static inline bool vdm_put_dpm_event(
-	pd_port_t* pd_port, uint8_t dpm_event, pd_msg_t *pd_msg)
+	pd_port_t *pd_port, uint8_t dpm_event, pd_msg_t *pd_msg)
 {
 	pd_event_t evt = {
 		.event_type = PD_EVT_DPM_MSG,
@@ -1086,18 +1073,19 @@ static inline bool vdm_put_dpm_event(
 	return pd_put_vdm_event(pd_port->tcpc_dev, &evt, false);
 }
 
-static inline bool vdm_put_dpm_notified_event(pd_port_t* pd_port)
+static inline bool vdm_put_dpm_notified_event(pd_port_t *pd_port)
 {
 	return vdm_put_dpm_event(pd_port, PD_DPM_NOTIFIED, NULL);
 }
 
-static inline bool vdm_put_dpm_discover_cable_event(pd_port_t* pd_port)
+static inline bool vdm_put_dpm_discover_cable_event(pd_port_t *pd_port)
 {
 	pd_port->pe_vdm_state = pd_port->pe_pd_state;
 	return vdm_put_dpm_event(pd_port, PD_DPM_DISCOVER_CABLE_ID, NULL);
 }
 
-static inline bool pd_put_hw_event(struct tcpc_device *tcpc_dev, uint8_t hw_event)
+static inline bool pd_put_hw_event(
+	struct tcpc_device *tcpc_dev, uint8_t hw_event)
 {
 	pd_event_t evt = {
 		.event_type = PD_EVT_HW_MSG,
@@ -1108,7 +1096,8 @@ static inline bool pd_put_hw_event(struct tcpc_device *tcpc_dev, uint8_t hw_even
 	return pd_put_event(tcpc_dev, &evt, false);
 }
 
-static inline bool pd_put_cc_attached_event(struct tcpc_device *tcpc_dev, uint8_t type)
+static inline bool pd_put_cc_attached_event(
+		struct tcpc_device *tcpc_dev, uint8_t type)
 {
 	pd_event_t evt = {
 		.event_type = PD_EVT_HW_MSG,
@@ -1120,20 +1109,14 @@ static inline bool pd_put_cc_attached_event(struct tcpc_device *tcpc_dev, uint8_
 	return pd_put_event(tcpc_dev, &evt, false);
 }
 
-/* ---- Handle PD Message ----*/
-
-int pd_handle_soft_reset(pd_port_t *pd_port, uint8_t state_machine);
-
-
 /* ---- Send PD Message ----*/
 
 int pd_send_ctrl_msg(
 	pd_port_t *pd_port, uint8_t sop_type, uint8_t msg);
 
 int pd_send_data_msg(pd_port_t *pd_port,
-	uint8_t sop_type, uint8_t msg, uint8_t cnt, uint32_t* payload);
+	uint8_t sop_type, uint8_t msg, uint8_t cnt, uint32_t *payload);
 
-int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine);
 int pd_send_hard_reset(pd_port_t *pd_port);
 
 int pd_send_bist_mode2(pd_port_t *pd_port);
@@ -1145,10 +1128,10 @@ int pd_disable_bist_mode2(pd_port_t *pd_port);
 /* Auto enable pd_timer_vdm_response if success */
 int pd_send_svdm_request(pd_port_t *pd_port,
 	uint8_t sop_type, uint16_t svid, uint8_t vdm_cmd,
-	uint8_t obj_pos, uint8_t cnt, uint32_t* data_obj);
+	uint8_t obj_pos, uint8_t cnt, uint32_t *data_obj);
 
 int pd_reply_svdm_request(pd_port_t *pd_port,
-	pd_event_t *pd_event, uint8_t reply, uint8_t cnt, uint32_t* data_obj);
+	pd_event_t *pd_event, uint8_t reply, uint8_t cnt, uint32_t *data_obj);
 
 static inline int pd_send_vdm_discover_id(
 	pd_port_t *pd_port, uint8_t sop_type)

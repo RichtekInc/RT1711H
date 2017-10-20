@@ -59,9 +59,9 @@ DECL_PE_STATE_REACTION(PD_TIMER_VCONN_ON);
  */
 
 static inline bool pd_process_ctrl_msg_good_crc(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	switch(pd_port->pe_state_curr) {
+	switch (pd_port->pe_state_curr) {
 	case PE_VCS_REJECT_VCONN_SWAP:
 	case PE_VCS_SEND_PS_RDY:
 		PE_TRANSIT_READY_STATE(pd_port);
@@ -81,7 +81,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 }
 
 static inline bool pd_process_ctrl_msg_accept(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	if (pd_port->pe_state_curr == PE_VCS_SEND_SWAP) {
 		PE_TRANSIT_VCS_SWAP_STATE(pd_port);
@@ -92,7 +92,7 @@ static inline bool pd_process_ctrl_msg_accept(
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	bool ret = false;
 

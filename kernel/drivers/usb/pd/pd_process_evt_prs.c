@@ -25,7 +25,8 @@ DECL_PE_STATE_TRANSITION(PD_CTRL_MSG_GOOD_CRC) = {
 	{ PE_PRS_SNK_SRC_ACCEPT_PR_SWAP, PE_PRS_SNK_SRC_TRANSITION_TO_OFF },
 	{ PE_PRS_SNK_SRC_REJECT_SWAP, PE_SNK_READY },
 
-	{ PE_PRS_SNK_SRC_SOURCE_ON, PE_SRC_STARTUP },	/* VBUS-ON & PS_RDY SENT */
+	/* VBUS-ON & PS_RDY SENT */
+	{ PE_PRS_SNK_SRC_SOURCE_ON, PE_SRC_STARTUP },
 };
 DECL_PE_STATE_REACTION(PD_CTRL_MSG_GOOD_CRC);
 
@@ -115,9 +116,9 @@ DECL_PE_STATE_REACTION(PD_TIMER_PS_SOURCE_OFF);
  */
 
 static inline bool pd_process_ctrl_msg_good_crc(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	switch(pd_port->pe_state_curr) {
+	switch (pd_port->pe_state_curr) {
 	case PE_PRS_SRC_SNK_WAIT_SOURCE_ON:
 		pd_enable_timer(pd_port, PD_TIMER_PS_SOURCE_ON);
 		pd_unlock_msg_output(pd_port);	/* for tSRCTransition */
@@ -134,7 +135,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	switch (pd_event->msg) {
 	case PD_CTRL_GOOD_CRC:
@@ -145,7 +146,6 @@ static inline bool pd_process_ctrl_msg(
 
 	case PD_CTRL_WAIT:
 	case PD_CTRL_REJECT:
-		pd_notify_pe_cancel_pr_swap(pd_port);
 		return PE_MAKE_STATE_TRANSIT(PD_CTRL_MSG_REJECT_WAIT);
 
 	case PD_CTRL_PS_RDY:
@@ -219,7 +219,6 @@ static inline bool pd_process_timer_msg(
 {
 	switch (pd_event->msg) {
 	case PD_TIMER_SENDER_RESPONSE:
-		pd_notify_pe_cancel_pr_swap(pd_port);
 		return PE_MAKE_STATE_TRANSIT(PD_TIMER_SENDER_RESPONSE);
 
 	case PD_TIMER_PS_SOURCE_ON:

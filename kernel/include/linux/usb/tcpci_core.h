@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/wakelock.h>
 #include <linux/notifier.h>
+#include <linux/semaphore.h>
 
 #include <linux/usb/tcpm.h>
 #include <linux/usb/tcpci_timer.h>
@@ -46,12 +47,12 @@
 #define DP_DBG_ENABLE		1
 
 #define TCPC_ENABLE_ANYMSG	(TCPC_DBG_ENABLE | DPM_DBG_ENABLE|\
-				PD_ERR_ENABLE|PE_INFO_ENABLE|TCPC_TIMER_INFO_EN\
-				|PE_DBG_ENABLE|PE_EVENT_DBG_ENABLE|\
-				PE_STATE_INFO_ENABLE|TCPC_INFO_ENABLE|\
-				TCPC_TIMER_DBG_EN|TYPEC_DBG_ENABLE|\
-				TYPEC_INFO_ENABLE|\
-				DP_INFO_ENABLE|DP_DBG_ENABLE)
+		PD_ERR_ENABLE|PE_INFO_ENABLE|TCPC_TIMER_INFO_EN\
+		|PE_DBG_ENABLE|PE_EVENT_DBG_ENABLE|\
+		PE_STATE_INFO_ENABLE|TCPC_INFO_ENABLE|\
+		TCPC_TIMER_DBG_EN|TYPEC_DBG_ENABLE|\
+		TYPEC_INFO_ENABLE|\
+		DP_INFO_ENABLE|DP_DBG_ENABLE)
 
 #define PE_EVT_INFO_VDM_DIS		0
 #define PE_DBG_RESET_VDM_DIS	1
@@ -66,11 +67,11 @@ struct tcpc_desc {
 };
 
 /* TCPC Power Register Define */
-#define TCPC_REG_POWER_STATUS_EXT_VSAFE0V 	(1<<15)	/* extend */
-#define TCPC_REG_POWER_STATUS_VBUS_PRES 	(1<<2)
+#define TCPC_REG_POWER_STATUS_EXT_VSAFE0V	(1<<15)	/* extend */
+#define TCPC_REG_POWER_STATUS_VBUS_PRES		(1<<2)
 
 /* TCPC Alert Register Define */
-#define TCPC_REG_ALERT_EXT_RA_DETACH	(1<<(16+5))
+#define TCPC_REG_ALERT_EXT_RA_DETACH		(1<<(16+5))
 #define TCPC_REG_ALERT_EXT_WATCHDOG		(1<<(16+2))
 #define TCPC_REG_ALERT_EXT_VBUS_80		(1<<(16+1))
 #define TCPC_REG_ALERT_EXT_WAKEUP		(1<<(16+0))
@@ -88,15 +89,15 @@ struct tcpc_desc {
 #define TCPC_REG_ALERT_POWER_STATUS (1<<1)
 #define TCPC_REG_ALERT_CC_STATUS    (1<<0)
 #define TCPC_REG_ALERT_TX_COMPLETE  (TCPC_REG_ALERT_TX_SUCCESS | \
-				      TCPC_REG_ALERT_TX_DISCARDED | \
-				      TCPC_REG_ALERT_TX_FAILED)
+		TCPC_REG_ALERT_TX_DISCARDED | \
+		TCPC_REG_ALERT_TX_FAILED)
 
 /* TCPC Behavior Flags */
 #define TCPC_FLAGS_RETRY_CRC_DISCARD		(1<<0)
 #define TCPC_FLAGS_WAIT_HRESET_COMPLETE		(1<<1)
-#define TCPC_FLAGS_CHECK_CC_STABLE			(1<<2)
-#define TCPC_FLAGS_LPM_WAKEUP_WATCHDOG 		(1<<3)
-#define TCPC_FLAGS_CHECK_RA_DETACHE			(1<<4)
+#define TCPC_FLAGS_CHECK_CC_STABLE		(1<<2)
+#define TCPC_FLAGS_LPM_WAKEUP_WATCHDOG		(1<<3)
+#define TCPC_FLAGS_CHECK_RA_DETACHE		(1<<4)
 
 enum tcpc_cc_voltage_status {
 	TYPEC_CC_VOLT_OPEN = 0,
@@ -153,12 +154,12 @@ enum tcpm_rx_cap_type {
 /* role_def */
 enum typec_role_defination {
 	TYPEC_ROLE_UNKNOWN = 0,
-    TYPEC_ROLE_SNK,
-    TYPEC_ROLE_SRC,
-    TYPEC_ROLE_DRP,
-    TYPEC_ROLE_TRY_SRC,
-    TYPEC_ROLE_TRY_SNK,
-    TYPEC_ROLE_NR,
+	TYPEC_ROLE_SNK,
+	TYPEC_ROLE_SRC,
+	TYPEC_ROLE_DRP,
+	TYPEC_ROLE_TRY_SRC,
+	TYPEC_ROLE_TRY_SNK,
+	TYPEC_ROLE_NR,
 };
 
 enum tcpm_vbus_level {
@@ -174,36 +175,37 @@ enum tcpm_vbus_level {
 
 struct tcpc_ops {
 	int (*init)(struct tcpc_device *tcpc, bool sw_reset);
-    int (*alert_status_clear)(struct tcpc_device *tcpc, uint32_t mask);
+	int (*alert_status_clear)(struct tcpc_device *tcpc, uint32_t mask);
 	int (*fault_status_clear)(struct tcpc_device *tcpc, uint8_t status);
-    int (*get_alert_status)(struct tcpc_device *tcpc, uint32_t *alert);
-    int (*get_power_status)(struct tcpc_device *tcpc, uint16_t *pwr_status);
+	int (*get_alert_status)(struct tcpc_device *tcpc, uint32_t *alert);
+	int (*get_power_status)(struct tcpc_device *tcpc, uint16_t *pwr_status);
 	int (*get_fault_status)(struct tcpc_device *tcpc, uint8_t *status);
-    int (*get_cc)(struct tcpc_device *tcpc, int *cc1, int *cc2);
-    int (*set_cc)(struct tcpc_device *tcpc, int pull);
-    int (*set_polarity)(struct tcpc_device *tcpc, int polarity);
-    int (*set_vconn)(struct tcpc_device *tcpc, int enable);
+	int (*get_cc)(struct tcpc_device *tcpc, int *cc1, int *cc2);
+	int (*set_cc)(struct tcpc_device *tcpc, int pull);
+	int (*set_polarity)(struct tcpc_device *tcpc, int polarity);
+	int (*set_vconn)(struct tcpc_device *tcpc, int enable);
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
-#endif
+#endif /* CONFIG_TCPC_LOW_POWER_MODE */
 
 #ifdef CONFIG_TCPC_IDLE_MODE
 	int (*set_idle_mode)(struct tcpc_device *tcpc, bool en);
-#endif
+#endif /* CONFIG_TCPC_IDLE_MODE */
 
 #ifdef CONFIG_TCPC_WATCHDOG_EN
 	int (*set_watchdog)(struct tcpc_device *tcpc, bool en);
-#endif
+#endif /* CONFIG_TCPC_WATCHDOG_EN */
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-    int (*set_msg_header)(struct tcpc_device *tcpc, int power_role, int data_role);
-    int (*set_rx_enable)(struct tcpc_device *tcpc, uint8_t enable);
-    int (*get_message)(struct tcpc_device *tcpc, uint32_t *payload,
-		uint16_t *head, enum tcpm_transmit_type *type);
-    int (*transmit)(struct tcpc_device *tcpc,
-		enum tcpm_transmit_type type,
-		uint16_t header, const uint32_t *data);
+	int (*set_msg_header)(struct tcpc_device *tcpc,
+					int power_role, int data_role);
+	int (*set_rx_enable)(struct tcpc_device *tcpc, uint8_t enable);
+	int (*get_message)(struct tcpc_device *tcpc, uint32_t *payload,
+			uint16_t *head, enum tcpm_transmit_type *type);
+	int (*transmit)(struct tcpc_device *tcpc,
+			enum tcpm_transmit_type type,
+			uint16_t header, const uint32_t *data);
 	int (*set_bist_test_mode)(struct tcpc_device *tcpc, bool en);
 	int (*set_bist_carrier_mode)(struct tcpc_device *tcpc, uint8_t pattern);
 
@@ -218,8 +220,6 @@ struct tcpc_ops {
 
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
-
-#define TCPC_LEGACY_CABLE_CONFIRM	7
 
 struct tcpc_device {
 	struct i2c_client *client;
@@ -239,6 +239,8 @@ struct tcpc_device {
 	struct mutex access_lock;
 	struct mutex typec_lock;
 	struct mutex timer_lock;
+	struct semaphore timer_enable_mask_lock;
+	struct semaphore timer_tick_lock;
 	atomic_t pending_event;
 	uint64_t timer_tick;
 	uint64_t timer_enable_mask;
@@ -257,20 +259,20 @@ struct tcpc_device {
 	uint8_t typec_role;
 	uint8_t typec_attach_old;
 	uint8_t typec_attach_new;
-	uint8_t typec_local_cc;
 	uint8_t typec_local_rp_level;
-	uint8_t typec_remote_cc[2];
 	uint8_t typec_remote_rp_level;
-	uint8_t typec_wait_ps_change;
 	bool typec_polarity;
-	bool typec_drp_try_timeout;
+	bool typec_wait_ps_change;
+	bool typec_skip_try_snk;
+	bool typec_trysnk_timeout;
 	bool typec_lpm;
 	bool typec_cable_only;
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	uint8_t typec_legacy_cable_suspect;
+	bool typec_legacy_cable;
+	uint8_t typec_check_legacy_cable;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
-		
+
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
 	struct dual_role_phy_instance *dr_usb;
 	uint8_t dual_role_supported_modes;
@@ -302,6 +304,7 @@ struct tcpc_device {
 	bool pd_wait_pr_swap_complete;
 	bool pd_wait_error_recovery;
 	bool pd_ping_event_pending;
+	bool pd_idle_mode;
 	uint8_t pd_bist_mode;
 	uint8_t pd_transmit_state;
 	int pd_wait_vbus_once;

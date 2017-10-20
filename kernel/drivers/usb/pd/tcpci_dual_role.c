@@ -57,11 +57,12 @@ static int tcpc_dual_role_get_prop(struct dual_role_phy_instance *dual_role,
 	return ret;
 }
 
-static	int tcpc_dual_role_prop_is_writeable(struct dual_role_phy_instance *dual_role,
-				      enum dual_role_property prop)
+static	int tcpc_dual_role_prop_is_writeable(
+	struct dual_role_phy_instance *dual_role, enum dual_role_property prop)
 {
 	int retval = -ENOSYS;
 	struct tcpc_device *tcpc = dev_get_drvdata(dual_role->dev.parent);
+
 	switch (prop) {
 	case DUAL_ROLE_PROP_PR:
 	case DUAL_ROLE_PROP_DR:
@@ -144,6 +145,7 @@ int tcpc_dual_role_phy_init(
 	struct dual_role_phy_desc *dual_desc;
 	int len;
 	char *str_name;
+
 	tcpc->dr_usb = devm_kzalloc(&tcpc->dev,
 				sizeof(tcpc->dr_usb), GFP_KERNEL);
 

@@ -39,7 +39,7 @@
 #include <linux/sched/rt.h>
 #endif /* #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)) */
 
-// #define DEBUG_GPIO	66
+/* #define DEBUG_GPIO	66 */
 #define RT1711_REDUCE_I2C_ACCESS_TIME_READ
 #define RT1711_REDUCE_I2C_ACCESS_TIME_WRITE
 
@@ -378,8 +378,8 @@ static int rt1711_init_alert_mask(struct tcpc_device *tcpc)
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	mask |= RT1711_REG_ALERT_TX_SUCCESS | RT1711_REG_ALERT_TX_DISCARDED
-			| RT1711_REG_ALERT_TX_FAILED | RT1711_REG_ALERT_RX_HARD_RST
-			| RT1711_REG_ALERT_RX_STATUS;
+		| RT1711_REG_ALERT_TX_FAILED | RT1711_REG_ALERT_RX_HARD_RST
+		| RT1711_REG_ALERT_RX_STATUS;
 #endif
 
 	return rt1711_reg_write(chip->client,
@@ -394,8 +394,8 @@ static int rt1711_init_power_status_mask(struct tcpc_device *tcpc)
 	mask = RT1711_VBUS_PRES_MASK;
 
 #ifdef CONFIG_TCPC_VSAFE0V_DETECT_IC
-    mask |= RT1711_VBUS_SAFE0V_MASK;
-#endif // CONFIG_TCPC_VSAFE0V_DETECT_IC
+	mask |= RT1711_VBUS_SAFE0V_MASK;
+#endif /* CONFIG_TCPC_VSAFE0V_DETECT_IC */
 
 	return rt1711_reg_write(chip->client,
 		RT1711_REG_POWER_STATUS_MASK, mask);
@@ -420,7 +420,7 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 			container_of(work, struct rt1711_chip, irq_work);
 	int regval = 0;
 	int gpio_val;
-	
+
 	rt1711_poll_ctrl(chip);
 	/* make sure I2C bus had resumed */
 	down(&chip->suspend_lock);
@@ -434,7 +434,7 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 		regval = tcpci_alert(chip->tcpc);
 		if (regval)
 			break;
-        gpio_val = gpio_get_value(chip->irq_gpio);
+		gpio_val = gpio_get_value(chip->irq_gpio);
 	} while (gpio_val == 0);
 
 	tcpci_unlock_typec(chip->tcpc);
@@ -469,7 +469,7 @@ static irqreturn_t rt1711_intr_handler(int irq, void *data)
 static int rt1711_init_alert(struct tcpc_device *tcpc)
 {
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 }; //rt
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
 	char *name;
 	int len;
@@ -511,13 +511,15 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 #else
 	pr_info("Org Test\r\n");
 	ret = request_irq(chip->irq, rt1711_intr_handler, NULL,
-        IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND,
+	IRQF_TRIGGER_FALLING | IRQF_NO_SUSPEND,
 		name, chip);
 #endif
 
-	//ret = devm_request_threaded_irq(chip->dev, chip->irq, NULL,
-	//	rt1711_intr_handler, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-	//	name, chip);
+	/*
+	   ret = devm_request_threaded_irq(chip->dev, chip->irq, NULL,
+	   rt1711_intr_handler, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+	   name, chip);
+	*/
 
 	if (ret < 0) {
 		pr_err("Error: failed to request irq%d (gpio = %d, ret = %d)\n",
@@ -554,7 +556,7 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 		rt1711_reg_write(chip->client, RT1711_REG_SWRESET, 1);
 		mdelay(1);
 	}
-	
+
 	power_status = rt1711_reg_read(chip->client, RT1711_REG_POWER_STATUS);
 	/* if EC Success, power_status should be 0 */
 	if (power_status < 0)
@@ -623,7 +625,8 @@ static int rt1711_get_alert_status(struct tcpc_device *tcpc, uint32_t *alert)
 
 	if (ret & RT1711_RA_DETACH_STATUS) {
 		rt1711_reg_write(chip->client, RT1711_REG_CC_EXT_CTRL,
-			RT1711_WAKEUP_EN | RT1711_CK_40K_SEL | RT1711_RA_DETACH_MASK);
+			RT1711_WAKEUP_EN | RT1711_CK_40K_SEL |
+			RT1711_RA_DETACH_MASK);
 	}
 #endif
 
@@ -786,7 +789,8 @@ static int rt1711_set_vconn(struct tcpc_device *tcpc, int enable)
 }
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
-static int rt1711_set_low_power_mode(struct tcpc_device *tcpc_dev, bool en, int pull)
+static int rt1711_set_low_power_mode(
+			struct tcpc_device *tcpc_dev, bool en, int pull)
 {
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc_dev);
 	int rv = 0;
@@ -841,7 +845,7 @@ static int rt1711_get_message(struct tcpc_device *tcpc, uint32_t *payload,
 			RT1711_REG_RCVBYTECNT, 4, buf);
 	cnt = buf[0];
 	type = buf[1];
-	*msg_head = *(uint16_t*)&buf[2];
+	*msg_head = *(uint16_t *)&buf[2];
 	if (rc >= 0 && cnt > 2) {
 		cnt -= 2; /* MSG_HDR */
 		rc = rt1711_block_read(chip->client, RT1711_REG_RXDATA,
@@ -869,7 +873,7 @@ static int rt1711_get_message(struct tcpc_device *tcpc, uint32_t *payload,
 	/* Clear RX-Count : if we don't clear this bit, something wrong */
 	rt1711_reg_write(chip->client, RT1711_REG_RCVBYTECNT, 0);
 
-	//mdelay(1);
+	/* mdelay(1); */
 	return rc;
 }
 
@@ -879,6 +883,7 @@ static int rt1711_check_txrx_busy(tcpc_dev_t *tcpc, int id)
 	int busy = 0;
 	int status = 0;
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
+
 	status = rt1711_reg_read(chip->client, RT1711_REG_RCVBYTECNT);
 	if (status < 0)
 		return status;
@@ -932,6 +937,7 @@ static int rt1711_transmit(struct tcpc_device *tcpc,
 
 #ifdef CONFIG_USB_PD_DBG_CHECK_TXRX_BUSY
 	int i = 0;
+
 	while (rt1711_check_txrx_busy(tcpc_dev, i)) {
 		if (i++ > 5) {
 			TCPC_INFO("Transmit Busy\r\n");
@@ -947,12 +953,13 @@ static int rt1711_transmit(struct tcpc_device *tcpc,
 
 #ifdef RT1711_REDUCE_I2C_ACCESS_TIME_WRITE
 		temp[0] = packet_cnt;
-		memcpy(temp+1, (uint8_t*)&header, 2);
+		memcpy(temp+1, (uint8_t *)&header, 2);
 		if (data_cnt > 0)
 			memcpy(temp+3, (uint8_t *)data, data_cnt);
 
 		rv = rt1711_block_write(chip->client,
-			RT1711_REG_TRANSMITBYTECNT, packet_cnt+1, (uint8_t *)temp);
+			RT1711_REG_TRANSMITBYTECNT,
+			packet_cnt+1, (uint8_t *)temp);
 		if (rv < 0)
 			return rv;
 #else
@@ -1147,6 +1154,7 @@ static int rt1711_check_i2c(struct i2c_client *i2c)
 {
 	int ret;
 	u8 data;
+
 	ret = rt1711_read_device(i2c, 0x12, 1, &data);
 	if (ret < 0)
 		return ret;
@@ -1165,7 +1173,8 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 	u16 vendor;
 
 	pr_info("%s\n", __func__);
-	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_BYTE_DATA))
+	if (i2c_check_functionality(client->adapter,
+		I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_BYTE_DATA))
 		pr_info("I2C functionality : OK...\n");
 	else
 		pr_info("I2C functionality check : failuare...\n");
@@ -1280,8 +1289,8 @@ static void rt1711_shutdown(struct i2c_client *client)
 	/* Please reset IC here */
 	if (chip != NULL && chip->irq)
 		disable_irq(chip->irq);
-	
-	i2c_smbus_write_byte_data(client, RT1711_REG_SWRESET, 0x01);	
+
+	i2c_smbus_write_byte_data(client, RT1711_REG_SWRESET, 0x01);
 }
 
 static int rt1711_pm_suspend_runtime(struct device *device)
@@ -1296,11 +1305,10 @@ static int rt1711_pm_resume_runtime(struct device *device)
 	return 0;
 }
 
-
 static const struct dev_pm_ops rt1711_pm_ops = {
-    SET_SYSTEM_SLEEP_PM_OPS(
-    rt1711_i2c_suspend,
-    rt1711_i2c_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(
+		rt1711_i2c_suspend,
+		rt1711_i2c_resume)
 	SET_RUNTIME_PM_OPS(
 		rt1711_pm_suspend_runtime,
 		rt1711_pm_resume_runtime,
@@ -1339,8 +1347,8 @@ static struct i2c_driver rt1711_driver = {
 static int __init rt1711_init(void)
 {
 	struct device_node *np;
-	pr_info("rt1711_init() : initializing...\n");
 
+	pr_info("rt1711_init() : initializing...\n");
 	np = of_find_node_by_name(NULL, "rt1711");
 	if (np != NULL)
 		pr_info("rt1711 node found...\n");

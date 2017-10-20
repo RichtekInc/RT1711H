@@ -23,32 +23,35 @@ typedef struct __pd_event {
 	pd_msg_t *pd_msg;
 } pd_event_t;
 
-pd_msg_t * pd_alloc_msg(struct tcpc_device *tcpc_dev);
+pd_msg_t *pd_alloc_msg(struct tcpc_device *tcpc_dev);
 void pd_free_msg(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg);
 
-bool pd_get_event(struct tcpc_device *tcpc_dev, pd_event_t* pd_event);
-bool pd_put_event(struct tcpc_device *tcpc_dev, const pd_event_t* pd_event, bool from_port_partner);
-void pd_free_event(struct tcpc_device *tcpc_dev, pd_event_t* pd_event);
+bool pd_get_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event);
+bool pd_put_event(struct tcpc_device *tcpc_dev,
+		const pd_event_t *pd_event, bool from_port_partner);
+void pd_free_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event);
 void pd_event_buf_reset(struct tcpc_device *tcpc_dev);
 
-bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t* pd_event);
-bool pd_put_vdm_event(struct tcpc_device *tcpc_dev, const pd_event_t* pd_event, bool from_port_partner);
+bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t *pd_event);
+bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
+			const pd_event_t *pd_event, bool from_port_partner);
 
 bool pd_put_last_vdm_event(struct tcpc_device *tcpc_dev);
 
 extern int tcpci_event_init(struct tcpc_device *tcpc_dev);
 extern int tcpci_event_deinit(struct tcpc_device *tcpc_dev);
 
-void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev);
+void pd_put_idle_event(struct tcpc_device *tcpc_dev);
 void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev);
-void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev);
-bool pd_put_pd_msg_event(struct tcpc_device *tcpc_dev, pd_msg_t* pd_msg);
+bool pd_put_pd_msg_event(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg);
 void pd_put_hard_reset_completed_event(struct tcpc_device *tcpc_dev);
 void pd_put_vbus_changed_event(struct tcpc_device *tcpc_dev);
 void pd_put_vbus_safe0v_event(struct tcpc_device *tcpc_dev);
 void pd_put_vbus_stable_event(struct tcpc_device *tcpc_dev);
 
-enum pd_event_type{
+extern uint8_t pd_wait_tx_finished_event(pd_port_t *pd_port);
+
+enum pd_event_type {
 	PD_EVT_PD_MSG = 0,	/* either ctrl msg or data msg */
 	PD_EVT_CTRL_MSG,
 	PD_EVT_DATA_MSG,
@@ -93,7 +96,7 @@ enum pd_data_msg_type {
 
 /* HW Message type */
 enum pd_hw_msg_type {
-	PD_HW_CC_DETACHED = 0,
+	PD_HW_CC_DETACHED = 0,	/* using pd_put_idle_event() */
 	PD_HW_CC_ATTACHED,
 	PD_HW_RECV_HARD_RESET,
 	PD_HW_VBUS_PRESENT,
@@ -110,7 +113,6 @@ enum pd_pe_msg_type {
 	PD_PE_RESET_PRL_COMPLETED = 0,
 	PD_PE_POWER_ROLE_AT_DEFAULT,
 	PD_PE_HARD_RESET_COMPLETED,
-	PD_PE_IDLE,
 	PD_PE_MSG_NR,
 };
 
@@ -172,7 +174,8 @@ enum pd_tx_transmit_state {
 	PD_TX_STATE_WAIT_HARD_RESET,
 };
 
-static inline bool pd_event_msg_match(pd_event_t *pd_event, uint8_t type, uint8_t msg)
+static inline bool pd_event_msg_match(pd_event_t *pd_event,
+					uint8_t type, uint8_t msg)
 {
 	if (pd_event->event_type != type)
 		return false;
@@ -180,4 +183,4 @@ static inline bool pd_event_msg_match(pd_event_t *pd_event, uint8_t type, uint8_
 	return (pd_event->msg == msg);
 }
 
-#endif // TCPC_EVENT_BUF_H_INCLUDED
+#endif /* TCPC_EVENT_BUF_H_INCLUDED */

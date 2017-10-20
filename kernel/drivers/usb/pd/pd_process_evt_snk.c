@@ -119,11 +119,6 @@ DECL_PE_STATE_TRANSITION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT) = {
 };
 DECL_PE_STATE_REACTION(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
 
-DECL_PE_STATE_TRANSITION(PD_PE_MSG_IDLE) = {
-	{ PE_IDLE1, PE_IDLE2 },
-};
-DECL_PE_STATE_REACTION(PD_PE_MSG_IDLE);
-
 /* Timer Event reactions */
 
 DECL_PE_STATE_TRANSITION(PD_TIMER_BIST_CONT_MODE) = {
@@ -149,9 +144,9 @@ DECL_PE_STATE_REACTION(PD_TIMER_SINK_REQUEST);
  */
 
 static inline bool pd_process_ctrl_msg_good_crc(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	switch(pd_port->pe_state_curr) {
+	switch (pd_port->pe_state_curr) {
 	case PE_SNK_SELECT_CAPABILITY:
 	case PE_SNK_SEND_SOFT_RESET:
 	case PE_DR_SNK_GET_SINK_CAP:
@@ -164,7 +159,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 }
 
 static inline bool pd_process_ctrl_msg_get_source_cap(
-		pd_port_t* pd_port, pd_event_t *pd_event)
+		pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	switch (pd_port->pe_state_curr) {
 	case PE_SNK_READY:
@@ -179,14 +174,13 @@ static inline bool pd_process_ctrl_msg_get_source_cap(
 	if (pd_port->dpm_caps & DPM_CAP_LOCAL_DR_POWER) {
 		PE_TRANSIT_STATE(pd_port, PE_DR_SNK_GIVE_SOURCE_CAP);
 		return true;
-	} else {
-		pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
-		return false;
 	}
+	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_REJECT);
+	return false;
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	bool ret = false;
 
@@ -230,7 +224,8 @@ static inline bool pd_process_ctrl_msg(
 			if (pd_port->explicit_contract)
 				PE_TRANSIT_STATE(pd_port, PE_SNK_READY);
 			else
-				PE_TRANSIT_STATE(pd_port, PE_SNK_WAIT_FOR_CAPABILITIES);
+				PE_TRANSIT_STATE(pd_port,
+					PE_SNK_WAIT_FOR_CAPABILITIES);
 
 			return true;
 		}
@@ -258,10 +253,8 @@ static inline bool pd_process_ctrl_msg(
 		break;
 	}
 
-	if (!ret) {
+	if (!ret)
 		ret = pd_process_protocol_error(pd_port, pd_event);
-	}
-
 	return ret;
 }
 
@@ -292,10 +285,8 @@ static inline bool pd_process_data_msg(
 		break;
 	}
 
-	if (!ret) {
+	if (!ret)
 		ret = pd_process_protocol_error(pd_port, pd_event);
-	}
-
 	return ret;
 }
 
@@ -334,7 +325,7 @@ static inline bool pd_process_hw_msg(
 
 	switch (pd_event->msg) {
 	case PD_HW_CC_DETACHED:
-		PE_TRANSIT_STATE(pd_port, PE_IDLE1);
+		PE_TRANSIT_STATE(pd_port, PE_IDLE);
 		return true;
 
 	case PD_HW_CC_ATTACHED:
@@ -342,9 +333,8 @@ static inline bool pd_process_hw_msg(
 		return true;
 
 	case PD_HW_RECV_HARD_RESET:
-		ret = pd_process_recv_hard_reset(
-			pd_port, pd_event, PE_SNK_TRANSITION_TO_DEFAULT);
-		break;
+		PE_TRANSIT_STATE(pd_port, PE_SNK_TRANSITION_TO_DEFAULT);
+		return true;
 
 	case PD_HW_VBUS_PRESENT:
 		ret = PE_MAKE_STATE_TRANSIT(PD_HW_MSG_VBUS_PRESENT);
@@ -383,10 +373,6 @@ static inline bool pd_process_pe_msg(
 
 	case PD_PE_POWER_ROLE_AT_DEFAULT:
 		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_POWER_ROLE_AT_DEFAULT);
-		break;
-
-	case PD_PE_IDLE:
-		ret = PE_MAKE_STATE_TRANSIT(PD_PE_MSG_IDLE);
 		break;
 	}
 
@@ -441,20 +427,20 @@ static inline bool pd_process_timer_msg(
 		break;
 #endif	/* CONFIG_USB_PD_FAST_RESP_TYPEC_SRC */
 
+
 	case PD_TIMER_NO_RESPONSE:
 		if (!pd_dpm_check_vbus_valid(pd_port)) {
 			PE_DBG("NoResp&VBUS=0\r\n");
 			PE_TRANSIT_STATE(pd_port, PE_ERROR_RECOVERY);
-			return true;
+			ret = true;
 		} else if (pd_port->hard_reset_counter <= PD_HARD_RESET_COUNT) {
 			PE_TRANSIT_STATE(pd_port, PE_SNK_HARD_RESET);
-			return true;
-		} else if(pd_port->pd_prev_connected) {
+			ret = true;
+		} else if (pd_port->pd_prev_connected) {
 			PE_TRANSIT_STATE(pd_port, PE_ERROR_RECOVERY);
-			return true;
-		} else {
+			ret = true;
+		} else
 			pd_report_typec_only_charger(pd_port);
-		}
 		break;
 #endif
 

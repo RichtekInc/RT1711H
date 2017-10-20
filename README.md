@@ -2,6 +2,9 @@
 
 ## Changelog
 
+### v006
+- [LINUX] Fix Coding Style
+
 ### v005
 - [TCPC] Add Wakeup Watchdog timer.
 - [SNK] Add a new config for fast response type-c only source.

@@ -185,7 +185,7 @@ extern int tcpm_discover_cable(
 	struct tcpc_device *tcpc_dev, uint32_t *vdos);
 
 extern int tcpm_vdm_request_id(
-	struct tcpc_device *tcpc_dev, uint8_t* cnt, uint8_t* payload);
+	struct tcpc_device *tcpc_dev, uint8_t *cnt, uint8_t *payload);
 
 /* Request TCPM to send PD-DP Request */
 

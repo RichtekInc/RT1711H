@@ -45,9 +45,9 @@ static struct device_type tcpc_dev_type;
 static struct device_attribute tcpc_device_attributes[] = {
 	TCPC_DEVICE_ATTR(role_def, S_IRUGO),
 	TCPC_DEVICE_ATTR(rp_lvl, S_IRUGO),
-	TCPC_DEVICE_ATTR(pd_test, S_IRUGO | S_IWUGO),
+	TCPC_DEVICE_ATTR(pd_test, S_IRUGO | S_IWOTH),
 	TCPC_DEVICE_ATTR(info, S_IRUGO),
-	TCPC_DEVICE_ATTR(timer, S_IRUGO | S_IWUGO),
+	TCPC_DEVICE_ATTR(timer, S_IRUGO | S_IWOTH),
 	TCPC_DEVICE_ATTR(caps_info, S_IRUGO),
 };
 
@@ -143,7 +143,8 @@ static ssize_t tcpc_show_property(struct device *dev,
 			snprintf(buf, 256, "%s\n", "3.0");
 		break;
 	case TCPC_DESC_PD_TEST:
-		snprintf(buf, 256, "%s\n%s\n%s\n%s\n%s\n", "1: Power Role Swap Test",
+		snprintf(buf,
+			256, "%s\n%s\n%s\n%s\n%s\n", "1: Power Role Swap Test",
 				"2: Data Role Swap Test", "3: Vconn Swap Test",
 				"4: soft reset", "5: hard reset");
 		break;
@@ -202,7 +203,7 @@ static ssize_t tcpc_store_property(struct device *dev,
 
 	switch (offset) {
 	case TCPC_DESC_TIMER:
-		ret = get_parameters((char*)buf, &val, 1);
+		ret = get_parameters((char *)buf, &val, 1);
 		if (ret < 0) {
 			dev_err(dev, "get parameters fail\n");
 			return -EINVAL;
@@ -219,7 +220,7 @@ static ssize_t tcpc_store_property(struct device *dev,
 		break;
 	#ifdef CONFIG_USB_POWER_DELIVERY
 	case TCPC_DESC_PD_TEST:
-		ret = get_parameters((char*)buf, &val, 1);
+		ret = get_parameters((char *)buf, &val, 1);
 		if (ret < 0) {
 			dev_err(dev, "get parameters fail\n");
 			return -EINVAL;
@@ -284,6 +285,7 @@ struct tcpc_device *tcpc_dev_get_by_name(const char *name)
 static void tcpc_device_release(struct device *dev)
 {
 	struct tcpc_device *tcpc_dev = to_tcpc_device(dev);
+
 	pr_info("%s : %s device release\n", __func__, dev_name(dev));
 	BUG_ON(tcpc_dev == NULL);
 	/* Un-init pe thread */
@@ -328,13 +330,15 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 		kfree(tcpc);
 		return ERR_PTR(ret);
 	}
-	
+
 	srcu_init_notifier_head(&tcpc->evt_nh);
 	INIT_DELAYED_WORK(&tcpc->init_work, tcpc_init_work);
-	
+
 	mutex_init(&tcpc->access_lock);
 	mutex_init(&tcpc->typec_lock);
 	mutex_init(&tcpc->timer_lock);
+	sema_init(&tcpc->timer_enable_mask_lock, 1);
+	sema_init(&tcpc->timer_tick_lock, 1);
 
 	/* If system support "WAKE_LOCK_IDLE",
 	 * please use it instead of "WAKE_LOCK_SUSPEND" */
@@ -362,6 +366,7 @@ EXPORT_SYMBOL(tcpc_device_register);
 static int tcpc_device_irq_enable(struct tcpc_device *tcpc)
 {
 	int ret;
+
 	if (!tcpc->ops->init) {
 		pr_err("%s Please implment tcpc ops init function\n",
 		__func__);
@@ -402,7 +407,7 @@ int tcpc_schedule_init_work(struct tcpc_device *tcpc)
 {
 	if (tcpc->desc.notifier_supply_num == 0)
 		return tcpc_device_irq_enable(tcpc);
-	
+
 	schedule_delayed_work(
 		&tcpc->init_work, msecs_to_jiffies(30*1000));
 	return 0;
@@ -422,16 +427,16 @@ int register_tcp_dev_notifier(struct tcpc_device *tcp_dev,
 		pr_info("%s already started\n", __func__);
 		return 0;
 	}
-	
+
 	tcp_dev->desc.notifier_supply_num--;
 	pr_info("%s supply_num = %d\n", __func__,
 		tcp_dev->desc.notifier_supply_num);
-	
+
 	if (tcp_dev->desc.notifier_supply_num == 0) {
 		cancel_delayed_work(&tcp_dev->init_work);
 		tcpc_device_irq_enable(tcp_dev);
 	}
-	
+
 	return ret;
 }
 EXPORT_SYMBOL(register_tcp_dev_notifier);
@@ -451,8 +456,8 @@ void tcpc_device_unregister(struct device *dev, struct tcpc_device *tcpc)
 
 	tcpc_typec_deinit(tcpc);
 
-    wake_lock_destroy(&tcpc->dettach_temp_wake_lock);
-    wake_lock_destroy(&tcpc->attach_wake_lock);
+	wake_lock_destroy(&tcpc->dettach_temp_wake_lock);
+	wake_lock_destroy(&tcpc->attach_wake_lock);
 
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
 	devm_dual_role_instance_unregister(&tcpc->dev, tcpc->dr_usb);
@@ -524,5 +529,5 @@ module_exit(tcpc_class_exit);
 
 MODULE_DESCRIPTION("Richtek TypeC Port Control Core");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
-MODULE_VERSION("1.0.7_G");
+MODULE_VERSION("1.0.4_G");
 MODULE_LICENSE("GPL");

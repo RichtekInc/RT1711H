@@ -58,9 +58,9 @@ DECL_PE_STATE_REACTION(PD_TIMER_SENDER_RESPONSE);
  */
 
 static inline bool pd_process_ctrl_msg_good_crc(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+		pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	switch(pd_port->pe_state_curr) {
+	switch (pd_port->pe_state_curr) {
 	case PE_DRS_DFP_UFP_REJECT_DR_SWAP:
 	case PE_DRS_UFP_DFP_REJECT_DR_SWAP:
 		PE_TRANSIT_READY_STATE(pd_port);
@@ -85,7 +85,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 }
 
 static inline bool pd_process_ctrl_msg(
-	pd_port_t* pd_port, pd_event_t *pd_event)
+	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	switch (pd_event->msg) {
 	case PD_CTRL_GOOD_CRC:
