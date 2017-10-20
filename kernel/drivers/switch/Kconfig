@@ -1,0 +1,21 @@
+menuconfig SWITCH
+	tristate "Switch class support"
+	help
+	  Say Y here to enable switch class support. This allows
+	  monitoring switches by userspace via sysfs and uevent.
+
+if SWITCH
+
+config SWITCH_GPIO
+	tristate "GPIO Swith support"
+	depends on GENERIC_GPIO
+	help
+	  Say Y here to enable GPIO based switch support.
+
+config SWITCH_HD3SS460
+	tristate "HD3SS460 Switch support"
+	depends on GENERIC_GPIO
+	help
+	  Say Y here to enable TI HD3SS460 switch support (for DisplayPort).
+
+endif # SWITCH
