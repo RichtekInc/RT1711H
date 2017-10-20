@@ -524,5 +524,5 @@ module_exit(tcpc_class_exit);
 
 MODULE_DESCRIPTION("Richtek TypeC Port Control Core");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
-MODULE_VERSION("1.0.4_G");
+MODULE_VERSION("1.0.7_G");
 MODULE_LICENSE("GPL");

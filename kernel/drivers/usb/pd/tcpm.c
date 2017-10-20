@@ -211,7 +211,6 @@ int tcpm_dp_attention(
 	ret = vdm_put_dpm_vdm_request_event(
 		pd_port, PD_DPM_VDM_REQUEST_ATTENTION);
 
-
 	if (ret) {
 		pd_port->dp_status = dp_status;
 		pd_port->mode_svid = USB_SID_DISPLAYPORT;
@@ -280,7 +279,6 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 #endif	/* CONFIG_USB_PD_ALT_MODE */
-
 
 int tcpm_notify_vbus_stable(
 	struct tcpc_device *tcpc_dev)

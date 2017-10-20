@@ -150,8 +150,7 @@ bool dp_dfp_u_notify_pe_startup(
 	pd_port_t* pd_port, svdm_svid_data_t *svid_data)
 {
 	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_DP_MODE) {
-		pd_port->dp_dfp_u_state = DP_DFP_U_STARTUP;
-		
+		dp_dfp_u_set_state(pd_port, DP_DFP_U_STARTUP);
 		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_DP_MODE;
 	}
 

@@ -2,6 +2,16 @@
 
 ## Changelog
 
+### v005
+- [TCPC] Add Wakeup Watchdog timer.
+- [SNK] Add a new config for fast response type-c only source.
+- [DFP] Add a new flag for DFP's DiscoverCableID.
+- [SNK] Handle goto_min command.
+- [SWAP] Reject swap request if DPM_CAP declare no support.
+- [TYPEC] Support legacy CtoA cable.
+- [Power] Add clock gating function if PD isn't enabled.
+- [TYPEC] Fix SinkOnly or SourceOnly init issue
+
 ### v004
 - [DP] Change dfp_d configuration rule
 - [DPM] No support modal operation, still response ACK for DiscoverSVID Mode
@@ -9,7 +19,7 @@
 
 ### v003
 - Fix the tcpc_init sequence
-- Add new tcpm_xxx function : discover_cable_id;
+  - Add new tcpm_xxx function : discover_cable_id;
 - [DP] Change DPSTS_DFP_D and DPSTS_UFP_D definition
 - [SNK] Fix the incorrectness of internal request voltage state
         when match source_caps case  not found

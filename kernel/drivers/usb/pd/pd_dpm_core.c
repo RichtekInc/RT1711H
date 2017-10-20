@@ -1242,12 +1242,14 @@ void pd_dpm_prs_evaluate_swap(pd_port_t* pd_port, uint8_t role)
 {
 	int good_power;
 	bool accept = true;
-	bool sink, check_src, check_snk;
+	bool sink, check_src, check_snk, check_ext;
 
-	if (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GOOD_POWER) {
+	check_src = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC) ? 1 : 0;
+	check_snk = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK) ? 1 : 0;
+	check_ext = (pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER) ? 1 : 0;
+
+	if (check_src|check_snk|check_ext) {
 		sink = pd_port->power_role == PD_ROLE_SINK;
-		check_src = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC) ? 1: 0;
-		check_snk = (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK) ? 1: 0;
 		good_power = dpm_check_good_power(pd_port);
 
 		switch(good_power) {
@@ -1257,7 +1259,7 @@ void pd_dpm_prs_evaluate_swap(pd_port_t* pd_port, uint8_t role)
 			break;
 
 		case GOOD_PW_LOCAL:
-			if ((!sink) && check_src)
+			if ((!sink) && (check_src||check_ext))
 				accept = false;
 			break;
 
@@ -1287,7 +1289,7 @@ void pd_dpm_prs_enable_power_source(pd_port_t* pd_port, bool en)
 {
 	int vbus_level = en ? TCPC_VBUS_SOURCE_5V : TCPC_VBUS_SOURCE_0V;
 
-	tcpci_source_vbus(pd_port->tcpc_dev, vbus_level, 0);
+	tcpci_source_vbus(pd_port->tcpc_dev, vbus_level, -1);
 
 	if (en)
 		pd_enable_vbus_valid_detection(pd_port, en);
@@ -1356,23 +1358,30 @@ static inline int pd_dpm_ready_get_source_cap(pd_port_t* pd_port)
 	return 1;
 }
 
+static inline int pd_dpm_ready_attempt_get_extbit(pd_port_t* pd_port)
+{
+	if (pd_port->remote_src_cap.nr >= 1)
+		return 0;
+
+	if (pd_port->remote_snk_cap.nr >= 1)
+		return 0;
+
+	if (!(pd_port->dpm_flags & DPM_FLAGS_CHECK_EXT_POWER))
+		return 0;	
+
+	if (pd_port->get_snk_cap_count >= PD_GET_SNK_CAP_RETRIES)
+		return 0;
+	
+	pd_port->get_snk_cap_count++;
+	pd_put_dpm_pd_request_event(
+		pd_port, PD_DPM_PD_REQUEST_GET_SINK_CAP);
+	return 1;
+}
+
 static inline int pd_dpm_notify_pe_src_ready(
 	pd_port_t* pd_port, pd_event_t* pd_event)
 {
-	if (pd_dpm_ready_get_source_cap(pd_port))
-		return 1;
-
-	return pd_dpm_ready_get_sink_cap(pd_port);
-}
-
-static inline int pd_dpm_notify_pe_snk_ready(
-	pd_port_t* pd_port, pd_event_t* pd_event)
-{
-#if 0
-	return pd_dpm_ready_get_sink_cap(pd_port);
-#else
-	return 0;
-#endif
+	return pd_dpm_ready_attempt_get_extbit(pd_port);
 }
 
 static inline int pd_dpm_notify_pe_dfp_ready(
@@ -1395,10 +1404,12 @@ static inline int pd_dpm_notify_pe_dfp_ready(
 #endif
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
-	if (pd_is_auto_discover_cable_id(pd_port)) {
-			pd_disable_timer(pd_port, PD_TIMER_DISCOVER_ID);
-			pd_enable_timer(pd_port, PD_TIMER_DISCOVER_ID);
-			return 0;
+	if (pd_port->dpm_flags & DPM_FLAGS_CHECK_CABLE_ID_DFP) {
+		if (pd_is_auto_discover_cable_id(pd_port)) {
+				pd_disable_timer(pd_port, PD_TIMER_DISCOVER_ID);
+				pd_enable_timer(pd_port, PD_TIMER_DISCOVER_ID);
+				return 0;
+		}
 	}
 #endif
 
@@ -1418,13 +1429,19 @@ int pd_dpm_notify_pe_startup(pd_port_t *pd_port)
 		flags |= DPM_FLAGS_CHECK_DR_ROLE;
 
 	if (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SRC)
-		flags |= DPM_FLAGS_CHECK_SINK_CAP;
+		flags |= DPM_FLAGS_CHECK_EXT_POWER;
 
 	if (pd_port->dpm_caps & DPM_CAP_PR_SWAP_CHECK_GP_SNK)
-		flags |= DPM_FLAGS_CHECK_SOURCE_CAP;
+		flags |= DPM_FLAGS_CHECK_EXT_POWER;
+
+	if (pd_port->dpm_caps & DPM_CAP_LOCAL_EXT_POWER)
+		flags |= DPM_FLAGS_CHECK_EXT_POWER;
 
 	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_CABLE)
 		flags |= DPM_FLAGS_CHECK_CABLE_ID;
+
+	if (pd_port->dpm_caps & DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP)
+		flags |= DPM_FLAGS_CHECK_CABLE_ID_DFP;
 
 	/* If try to enter DP, then skip normal discover_id flow */
 
@@ -1443,10 +1460,14 @@ int pd_dpm_notify_pe_ready(pd_port_t* pd_port, pd_event_t* pd_event)
 {
 	int ret = 0;
 
+	if (pd_dpm_ready_get_source_cap(pd_port))
+		return 1;
+
+	if (pd_dpm_ready_get_sink_cap(pd_port))
+		return 1;
+
 	if (pd_port->power_role == PD_ROLE_SOURCE)
 		ret = pd_dpm_notify_pe_src_ready(pd_port, pd_event);
-	else
-		ret = pd_dpm_notify_pe_snk_ready(pd_port, pd_event);
 
 	if (ret != 0)
 		return ret;

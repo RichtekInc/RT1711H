@@ -27,6 +27,8 @@
 #include <linux/usb/tcpci_timer.h>
 #include <linux/usb/tcpci_typec.h>
 
+#define RT_MASK64(i)	(((uint64_t)1) << i)
+
 #define TIMEOUT_VAL(val)	(val * 1000)
 #define TIMEOUT_RANGE(min, max)		((min * 4000 + max * 1000)/5)
 #define TIMEOUT_VAL_US(val)	(val)
@@ -125,6 +127,7 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_TIMER_PDDEBOUNCE",
 	"TYPEC_TIMER_ERROR_RECOVERY",
 	"TYPEC_TIMER_SAFE0V",
+	"TYPEC_TIMER_WAKEUP_TOUT",
 	"TYPEC_TIMER_DRP_SRC_TOGGLE",
 	"TYPEC_TIMER_PE_IDLE",
 #else
@@ -133,6 +136,7 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_TIMER_CCDEBOUNCE",
 	"TYPEC_TIMER_PDDEBOUNCE",
 	"TYPEC_TIMER_SAFE0V",
+	"TYPEC_TIMER_WAKEUP_TOUT",
 	"TYPEC_TIMER_DRP_SRC_TOGGLE",
 #endif /* CONFIG_USB_POWER_DELIVERY */
 };
@@ -188,6 +192,7 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(25, 25),		// TYPEC_TIMER_ERROR_RECOVERY
 	TYPEC_TIMER_SAFE0V_TOUT,	// TYPEC_TIMER_SAFE0V (out of spec)
 
+	TIMEOUT_VAL(300*1000),		// TYPEC_TIMER_WAKEUP_TOUT (out of spec)
 	TIMEOUT_VAL(60),			// TYPEC_TIMER_DRP_SRC_TOGGLE
 	TIMEOUT_VAL(1),				// TYPEC_TIMER_PE_IDLE (out of spec)
 #else
@@ -197,6 +202,7 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(10, 10),		// TYPEC_TIMER_PDDEBOUNCE
 	TYPEC_TIMER_SAFE0V_TOUT,	// TYPEC_TIMER_SAFE0V (out of spec)
 
+	TIMEOUT_VAL(300*1000),		// TYPEC_TIMER_WAKEUP_TOUT (out of spec)
 	TIMEOUT_VAL(60),			// TYPEC_TIMER_DRP_SRC_TOGGLE
 #endif /* CONFIG_USB_POWER_DELIVERY */
 };
@@ -228,7 +234,13 @@ static inline void on_pe_timer_timeout(
 		tcpc_dev->pd_discard_pending = false;
 		pd_put_hw_event(tcpc_dev, PD_HW_TX_FAILED);
 		break;
-#endif
+#endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
+
+#if CONFIG_USB_PD_VBUS_STABLE_TOUT
+	case PD_TIMER_VBUS_STABLE:
+		pd_put_vbus_stable_event(tcpc_dev);
+		break;
+#endif	/* CONFIG_USB_PD_VBUS_STABLE_TOUT */
 
     case PD_PE_VDM_POSTPONE:
         tcpc_dev->pd_postpone_vdm_timeout = true;
@@ -502,6 +514,15 @@ static enum hrtimer_restart tcpc_timer_pd_discard(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_vbus_stable(struct hrtimer *timer)
+{
+    int index = PD_TIMER_VBUS_STABLE;
+	struct tcpc_device *tcpc_dev =
+			container_of(timer, struct tcpc_device, tcpc_timer[index]);
+    TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart pd_pe_vdm_postpone_timeout(struct hrtimer *timer)
 {
     int index = PD_PE_VDM_POSTPONE;
@@ -563,6 +584,16 @@ static enum hrtimer_restart tcpc_timer_safe0v(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart tcpc_timer_wakeup(struct hrtimer *timer)
+{
+	int index = TYPEC_TIMER_WAKEUP;
+	struct tcpc_device *tcpc_dev =
+			container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
 static enum hrtimer_restart tcpc_timer_drp_src_toggle(struct hrtimer *timer)
 {
 	int index = TYPEC_TIMER_DRP_SRC_TOGGLE;
@@ -598,6 +629,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[PD_TIMER_SRC_RECOVER] = tcpc_timer_src_recover,
 	[PD_TIMER_VSAFE0V] = tcpc_timer_vsafe0v,
 	[PD_TIMER_DISCARD] = tcpc_timer_pd_discard,
+	[PD_TIMER_VBUS_STABLE] = tcpc_timer_vbus_stable,
 	[PD_PE_VDM_POSTPONE] = pd_pe_vdm_postpone_timeout,
 	[TYPEC_TRY_TIMER_DRP_TRY] = tcpc_timer_try_drp_try,
 	[TYPEC_TRY_TIMER_DRP_TRYWAIT] = tcpc_timer_try_drp_trywait,
@@ -605,6 +637,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_TIMER_PDDEBOUNCE] = tcpc_timer_pddebounce,
 	[TYPEC_TIMER_ERROR_RECOVERY] = tcpc_timer_error_recovery,
 	[TYPEC_TIMER_SAFE0V] = tcpc_timer_safe0v,
+	[TYPEC_TIMER_WAKEUP] = tcpc_timer_wakeup,
 	[TYPEC_TIMER_DRP_SRC_TOGGLE] = tcpc_timer_drp_src_toggle,
 	[TYPEC_TIMER_PE_IDLE] = tcpc_timer_pe_idle,
 #else
@@ -613,6 +646,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_TIMER_CCDEBOUNCE] = tcpc_timer_ccdebounce,
 	[TYPEC_TIMER_PDDEBOUNCE] = tcpc_timer_pddebounce,
 	[TYPEC_TIMER_SAFE0V] = tcpc_timer_safe0v,
+	[TYPEC_TIMER_WAKEUP] = tcpc_timer_wakup,
 	[TYPEC_TIMER_DRP_SRC_TOGGLE] = tcpc_timer_drp_src_toggle,
 #endif /* CONFIG_USB_POWER_DELIVERY */
 };
@@ -665,7 +699,6 @@ void tcpc_enable_timer(struct tcpc_device *tcpc, uint32_t timer_id)
 
 void tcpc_disable_timer(struct tcpc_device *tcpc_dev, uint32_t timer_id)
 {
-
 	uint64_t mask = rt_get_value((volatile uint64_t *)&tcpc_dev->timer_enable_mask);
 
 	BUG_ON(timer_id >= PD_TIMER_NR);
@@ -717,11 +750,11 @@ static void tcpc_handle_timer_triggered(struct tcpc_device *tcpc_dev)
 	uint64_t triggered_timer;
 	int i = 0;
 
-	triggered_timer = tcpc_dev->timer_tick;
+	triggered_timer = rt_get_value((volatile uint64_t*)& tcpc_dev->timer_tick);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	for (i = 0; i < PD_PE_TIMER_END_ID; i++) {
-		if (triggered_timer & (1 << i)) {
+		if (triggered_timer & RT_MASK64(i)) {
 			TCPC_TIMER_DBG(tcpc_dev, i);
 			on_pe_timer_timeout(tcpc_dev, i);
 			rt_clear_bit(i, (volatile uint64_t*)&tcpc_dev->timer_tick);
@@ -731,7 +764,7 @@ static void tcpc_handle_timer_triggered(struct tcpc_device *tcpc_dev)
 
 	mutex_lock(&tcpc_dev->typec_lock);
 	for (; i < PD_TIMER_NR; i++) {
-		if (triggered_timer & (1 << i)) {
+		if (triggered_timer & RT_MASK64(i)) {
 			TCPC_TIMER_DBG(tcpc_dev, i);
 			tcpc_typec_handle_timeout(tcpc_dev, i);
 			rt_clear_bit(i, (volatile uint64_t*)&tcpc_dev->timer_tick);

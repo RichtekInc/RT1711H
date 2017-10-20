@@ -27,6 +27,6 @@ config USB_PD_VBUS_STABLE_TOUT
     int "PD VBUS Stable Timeout"
     depends on USB_POWER_DELIVERY
     range 0 1000                       # >= 0,  <= 1000
-    defaunt 125
+    default 125
     help
         Setup a timeout value (ms) for VBUS change stable

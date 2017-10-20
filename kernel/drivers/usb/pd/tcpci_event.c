@@ -197,10 +197,12 @@ bool pd_get_vdm_event(struct tcpc_device *tcpc_dev, pd_event_t* pd_event)
 	return false;
 }
 
-void reset_pe_vdm_state(pd_port_t* pd_port)
+static inline void reset_pe_vdm_state(pd_port_t* pd_port, uint32_t vdm_hdr)
 {
-	pd_port->reset_vdm_state = true;
-	pd_port->pe_vdm_state = pd_port->pe_pd_state;
+	if (PD_VDO_SVDM(vdm_hdr) && PD_VDO_CMDT(vdm_hdr) == CMDT_INIT) {
+		pd_port->reset_vdm_state = true;
+		pd_port->pe_vdm_state = pd_port->pe_pd_state;
+	}
 }
 
 bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
@@ -233,9 +235,7 @@ bool pd_put_vdm_event(struct tcpc_device *tcpc_dev,
 		BUG_ON(pd_msg == NULL);
 		//pd_msg->time_stamp = 0;
 		tcpc_dev->pd_last_vdm_msg = *pd_msg;
-
-		if (PD_VDO_CMDT(pd_msg->payload[0]) == CMDT_INIT)
-			reset_pe_vdm_state(&tcpc_dev->pd_port);
+		reset_pe_vdm_state(&tcpc_dev->pd_port, pd_msg->payload[0]);
 
 #ifdef CONFIG_USB_PD_POSTPONE_FIRST_VDM
 		postpone_vdm_event(tcpc_dev);
@@ -276,8 +276,7 @@ bool pd_put_last_vdm_event(struct tcpc_device *tcpc_dev)
 	tcpc_dev->pd_postpone_vdm_timeout = true;
 
 #ifdef CONFIG_USB_PD_POSTPONE_RETRY_VDM
-	if (PD_VDO_CMDT(pd_msg->payload[0]) == CMDT_INIT)
-		reset_pe_vdm_state(&tcpc_dev->pd_port);
+	reset_pe_vdm_state(&tcpc_dev->pd_port, pd_msg->payload[0]);
 	postpone_vdm_event(tcpc_dev);
 #else
 	atomic_inc(&tcpc_dev->pending_event); // do not really wake up process
@@ -341,8 +340,7 @@ static inline bool __pd_put_pe_event(
 	return __pd_put_event(tcpc_dev, &evt, false);
 }
 
-
-void pd_put_idle_event(struct tcpc_device *tcpc_dev)
+void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev)
 {
 	mutex_lock(&tcpc_dev->access_lock);
 
@@ -384,6 +382,18 @@ void pd_put_recv_hard_reset_event(struct tcpc_device *tcpc_dev)
 	tcpc_dev->pd_discard_pending = false;
 #endif
 
+	mutex_unlock(&tcpc_dev->access_lock);
+}
+
+void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev)
+{
+	mutex_lock(&tcpc_dev->access_lock);
+	if (tcpc_dev->pd_wait_hard_reset_complete) {
+		tcpc_dev->pd_transmit_state = PD_TX_STATE_GOOD_CRC;
+		__pd_event_buf_reset(tcpc_dev);
+		__pd_put_pe_event(tcpc_dev, PD_PE_HARD_RESET_COMPLETED);
+	} else
+		TCPC_DBG("[HReset] Unattached\r\n");
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
@@ -512,6 +522,17 @@ void pd_put_vbus_stable_event(struct tcpc_device *tcpc_dev)
 
 /* ---- PD Notify TCPC ---- */
 
+void pd_try_put_pe_idle_event(pd_port_t *pd_port)
+{
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+	
+	mutex_lock(&tcpc_dev->access_lock);
+	if (tcpc_dev->pd_transmit_state <= PD_TX_STATE_WAIT) {
+		__pd_put_pe_event(tcpc_dev, PD_PE_IDLE);
+	}
+	mutex_unlock(&tcpc_dev->access_lock);
+}
+
 void pd_notify_pe_idle(pd_port_t *pd_port)
 {
 	bool notify_pe_idle = false;
@@ -571,6 +592,26 @@ void pd_notify_pe_error_recovery(pd_port_t *pd_port)
 	tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_ERROR_RECOVERY);
 }
 
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+void pd_notify_pe_over_recv_hreset(pd_port_t *pd_port)
+{
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+
+	mutex_lock(&tcpc_dev->access_lock);
+	tcpc_dev->pd_wait_hard_reset_complete = false;
+	tcpc_dev->pd_wait_pr_swap_complete = false;
+	tcpc_dev->pd_wait_error_recovery = true;
+	mutex_unlock(&tcpc_dev->access_lock);
+
+	disable_irq(chip->irq);
+	tcpci_init(tcpc_dev, true);
+	tcpci_set_cc(tcpc_dev, TYPEC_CC_OPEN);
+	tcpci_set_rx_enable(tcpc_dev, PD_RX_CAP_PE_IDLE);
+	tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_ERROR_RECOVERY);
+	enable_irq_wake(chip->irq);
+}
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
 void pd_notify_pe_transit_to_default(pd_port_t *pd_port)
 {
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
@@ -595,7 +636,7 @@ void pd_notify_pe_hard_reset_completed(pd_port_t *pd_port)
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
-void pd_notify_pe_send_hard_reset_start(pd_port_t *pd_port)
+void pd_notify_pe_send_hard_reset(pd_port_t *pd_port)
 {
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
@@ -605,27 +646,29 @@ void pd_notify_pe_send_hard_reset_start(pd_port_t *pd_port)
 	mutex_unlock(&tcpc_dev->access_lock);
 }
 
-void pd_notify_pe_send_hard_reset_done(pd_port_t *pd_port)
+void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port, bool start_swap)
 {
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
-	mutex_lock(&tcpc_dev->access_lock);
-	if (tcpc_dev->pd_wait_hard_reset_complete) {
-		__pd_event_buf_reset(tcpc_dev);
-		__pd_put_pe_event(tcpc_dev, PD_PE_HARD_RESET_COMPLETED);
-	} else
-		TCPC_DBG("[HReset] Unattached\r\n");
-	mutex_unlock(&tcpc_dev->access_lock);
-}
-
-void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port)
-{
-	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
-
-	pd_port->during_swap = true;
+	pd_port->during_swap = start_swap;
 	mutex_lock(&tcpc_dev->access_lock);
 	tcpc_dev->pd_wait_pr_swap_complete = true;
 	mutex_unlock(&tcpc_dev->access_lock);
+}
+
+void pd_notify_pe_cancel_pr_swap(pd_port_t *pd_port)
+{
+	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+
+	if (!tcpc_dev->pd_wait_pr_swap_complete)
+		return;
+
+	pd_port->during_swap = false;
+	mutex_lock(&tcpc_dev->access_lock);
+	tcpc_dev->pd_wait_pr_swap_complete = false;
+	mutex_unlock(&tcpc_dev->access_lock);
+
+	tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
 }
 
 void pd_notify_pe_reset_protocol(pd_port_t *pd_port)
@@ -677,37 +720,16 @@ void pd_notify_pe_pr_changed(pd_port_t *pd_port)
 	//mutex_unlock(&tcpc_dev->access_lock);
 }
 
-uint8_t pd_wait_tx_finished_event(pd_port_t *pd_port)
+void pd_notify_pe_src_explicit_contract(pd_port_t *pd_port)
 {
-	uint8_t tx_status;
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
-	int i = 0;
+	if (pd_port->explicit_contract)
+		return;
 
-	/* Max : 8ms (HReset Max: 5ms)*/
-	do {
-		usleep_range(450, 500);
-
-		mutex_lock(&tcpc_dev->access_lock);
-		tx_status = tcpc_dev->pd_transmit_state;
-		mutex_unlock(&tcpc_dev->access_lock);
-
-#ifdef CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER
-		if (tx_status == PD_TX_STATE_WAIT_HARD_RESET &&
-			!(tcpc_dev->tcpc_flags & TCPC_FLAGS_WAIT_HRESET_COMPLETE)) {
-			TCPC_DBG("Ignore HTimer\r\n");
-			tx_status = PD_TX_STATE_GOOD_CRC;
-			break;
-		}
-#endif
-
-		if (++i >= 16) {
-			TCPC_INFO("--> tx_timeout\r\n");
-			tx_status = PD_TX_STATE_NO_RESPONSE;
-		}
-	} while(tx_status >= PD_TX_STATE_WAIT);
-
-	return tx_status;
+	//mutex_lock(&tcpc_dev->access_lock);
+	tcpc_typec_advertise_explicit_contract(tcpc_dev);
+	//mutex_unlock(&tcpc_dev->access_lock);
 }
 
 /* ---- init  ---- */

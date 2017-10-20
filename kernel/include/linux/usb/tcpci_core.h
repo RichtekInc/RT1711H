@@ -53,8 +53,8 @@
 				TYPEC_INFO_ENABLE|\
 				DP_INFO_ENABLE|DP_DBG_ENABLE)
 
-#define PE_EVT_INFO_VDM_DIS	0
-
+#define PE_EVT_INFO_VDM_DIS		0
+#define PE_DBG_RESET_VDM_DIS	1
 
 struct tcpc_device;
 
@@ -66,11 +66,12 @@ struct tcpc_desc {
 };
 
 /* TCPC Power Register Define */
-#define TCPC_REG_POWER_STATUS_EXT_VSAFE0V	(1<<15)	/* extend */
-#define TCPC_REG_POWER_STATUS_VBUS_PRES		(1<<2)
+#define TCPC_REG_POWER_STATUS_EXT_VSAFE0V 	(1<<15)	/* extend */
+#define TCPC_REG_POWER_STATUS_VBUS_PRES 	(1<<2)
 
 /* TCPC Alert Register Define */
 #define TCPC_REG_ALERT_EXT_RA_DETACH	(1<<(16+5))
+#define TCPC_REG_ALERT_EXT_WATCHDOG		(1<<(16+2))
 #define TCPC_REG_ALERT_EXT_VBUS_80		(1<<(16+1))
 #define TCPC_REG_ALERT_EXT_WAKEUP		(1<<(16+0))
 
@@ -94,6 +95,8 @@ struct tcpc_desc {
 #define TCPC_FLAGS_RETRY_CRC_DISCARD		(1<<0)
 #define TCPC_FLAGS_WAIT_HRESET_COMPLETE		(1<<1)
 #define TCPC_FLAGS_CHECK_CC_STABLE			(1<<2)
+#define TCPC_FLAGS_LPM_WAKEUP_WATCHDOG 		(1<<3)
+#define TCPC_FLAGS_CHECK_RA_DETACHE			(1<<4)
 
 enum tcpc_cc_voltage_status {
 	TYPEC_CC_VOLT_OPEN = 0,
@@ -117,6 +120,10 @@ enum tcpc_cc_pull {
 	TYPEC_CC_RP_DFT = 1,		/* 0x00 + 1 */
 	TYPEC_CC_RP_1_5 = 9,		/* 0x08 + 1*/
 	TYPEC_CC_RP_3_0 = 17,		/* 0x10 + 1 */
+
+	TYPEC_CC_DRP_DFT = 4,		/* 0x00 + 4 */
+	TYPEC_CC_DRP_1_5 = 12,		/* 0x08 + 4 */
+	TYPEC_CC_DRP_3_0 = 20,		/* 0x10 + 4 */
 };
 
 #define TYPEC_CC_PULL_GET_RES(pull)		(pull & 0x07)
@@ -181,6 +188,14 @@ struct tcpc_ops {
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
 #endif
 
+#ifdef CONFIG_TCPC_IDLE_MODE
+	int (*set_idle_mode)(struct tcpc_device *tcpc, bool en);
+#endif
+
+#ifdef CONFIG_TCPC_WATCHDOG_EN
+	int (*set_watchdog)(struct tcpc_device *tcpc, bool en);
+#endif
+
 #ifdef CONFIG_USB_POWER_DELIVERY
     int (*set_msg_header)(struct tcpc_device *tcpc, int power_role, int data_role);
     int (*set_rx_enable)(struct tcpc_device *tcpc, uint8_t enable);
@@ -203,6 +218,8 @@ struct tcpc_ops {
 
 #define TCPC_VBUS_SINK_0V		(0)
 #define TCPC_VBUS_SINK_5V		(5000)
+
+#define TCPC_LEGACY_CABLE_CONFIRM	7
 
 struct tcpc_device {
 	struct i2c_client *client;
@@ -240,15 +257,20 @@ struct tcpc_device {
 	uint8_t typec_role;
 	uint8_t typec_attach_old;
 	uint8_t typec_attach_new;
+	uint8_t typec_local_cc;
 	uint8_t typec_local_rp_level;
+	uint8_t typec_remote_cc[2];
 	uint8_t typec_remote_rp_level;
+	uint8_t typec_wait_ps_change;
 	bool typec_polarity;
-	bool typec_wait_ps_change;
-	bool typec_skip_try_snk;
-	bool typec_trysnk_timeout;
+	bool typec_drp_try_timeout;
 	bool typec_lpm;
 	bool typec_cable_only;
 
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	uint8_t typec_legacy_cable_suspect;
+#endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
+		
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
 	struct dual_role_phy_instance *dr_usb;
 	uint8_t dual_role_supported_modes;

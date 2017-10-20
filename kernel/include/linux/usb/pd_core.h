@@ -19,6 +19,19 @@
 #include <linux/usb/pd_dbg_info.h>
 #include <linux/usb/tcpci_config.h>
 
+//-----------------------------------------------------------------------------
+
+#ifdef CONFIG_USB_PD_SRC_STARTUP_DISCOVER_ID
+#define CONFIG_PD_DISCOVER_CABLE_ID
+#endif
+
+#ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
+#undef CONFIG_PD_DISCOVER_CABLE_ID
+#define CONFIG_PD_DISCOVER_CABLE_ID
+#endif
+
+//-----------------------------------------------------------------------------
+
 #define PD_SOP_NR	3
 
 /* Default retry count for transmitting */
@@ -626,11 +639,13 @@
 	(DPM_FLAGS_PARTNER_DR_POWER | DPM_FLAGS_PARTNER_DR_DATA|\
 	DPM_FLAGS_PARTNER_EXTPOWER | DPM_FLAGS_PARTNER_USB_COMM)
 
-#define DPM_FLAGS_CHECK_DP_MODE			(1<<24)
-#define DPM_FLAGS_CHECK_SINK_CAP		(1<<25)
-#define DPM_FLAGS_CHECK_SOURCE_CAP		(1<<26)
-#define DPM_FLAGS_CHECK_UFP_ID			(1<<27)
-#define DPM_FLAGS_CHECK_CABLE_ID		(1<<28)
+#define DPM_FLAGS_CHECK_EXT_POWER		(1<<22)
+#define DPM_FLAGS_CHECK_DP_MODE			(1<<23)
+#define DPM_FLAGS_CHECK_SINK_CAP		(1<<24)
+#define DPM_FLAGS_CHECK_SOURCE_CAP		(1<<25)
+#define DPM_FLAGS_CHECK_UFP_ID			(1<<26)
+#define DPM_FLAGS_CHECK_CABLE_ID		(1<<27)
+#define DPM_FLAGS_CHECK_CABLE_ID_DFP	(1<<28)
 #define DPM_FLAGS_CHECK_PR_ROLE			(1<<29)
 #define DPM_FLAGS_CHECK_DR_ROLE			(1<<30)
 
@@ -646,9 +661,10 @@
 #define DPM_CAP_LOCAL_NO_SUSPEND		(1<<7)
 #define DPM_CAP_LOCAL_VCONN_SUPPLY		(1<<8)
 
-#define DPM_CAP_ATTEMP_ENTER_DP_MODE	(1<<13)
-#define DPM_CAP_ATTEMP_DISCOVER_CABLE	(1<<14)
-#define DPM_CAP_ATTEMP_DISCOVER_ID		(1<<15)
+#define DPM_CAP_ATTEMP_DISCOVER_CABLE_DFP	(1<<12)
+#define DPM_CAP_ATTEMP_ENTER_DP_MODE		(1<<13)
+#define DPM_CAP_ATTEMP_DISCOVER_CABLE		(1<<14)
+#define DPM_CAP_ATTEMP_DISCOVER_ID			(1<<15)
 
 enum dpm_cap_pr_check_prefer {
 	DPM_CAP_PR_CHECK_DISABLE = 0,
@@ -656,7 +672,7 @@ enum dpm_cap_pr_check_prefer {
 	DPM_CAP_PR_CHECK_PREFER_SRC = 2,
 };
 
-#define DPM_CAP_PR_CHECK_PROP(cap)			((cap << 16) & 0x03)
+#define DPM_CAP_PR_CHECK_PROP(cap)			((cap & 0x03) << 16)
 #define DPM_CAP_EXTRACT_PR_CHECK(raw)		((raw >> 16) & 0x03)
 #define DPM_CAP_PR_SWAP_REJECT_AS_SRC		(1<<18)
 #define DPM_CAP_PR_SWAP_REJECT_AS_SNK		(1<<19)
@@ -671,7 +687,7 @@ enum dpm_cap_dr_check_prefer {
 	DPM_CAP_DR_CHECK_PREFER_DFP = 2,
 };
 
-#define DPM_CAP_DR_CHECK_PROP(cap)			((cap << 22) & 0x03)
+#define DPM_CAP_DR_CHECK_PROP(cap)			((cap & 0x03) << 22)
 #define DPM_CAP_EXTRACT_DR_CHECK(raw)		((raw >> 22) & 0x03)
 #define DPM_CAP_DR_SWAP_REJECT_AS_DFP		(1<<24)
 #define DPM_CAP_DR_SWAP_REJECT_AS_UFP		(1<<25)
@@ -738,7 +754,7 @@ typedef struct __pd_port {
 
 	uint8_t state_machine;
 	uint8_t pd_connect_state;
-
+	
 	bool reset_vdm_state;
 	uint8_t pe_pd_state;
 	uint8_t pe_vdm_state;
@@ -756,6 +772,10 @@ typedef struct __pd_port {
 	uint8_t src_cap_count;
 	uint8_t get_snk_cap_count;
 	uint8_t get_src_cap_count;
+
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	uint8_t recv_hard_reset_count;
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 
 	uint8_t msg_id_rx[PD_SOP_NR];
 	uint8_t msg_id_rx_init[PD_SOP_NR];
@@ -901,25 +921,32 @@ void pd_unlock_msg_output(pd_port_t* pd_port);
 int pd_update_connect_state(pd_port_t *pd_port, uint8_t state);
 
 /* ---- PD notify TCPC Policy Engine State Changed ---- */
-
+extern void pd_try_put_pe_idle_event(pd_port_t *pd_port);
 extern void pd_notify_pe_transit_to_default(pd_port_t *pd_port);
 extern void pd_notify_pe_hard_reset_completed(pd_port_t *pd_port);
-extern void pd_notify_pe_send_hard_reset_start(pd_port_t *pd_port);
-extern void pd_notify_pe_send_hard_reset_done(pd_port_t *pd_port);
+extern void pd_notify_pe_send_hard_reset(pd_port_t *pd_port);
 extern void pd_notify_pe_idle(pd_port_t *pd_port);
 extern void pd_notify_pe_wait_vbus_once(pd_port_t *pd_port, int wait_evt);
 extern void pd_notify_pe_error_recovery(pd_port_t *pd_port);
-extern void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port);
+extern void pd_notify_pe_execute_pr_swap(pd_port_t *pd_port, bool start_swap);
+extern void pd_notify_pe_cancel_pr_swap(pd_port_t *pd_port);
 extern void pd_notify_pe_reset_protocol(pd_port_t *pd_port);
 extern void pd_noitfy_pe_bist_mode(pd_port_t *pd_port, uint8_t mode);
 extern void pd_notify_pe_pr_changed(pd_port_t *pd_port);
+extern void pd_notify_pe_src_explicit_contract(pd_port_t *pd_port);
 extern void pd_notify_pe_transmit_msg(pd_port_t *pd_port, uint8_t type);
 extern void pd_notify_pe_recv_ping_event(pd_port_t *pd_port);
 
-extern uint8_t pd_wait_tx_finished_event(pd_port_t *pd_port);
-
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+extern void pd_notify_pe_over_recv_hreset(pd_port_t *pd_port);
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 
 /* ---- pd_timer ---- */
+
+static inline void pd_restart_timer(pd_port_t* pd_port, uint32_t timer_id)
+{
+	return tcpc_restart_timer(pd_port->tcpc_dev, timer_id);
+}
 
 static inline void pd_enable_timer(pd_port_t* pd_port, uint32_t timer_id)
 {
@@ -1093,6 +1120,11 @@ static inline bool pd_put_cc_attached_event(struct tcpc_device *tcpc_dev, uint8_
 	return pd_put_event(tcpc_dev, &evt, false);
 }
 
+/* ---- Handle PD Message ----*/
+
+int pd_handle_soft_reset(pd_port_t *pd_port, uint8_t state_machine);
+
+
 /* ---- Send PD Message ----*/
 
 int pd_send_ctrl_msg(
@@ -1101,6 +1133,7 @@ int pd_send_ctrl_msg(
 int pd_send_data_msg(pd_port_t *pd_port,
 	uint8_t sop_type, uint8_t msg, uint8_t cnt, uint32_t* payload);
 
+int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine);
 int pd_send_hard_reset(pd_port_t *pd_port);
 
 int pd_send_bist_mode2(pd_port_t *pd_port);

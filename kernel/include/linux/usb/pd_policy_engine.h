@@ -33,6 +33,7 @@ enum pd_pe_state {
 	PE_SRC_SEND_CAPABILITIES,
 	PE_SRC_NEGOTIATE_CAPABILITIES,
 	PE_SRC_TRANSITION_SUPPLY,
+	PE_SRC_TRANSITION_SUPPLY2,
 	PE_SRC_READY,
 	PE_SRC_DISABLED,
 	PE_SRC_CAPABILITY_RESPONSE,
@@ -172,13 +173,19 @@ enum pd_pe_state {
 	PE_DFP_VDM_DP_CONFIGURATION_NAKED,
 #endif
 
+
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	PE_OVER_RECV_HRESET_LIMIT,
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
+
 	PE_ERROR_RECOVERY,
 
 	PE_BIST_TEST_DATA,
 	PE_BIST_CARRIER_MODE_2,
 
-	PE_IDLE,
-
+	PE_IDLE1,	/* Wait tx finished */
+	PE_IDLE2,
+	
 	PD_NR_PE_STATES,
 
 	PE_VIRT_HARD_RESET,
@@ -251,6 +258,7 @@ void pe_src_discovery_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_send_capabilities_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_negotiate_capabilities_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_transition_supply_entry(pd_port_t *pd_port, pd_event_t* pd_event);
+void pe_src_transition_supply2_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_ready_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_disabled_entry(pd_port_t *pd_port, pd_event_t* pd_event);
 void pe_src_capability_response_entry(pd_port_t *pd_port, pd_event_t* pd_event);

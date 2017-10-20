@@ -34,13 +34,12 @@ extern int tcpc_typec_handle_ps_change(
 extern int tcpc_typec_handle_timeout(
 		struct tcpc_device *tcpc_dev, uint32_t timer_id);
 
-#ifdef CONFIG_TCPC_VSAFE0V_DETECT
 extern int tcpc_typec_handle_vsafe0v(struct tcpc_device *tcpc_dev);
-#endif
 
 extern int tcpc_typec_set_rp_level(struct tcpc_device *tcpc_dev, uint8_t res);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
+extern int tcpc_typec_advertise_explicit_contract(struct tcpc_device *tcpc_dev);
 extern int tcpc_typec_handle_pe_pr_swap(struct tcpc_device *tcpc_dev);
 #else
 extern int tcpc_typec_swap_role(struct tcpc_device *tcpc_dev);

@@ -260,7 +260,7 @@ static inline bool pd_process_ctrl_msg_good_crc(
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	case PE_DFP_CBL_VDM_IDENTITY_REQUEST:
 		pd_port->power_cable_present = true;
-		pd_port->dpm_flags &= ~DPM_FLAGS_CHECK_CABLE_ID;
+		pd_port->dpm_flags &= ~(DPM_FLAGS_CHECK_CABLE_ID | DPM_FLAGS_CHECK_CABLE_ID_DFP);
 		return false;
 #endif
 	}
@@ -285,10 +285,19 @@ static inline bool pd_process_ctrl_msg(
 }
 
 /*
+ * [BLOCK] Porcess Data MSG (UVDM)
+ */
+
+static inline bool pd_process_uvdm(pd_port_t* pd_port, pd_event_t* pd_event)
+{
+	return false;	
+}
+
+/*
  * [BLOCK] Porcess Data MSG (VDM)
  */
 
-
+#if (PE_EVT_INFO_VDM_DIS == 0)
 static const char *pe_vdm_cmd_name[] = {
 	"DiscoverID",
 	"DiscoverSVID",
@@ -309,9 +318,11 @@ static const char *pe_vdm_cmd_type_name[] = {
 	"NACK",
 	"BUSY",
 };
+#endif
 
 static inline void print_vdm_msg(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+#if (PE_EVT_INFO_VDM_DIS == 0)
 	uint8_t cmd;
 	uint8_t cmd_type;
 	const char *name = NULL;
@@ -339,6 +350,8 @@ static inline void print_vdm_msg(pd_port_t *pd_port, pd_event_t *pd_event)
 		return;
 
 	PE_DBG("%s:%s\r\n", name, pe_vdm_cmd_type_name[cmd_type]);
+	
+#endif	/* PE_EVT_INFO_VDM_DIS */
 }
 
 static inline bool pd_process_ufp_vdm(
@@ -421,8 +434,6 @@ static inline bool pd_process_dfp_vdm(
 	return false;
 }
 
-
-
 static inline bool pd_process_sop_vdm(
 	pd_port_t* pd_port, pd_event_t* pd_event)
 {
@@ -471,13 +482,19 @@ static inline bool pd_process_data_msg(
 	if (pd_event->msg != PD_DATA_VENDOR_DEF)
 		return ret;
 
-	/* From Port Partner, copy curr_state from pd_state */
 	vdm_hdr = pd_msg->payload[0];
-	if(PD_VDO_CMDT(vdm_hdr) == CMDT_INIT)
-	{
+
+	if (!PD_VDO_SVDM(vdm_hdr))
+		return pd_process_uvdm(pd_port, pd_event);
+
+	/* From Port Partner, copy curr_state from pd_state */
+	if (PD_VDO_CMDT(vdm_hdr) == CMDT_INIT) {
 		pd_port->pe_vdm_state = pd_port->pe_pd_state;
 		pd_port->pe_state_curr = pd_port->pe_pd_state;
+
+#if PE_DBG_RESET_VDM_DIS == 0		
 		PE_DBG("reset vdm_state\r\n");
+#endif
 	}
 
 	print_vdm_msg(pd_port, pd_event);

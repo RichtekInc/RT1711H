@@ -135,9 +135,21 @@ static inline int tcpci_init(struct tcpc_device *tcpc, bool sw_reset)
     return 0;
 }
 
-static inline int tcpci_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
+static inline int tcpci_get_cc(struct tcpc_device *tcpc)
 {
-	return tcpc->ops->get_cc(tcpc, cc1, cc2);
+	int ret, cc1, cc2;
+	ret = tcpc->ops->get_cc(tcpc, &cc1, &cc2);
+	if (ret < 0)
+		return ret;
+
+	if ((cc1 == tcpc->typec_remote_cc[0]) &&
+		(cc2 == tcpc->typec_remote_cc[1])) {
+		return 0;
+	}
+
+	tcpc->typec_remote_cc[0] = cc1;
+	tcpc->typec_remote_cc[1] = cc2;
+	return 1;
 }
 
 static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
@@ -147,6 +159,13 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 		pull = tcpc->typec_local_rp_level;
 #endif
 
+#ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
+	if ((pull == TYPEC_CC_DRP) && 
+		(tcpc->typec_legacy_cable_suspect >= TCPC_LEGACY_CABLE_CONFIRM))
+		pull = TYPEC_CC_DRP_1_5;
+#endif
+
+	tcpc->typec_local_cc = pull;
     return tcpc->ops->set_cc(tcpc, pull);
 }
 
@@ -173,6 +192,53 @@ static inline int tcpci_set_low_power_mode(
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
 	rv = tcpc->ops->set_low_power_mode(tcpc, en, pull);
+#endif
+
+	return rv;
+}
+
+static inline int tcpci_idle_poll_ctrl(
+		struct tcpc_device *tcpc, bool en, bool lock)
+{
+	int rv = 0;
+
+#ifdef CONFIG_TCPC_IDLE_MODE
+	bool update_mode = false;
+
+	if (lock)
+		mutex_lock(&tcpc->access_lock);
+
+	if (en) {
+		if (tcpc->tcpc_busy_cnt == 0)
+			update_mode = true;
+		tcpc->tcpc_busy_cnt++;
+	}
+	else {	/* idle mode */
+		if (tcpc->tcpc_busy_cnt <= 0)
+			TCPC_DBG("tcpc_busy_cnt<=0\r\n");
+		else
+			tcpc->tcpc_busy_cnt--;
+
+		if (tcpc->tcpc_busy_cnt == 0)
+			update_mode = true;		
+	}
+
+	if (lock)
+		mutex_unlock(&tcpc->access_lock);
+
+	if (update_mode)
+		rv = tcpc->ops->set_idle_mode(tcpc, !en);
+#endif
+
+	return rv;
+}
+
+static inline int tcpci_set_watchdog(struct tcpc_device *tcpc, bool en)
+{
+	int rv = 0;
+
+#ifdef CONFIG_TCPC_WATCHDOG_EN
+	rv = tcpc->ops->set_watchdog(tcpc, en);
 #endif
 
 	return rv;
@@ -262,22 +328,25 @@ static inline int tcpci_notify_pd_state(
 
 static inline int tcpci_source_vbus(struct tcpc_device *tcpc, int mv, int ma)
 {
-	int ret;
 	struct tcp_notify tcp_noti;
 
-	if ((mv != 0) && (ma == 0)) {
-		switch (tcpc->typec_local_rp_level) {
-		case TYPEC_CC_RP_1_5:
-			ma = 1500;
-			break;
-		case TYPEC_CC_RP_3_0:
-			ma = 3000;
-			break;
-		default:
-		case TYPEC_CC_RP_DFT:
-			ma = 500;
-			break;
-		}
+	/* Add a mutex .... */
+	if (ma < 0) {
+		if (mv != 0) {
+			switch(tcpc->typec_local_rp_level) {
+			case TYPEC_CC_RP_1_5:
+				ma = 1500;
+				break;
+			case TYPEC_CC_RP_3_0:
+				ma = 3000;
+				break;
+			default:
+			case TYPEC_CC_RP_DFT:
+				ma = 500;
+				break;
+			}
+		} else
+			ma = 0;
 	}
 
 	tcp_noti.vbus_state.ma = ma;
@@ -290,19 +359,22 @@ static inline int tcpci_sink_vbus(struct tcpc_device *tcpc, int mv, int ma)
 {
 	struct tcp_notify tcp_noti;
 
-	if ((mv != 0) && (ma == 0)) {
-		switch (tcpc->typec_remote_rp_level) {
-		case TYPEC_CC_VOLT_SNK_1_5:
-			ma = 1500;
-			break;
-		case TYPEC_CC_VOLT_SNK_3_0:
-			ma = 3000;
-			break;
-		default:
-		case TYPEC_CC_VOLT_SNK_DFT:
-			ma = 500;
-			break;
-		}
+	if (ma < 0) {
+		if (mv != 0) {
+			switch(tcpc->typec_remote_rp_level) {
+			case TYPEC_CC_VOLT_SNK_1_5:
+				ma = 1500;
+				break;
+			case TYPEC_CC_VOLT_SNK_3_0:
+				ma = 3000;
+				break;
+			default:
+			case TYPEC_CC_VOLT_SNK_DFT:
+				ma = 500;
+				break;
+			}
+		} else 
+			ma = 0;
 	}
 
 	tcp_noti.vbus_state.ma = ma;

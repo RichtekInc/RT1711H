@@ -43,7 +43,7 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 			PE_INFO("rx_cap_on\r\n");
 			rx_cap = PD_RX_CAP_PE_SEND_WAIT_CAP;
 		}
-
+		
 		pd_put_pe_event(pd_port, PD_PE_RESET_PRL_COMPLETED);
 		pd_free_pd_event(pd_port, pd_event);
 		break;
@@ -54,6 +54,10 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 
 void pe_snk_discovery_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 {
+#ifdef CONFIG_USB_PD_FAST_RESP_TYPEC_SRC
+	pd_disable_timer(pd_port, PD_TIMER_SRC_RECOVER);
+#endif	/* CONFIG_USB_PD_FAST_RESP_TYPEC_SRC */
+
 	pd_enable_vbus_valid_detection(pd_port, true);
 }
 
@@ -81,6 +85,10 @@ void pe_snk_evaluate_capability_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 	pd_port->pd_connected = 1;
 	pd_port->pd_prev_connected = 1;
 	pd_port->explicit_contract = false;
+
+#ifdef CONFIG_USB_PD_RECV_HRESET_COUNTER
+	pd_port->recv_hard_reset_count = 0;
+#endif	/* CONFIG_USB_PD_RECV_HRESET_COUNTER */
 
 	pd_dpm_snk_evaluate_caps(pd_port, pd_event);
 	pd_free_pd_event(pd_port, pd_event);
@@ -119,7 +127,9 @@ void pe_snk_transition_sink_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 
 	if (pd_event->msg == PD_CTRL_GOTO_MIN) {
 		if (pd_port->dpm_caps & DPM_CAP_LOCAL_GIVE_BACK) {
-			/* transitions sink power supply to min */
+			pd_port->request_i_new = -1;
+			pd_port->request_v_new = TCPC_VBUS_SINK_5V;
+			pd_dpm_snk_transition_power(pd_port, pd_event);
 		}
 	}
 
@@ -144,6 +154,7 @@ void pe_snk_ready_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 void pe_snk_hard_reset_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 {
 	pd_send_hard_reset(pd_port);
+	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_snk_transition_to_default_entry(pd_port_t *pd_port, pd_event_t* pd_event)
@@ -155,6 +166,11 @@ void pe_snk_transition_to_default_entry(pd_port_t *pd_port, pd_event_t* pd_event
 void pe_snk_transition_to_default_exit(pd_port_t *pd_port, pd_event_t* pd_event)
 {
 	pd_enable_timer(pd_port, PD_TIMER_NO_RESPONSE);
+
+#ifdef CONFIG_USB_PD_FAST_RESP_TYPEC_SRC
+	if (!pd_port->pd_prev_connected)
+		pd_enable_timer(pd_port, PD_TIMER_SRC_RECOVER);
+#endif /* CONFIG_USB_PD_FAST_RESP_TYPEC_SRC */
 }
 
 void pe_snk_give_sink_cap_entry(pd_port_t *pd_port, pd_event_t* pd_event)
@@ -170,20 +186,12 @@ void pe_snk_get_source_cap_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 
 void pe_snk_send_soft_reset_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 {
-	pd_port->state_machine = PE_STATE_MACHINE_SINK;
-
-	pd_reset_protocol_layer(pd_port);
-	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_SOFT_RESET);
-
+	pd_send_soft_reset(pd_port, PE_STATE_MACHINE_SINK);
 	pd_free_pd_event(pd_port, pd_event);
 }
 
 void pe_snk_soft_reset_entry(pd_port_t *pd_port, pd_event_t* pd_event)
 {
-	pd_port->state_machine = PE_STATE_MACHINE_SINK;
-
-	pd_reset_protocol_layer(pd_port);
-	pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
-
+	pd_handle_soft_reset(pd_port, PE_STATE_MACHINE_SINK);
 	pd_free_pd_event(pd_port, pd_event);
 }

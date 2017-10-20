@@ -222,10 +222,22 @@ static int tcpci_alert_recv_hard_reset(struct tcpc_device *tcpc_dev)
 	return 0;
 }
 
+#ifdef CONFIG_TYPEC_CAP_LPM_WAKEUP_WATCHDOG
+static int tcpci_alert_wakeup(struct tcpc_device *tcpc_dev)
+{
+	if (tcpc_dev->tcpc_flags & TCPC_FLAGS_LPM_WAKEUP_WATCHDOG) {
+		TCPC_DBG("Wakeup\r\n");
+		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_WAKEUP);
+	}
+	
+	return 0;
+}
+#endif
+
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 typedef struct __tcpci_alert_handler {
-	uint16_t bit_mask;
+	uint32_t bit_mask;
 	int (*handler)(struct tcpc_device *tcpc_dev);
 } tcpci_alert_handler_t;
 
@@ -245,22 +257,30 @@ const tcpci_alert_handler_t tcpci_alert_handlers[] = {
 	DECL_TCPCI_ALERT_HANDLER(3, tcpci_alert_recv_hard_reset),
 	DECL_TCPCI_ALERT_HANDLER(10, tcpci_alert_rx_overflow),
 #endif
+
+#ifdef CONFIG_TYPEC_CAP_LPM_WAKEUP_WATCHDOG
+	DECL_TCPCI_ALERT_HANDLER(16, tcpci_alert_wakeup),
+#endif
+
 	DECL_TCPCI_ALERT_HANDLER(9, tcpci_alert_fault),
 	DECL_TCPCI_ALERT_HANDLER(0, tcpci_alert_cc_changed),
 	DECL_TCPCI_ALERT_HANDLER(1, tcpci_alert_power_status_changed),
 };
 
-int tcpci_alert(struct tcpc_device *tcpc_dev)
+static inline int __tcpci_alert(struct tcpc_device *tcpc_dev)
 {
 	int rv, i;
 	uint32_t alert_status;
 	const uint32_t alert_rx =
 		TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF;
 
+	const uint32_t alert_sent_hreset =
+		TCPC_REG_ALERT_TX_SUCCESS | TCPC_REG_ALERT_TX_FAILED;
+
 	rv = tcpci_get_alert_status(tcpc_dev, &alert_status);
 	if (rv)
 		return rv;
-
+	
 #ifdef CONFIG_USB_PD_DBG_ALERT_STATUS
 	if (alert_status != 0)
 		TCPC_INFO("Alert:0x%04x\r\n", alert_status);
@@ -271,10 +291,25 @@ int tcpci_alert(struct tcpc_device *tcpc_dev)
 	if (tcpc_dev->typec_role == TYPEC_ROLE_UNKNOWN)
 		return 0;
 
-#ifndef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
 	if (alert_status & TCPC_REG_ALERT_EXT_VBUS_80)
 		alert_status |= TCPC_REG_ALERT_POWER_STATUS;
-	
+
+#ifdef CONFIG_TYPEC_CAP_RA_DETACH
+	if ((alert_status & TCPC_REG_ALERT_EXT_RA_DETACH) &&
+		(tcpc_dev->tcpc_flags & TCPC_FLAGS_CHECK_RA_DETACHE))
+		alert_status |= TCPC_REG_ALERT_CC_STATUS;
+#endif /* CONFIG_TYPEC_CAP_RA_DETACH */
+
+#ifdef CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER
+	if ((alert_status & alert_sent_hreset) == alert_sent_hreset) {
+		if (tcpc_dev->tcpc_flags & TCPC_FLAGS_WAIT_HRESET_COMPLETE) {
+			alert_status &= ~alert_sent_hreset;
+			pd_put_sent_hard_reset_event(tcpc_dev);
+		}
+	}
+#endif	/* CONFIG_USB_PD_IGNORE_HRESET_COMPLETE_TIMER */
+
+#ifndef CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
 	for (i = 0; i < ARRAY_SIZE(tcpci_alert_handlers); i++) {
 		if (tcpci_alert_handlers[i].bit_mask & alert_status) {
 			if (tcpci_alert_handlers[i].handler != 0) {
@@ -285,6 +320,23 @@ int tcpci_alert(struct tcpc_device *tcpc_dev)
 #endif
 
 	return 0;
+}
+
+int tcpci_alert(struct tcpc_device *tcpc_dev)
+{
+	int ret;
+
+#ifdef CONFIG_TCPC_IDLE_MODE
+	tcpci_idle_poll_ctrl(tcpc_dev, true, 0);
+#endif /* CONFIG_TCPC_IDLE_MODE */
+
+	ret = __tcpci_alert(tcpc_dev);
+	
+#ifdef CONFIG_TCPC_IDLE_MODE
+	tcpci_idle_poll_ctrl(tcpc_dev, false, 0);
+#endif /* CONFIG_TCPC_IDLE_MODE */
+
+	return ret;
 }
 EXPORT_SYMBOL(tcpci_alert);
 
@@ -313,7 +365,7 @@ static inline int tcpci_report_usb_port_detached(struct tcpc_device *tcpc)
 	wake_unlock(&tcpc->attach_wake_lock);
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-	pd_put_idle_event(tcpc);
+	pd_put_cc_detached_event(tcpc);
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 	return 0;

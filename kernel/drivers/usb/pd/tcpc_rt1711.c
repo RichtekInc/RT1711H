@@ -1277,9 +1277,11 @@ static void rt1711_shutdown(struct i2c_client *client)
 {
 	struct rt1711_chip *chip = i2c_get_clientdata(client);
 
-	/* TODO */
-	rt1711_reg_write(chip->client, RT1711_REG_SWRESET, 0x01);
 	/* Please reset IC here */
+	if (chip != NULL && chip->irq)
+		disable_irq(chip->irq);
+	
+	i2c_smbus_write_byte_data(client, RT1711_REG_SWRESET, 0x01);	
 }
 
 static int rt1711_pm_suspend_runtime(struct device *device)
