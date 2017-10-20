@@ -26,7 +26,7 @@
 void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	uint8_t rx_cap = PD_RX_CAP_PE_STARTUP;
-	
+
 	pd_port->request_i = -1;
 	pd_port->request_v = TCPC_VBUS_SINK_5V;
 	pd_port->state_machine = PE_STATE_MACHINE_SINK;

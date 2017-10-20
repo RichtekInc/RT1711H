@@ -26,9 +26,10 @@
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 #include "pd_dpm_prv.h"
+#include <linux/usb/tcpm.h>
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.3_G"
+#define TCPC_CORE_VERSION		"1.1.4_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -90,9 +91,12 @@ static ssize_t tcpc_show_property(struct device *dev,
 	struct tcpc_device *tcpc = to_tcpc_device(dev);
 	const ptrdiff_t offset = attr - tcpc_device_attributes;
 	int i = 0;
+#ifdef CONFIG_USB_POWER_DELIVERY
 	int vmin, vmax, ioper;
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 
 	switch (offset) {
+#ifdef CONFIG_USB_POWER_DELIVERY
 	case TCPC_DESC_CAP_INFO:
 		snprintf(buf+strlen(buf), 256, "%s = %d\n%s = %d\n",
 			"local_selected_cap",
@@ -137,6 +141,7 @@ static ssize_t tcpc_show_property(struct device *dev,
 				vmin, vmax, ioper);
 		}
 		break;
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 	case TCPC_DESC_ROLE_DEF:
 		snprintf(buf, 256, "%s\n", role_text[tcpc->desc.role_def]);
 		break;
@@ -149,10 +154,11 @@ static ssize_t tcpc_show_property(struct device *dev,
 			snprintf(buf, 256, "%s\n", "3.0");
 		break;
 	case TCPC_DESC_PD_TEST:
-		snprintf(buf,
-			256, "%s\n%s\n%s\n%s\n%s\n", "1: Power Role Swap Test",
-				"2: Data Role Swap Test", "3: Vconn Swap Test",
-				"4: soft reset", "5: hard reset");
+		snprintf(buf, 256, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n", 
+			"1: pr_swap", "2: dr_swap", "3: vconn_swap",
+			"4: soft reset", "5: hard reset", 
+			"6: get_src_cap", "7: get_sink_cap",
+			"8: discover_id", "9: discover_cable");
 		break;
 	case TCPC_DESC_INFO:
 		i += snprintf(buf + i,
@@ -201,8 +207,11 @@ static ssize_t tcpc_store_property(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
+#ifdef CONFIG_USB_POWER_DELIVERY
+	uint8_t role;
+#endif	/* CONFIG_USB_POWER_DELIVERY */
+
 	struct tcpc_device *tcpc = to_tcpc_device(dev);
-	struct tcpm_power_cap cap;
 	const ptrdiff_t offset = attr - tcpc_device_attributes;
 	int ret;
 	long int val;
@@ -242,25 +251,46 @@ static ssize_t tcpc_store_property(struct device *dev,
 		}
 		switch (val) {
 		case 1: /* Power Role Swap */
-			tcpm_power_role_swap(tcpc);
+			role = tcpm_inquire_pd_power_role(tcpc);
+			if (role == PD_ROLE_SINK)
+				role = PD_ROLE_SOURCE;
+			else
+				role = PD_ROLE_SINK;
+			tcpm_dpm_pd_power_swap(tcpc, role, NULL);
 			break;
 		case 2: /* Data Role Swap */
-			tcpm_data_role_swap(tcpc);
+			role = tcpm_inquire_pd_data_role(tcpc);
+			if (role == PD_ROLE_UFP)
+				role = PD_ROLE_DFP;
+			else
+				role = PD_ROLE_UFP;
+			tcpm_dpm_pd_data_swap(tcpc, role, NULL);
 			break;
 		case 3: /* Vconn Swap */
-			tcpm_vconn_swap(tcpc);
+			role = tcpm_inquire_pd_vconn_role(tcpc);
+			if (role == PD_ROLE_VCONN_OFF)
+				role = PD_ROLE_VCONN_ON;
+			else
+				role = PD_ROLE_VCONN_OFF;
+			tcpm_dpm_pd_vconn_swap(tcpc, role, NULL);
 			break;
 		case 4: /* Software Reset */
-			tcpm_soft_reset(tcpc);
+			tcpm_dpm_pd_soft_reset(tcpc, NULL);
 			break;
 		case 5: /* Hardware Reset */
-			tcpm_hard_reset(tcpc);
+			tcpm_dpm_pd_hard_reset(tcpc);
 			break;
 		case 6:
-			tcpm_get_source_cap(tcpc, &cap);
+			tcpm_dpm_pd_get_source_cap(tcpc, NULL);
 			break;
 		case 7:
-			tcpm_get_sink_cap(tcpc, &cap);
+			tcpm_dpm_pd_get_sink_cap(tcpc, NULL);
+			break;
+		case 8:
+			tcpm_dpm_vdm_discover_id(tcpc, NULL);
+			break;
+		case 9:
+			tcpm_dpm_vdm_discover_cable(tcpc, NULL);
 			break;
 		default:
 			break;

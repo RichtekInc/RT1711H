@@ -38,18 +38,6 @@ extern bool eval_snk_cap_request(
 	int strategy,
 	eval_snk_request_result_t *result);
 
-enum pd_ufp_u_state {
-	DP_UFP_U_NONE = 0,
-	DP_UFP_U_STARTUP,
-	DP_UFP_U_WAIT,
-	DP_UFP_U_OPERATION,
-	DP_UFP_U_STATE_NR,
-
-	DP_UFP_U_ERR = 0X10,
-
-	DP_DFP_U_ERR_DP_CONNECTED,
-};
-
 typedef struct __pd_mode_prop {
 	const char *name;
 	uint32_t svid;

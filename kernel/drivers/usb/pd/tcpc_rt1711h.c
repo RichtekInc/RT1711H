@@ -44,7 +44,7 @@
 
 /* #define DEBUG_GPIO	66 */
 
-#define RT1711H_DRV_VERSION	"1.1.8_G"
+#define RT1711H_DRV_VERSION	"1.1.4_G"
 
 struct rt1711_chip {
 	struct i2c_client *client;
@@ -393,6 +393,10 @@ static int rt1711_regmap_init(struct rt1711_chip *chip)
 	len = strlen(name);
 	props->name = kzalloc(len+1, GFP_KERNEL);
 	props->aliases = kzalloc(len+1, GFP_KERNEL);
+
+	if ((!props->name) || (!props->aliases))
+		return -ENOMEM;
+
 	strcpy((char *)props->name, name);
 	strcpy((char *)props->aliases, name);
 	props->io_log_en = 0;
@@ -571,6 +575,9 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 
 	len = strlen(chip->tcpc_desc->name);
 	name = kzalloc(len+5, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+	
 	sprintf(name, "%s-IRQ", chip->tcpc_desc->name);
 
 	pr_info("%s name = %s\n", __func__, chip->tcpc_desc->name);
@@ -1315,6 +1322,9 @@ static int rt1711_tcpcdev_init(struct rt1711_chip *chip, struct device *dev)
 
 	len = strlen(name);
 	desc->name = kzalloc(len+1, GFP_KERNEL);
+	if (!desc->name)
+		return -ENOMEM;
+
 	strcpy((char *)desc->name, name);
 
 	chip->tcpc_desc = desc;

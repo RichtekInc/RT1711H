@@ -201,7 +201,7 @@ static inline int tcpci_set_low_power_mode(
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
 	rv = tcpc->ops->set_low_power_mode(tcpc, en, pull);
-#endif
+#endif	/* CONFIG_TCPC_LOW_POWER_MODE */
 	return rv;
 }
 
@@ -209,6 +209,7 @@ static inline int tcpci_idle_poll_ctrl(
 		struct tcpc_device *tcpc, bool en, bool lock)
 {
 	int rv = 0;
+
 #ifdef CONFIG_TCPC_IDLE_MODE
 	bool update_mode = false;
 
@@ -224,14 +225,18 @@ static inline int tcpci_idle_poll_ctrl(
 			TCPC_DBG("tcpc_busy_cnt<=0\r\n");
 		else
 			tcpc->tcpc_busy_cnt--;
+
 		if (tcpc->tcpc_busy_cnt == 0)
 			update_mode = true;
 	}
+
 	if (lock)
 		mutex_unlock(&tcpc->access_lock);
+
 	if (update_mode)
 		rv = tcpc->ops->set_idle_mode(tcpc, !en);
 #endif
+
 	return rv;
 }
 
@@ -327,19 +332,37 @@ static inline int tcpci_notify_pd_state(
 		&tcpc->evt_nh, TCP_NOTIFY_PD_STATE, &tcp_noti);
 }
 
+static inline int tcpci_set_intrst(struct tcpc_device *tcpc, bool en)
+{
+#ifdef CONFIG_TCPC_INTRST_EN
+	if (tcpc->ops->set_intrst)
+		tcpc->ops->set_intrst(tcpc, en);
+#endif	/* CONFIG_TCPC_INTRST_EN */
+
+	return 0;
+}
+
 static inline int tcpci_enable_watchdog(struct tcpc_device *tcpc, bool en)
 {
 	TCPC_DBG("enable_WG: %d\r\n", en);
 
 #ifdef CONFIG_TCPC_WATCHDOG_EN
+	if (tcpc->typec_watchdog == en)
+		return 0;
+	
+	mutex_lock(&tcpc->access_lock);
+	tcpc->typec_watchdog = en;
+	
 	if (tcpc->ops->set_watchdog)
 		tcpc->ops->set_watchdog(tcpc, en);
-#endif	/* CONFIG_TCPC_WATCHDOG_EN */
 
 #ifdef CONFIG_TCPC_INTRST_EN
-	if (tcpc->ops->set_intrst)
-		tcpc->ops->set_intrst(tcpc, en);
+	if (!en || wake_lock_active(&tcpc->attach_wake_lock))
+		tcpci_set_intrst(tcpc, en);
 #endif	/* CONFIG_TCPC_INTRST_EN */
+
+	mutex_unlock(&tcpc->access_lock);
+#endif	/* CONFIG_TCPC_WATCHDOG_EN */
 
 	return 0;
 }
@@ -437,6 +460,75 @@ static inline int tcpci_disable_vbus_control(struct tcpc_device *tcpc)
 	tcpci_source_vbus(tcpc, TCP_VBUS_CTRL_REMOVE, TCPC_VBUS_SOURCE_0V, 0);
 	return 0;
 #endif	/* CONFIG_TYPEC_USE_DIS_VBUS_CTRL */
+}
+
+static inline int tcpci_notify_attachwait_state(
+	struct tcpc_device *tcpc, bool as_sink)
+{
+#ifdef CONFIG_TYPEC_NOTIFY_ATTACHWAIT
+	uint8_t notify = 0;
+	struct tcp_notify tcp_noti;
+
+#ifdef CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SNK
+	if (as_sink)
+		notify = TCP_NOTIFY_ATTACHWAIT_SNK;
+#endif	/* CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SNK */
+
+#ifdef CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SRC
+	if (!as_sink)
+		notify = TCP_NOTIFY_ATTACHWAIT_SRC;
+#endif	/* CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SRC */
+
+	if (notify == 0)
+		return 0;
+
+	return srcu_notifier_call_chain(&tcpc->evt_nh, notify, &tcp_noti);
+#else
+	return 0;
+#endif	/* CONFIG_TYPEC_NOTIFY_ATTACHWAIT */
+
+}
+
+static inline int tcpci_enable_ext_discharge(
+	struct tcpc_device *tcpc, bool en)
+{
+	int ret = 0;
+
+#ifdef CONFIG_TCPC_EXT_DISCHARGE
+	struct tcp_notify tcp_noti;
+
+	mutex_lock(&tcpc->access_lock);
+
+	if (tcpc->typec_ext_discharge != en) {
+		tcpc->typec_ext_discharge = en;
+		tcp_noti.en_state.en = en;
+		TCPC_DBG("EXT-Discharge: %d\r\n", en);
+		ret = srcu_notifier_call_chain(
+			&tcpc->evt_nh, TCP_NOTIFY_EXT_DISCHARGE, &tcp_noti);		
+	}
+
+	mutex_unlock(&tcpc->access_lock);
+#endif	/* CONFIG_TCPC_EXT_DISCHARGE */
+
+	return ret;
+}
+
+static inline int tcpci_enable_auto_discharge(
+	struct tcpc_device *tcpc, bool en)
+{
+	int ret = 0;
+	
+#ifdef CONFIG_TYPEC_CAP_AUTO_DISCHARGE
+#ifdef CONFIG_TCPC_AUTO_DISCHARGE_IC
+	if (tcpc->typec_auto_discharge != en) {
+		tcpc->typec_auto_discharge = en;
+		if (tcpc->ops->set_auto_discharge)
+			ret = tcpc->ops->set_auto_discharge(tcpc, en);
+	}
+#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_IC */	
+#endif	/* CONFIG_TYPEC_CAP_AUTO_DISCHARGE */
+
+	return ret;
 }
 
 #ifdef CONFIG_USB_POWER_DELIVERY
@@ -592,6 +684,50 @@ static inline int tcpci_notify_uvdm(struct tcpc_device *tcpc, bool ack)
 	return 0;
 }
 #endif	/* CONFIG_USB_PD_UVDM */
+
+static inline int tcpci_enable_force_discharge(
+	struct tcpc_device *tcpc, int mv)
+{
+	int ret = 0;
+
+#ifdef CONFIG_USB_PD_SRC_FORCE_DISCHARGE
+#ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
+	if (!tcpc->pd_force_discharge) {
+		tcpc->pd_force_discharge = true;
+		if (tcpc->ops->set_force_discharge)
+			ret = tcpc->ops->set_force_discharge(tcpc, true, mv);
+	}
+#endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
+
+#ifdef CONFIG_TCPC_FORCE_DISCHARGE_EXT
+	ret = tcpci_enable_ext_discharge(tcpc, true);
+#endif	/* CONFIG_TCPC_FORCE_DISCHARGE_EXT */
+#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
+
+	return ret;
+}
+
+static inline int tcpci_disable_force_discharge(
+	struct tcpc_device *tcpc)
+{
+	int ret = 0;
+	
+#ifdef CONFIG_USB_PD_SRC_FORCE_DISCHARGE
+#ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
+	if (tcpc->pd_force_discharge) {
+		tcpc->pd_force_discharge = false;
+		if (tcpc->ops->set_force_discharge)
+			ret = tcpc->ops->set_force_discharge(tcpc, false, 0);
+	}
+#endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
+	
+#ifdef CONFIG_TCPC_FORCE_DISCHARGE_EXT
+	ret = tcpci_enable_ext_discharge(tcpc, false);
+#endif	/* CONFIG_TCPC_FORCE_DISCHARGE_EXT */
+#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
+	
+	return ret;
+}
 
 #ifdef CONFIG_USB_PD_ALT_MODE_RTDC
 static inline int tcpci_dc_notify_en_unlock(struct tcpc_device *tcpc)

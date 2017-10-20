@@ -2,6 +2,45 @@
 
 ## Changelog
 
+### v014
+- [Config] Suggest disable WatchDog & INTRST
+- [RT1711] Sync rt1711h device driver revision to 14
+- [TCPC] New Event Queue for deferred_tcp_event
+- [TCPC] Remove DPM event : PD request & VDM request
+- [TCPC] Change dual role class behavior
+- [TYPEC] Support Sink VBUS from Audio ACC device
+  - CONFIG_TYPEC_CAP_AUDIO_ACC_SINK_VBUS
+- [TYPEC] Notify AttachWait_Sink & AttachWait_SRC
+  - CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SNK
+  - CONFIG_TYPEC_NOTIFY_ATTACHWAIT_SRC
+- [TYPEC] Modify detach condition for different attached state
+- [PE] Support Auto Discharge (Experimental)
+  - CONFIG_TYPEC_CAP_AUTO_DISCHARGE
+- [PE] Support Force Discharge (Experimental)
+  - CONFIG_USB_PD_SRC_HIGHCAP_POWER
+  - CONFIG_USB_PD_SRC_FORCE_DISCHARGE
+- [PE] Support Partner request first during ready (Compatibility)
+  - CONFIG_USB_PD_PARTNER_CTRL_MSG_FIRST
+- [PE] Error Recovery if vbus invalid after cancel pr_swap
+- [PE] Ignore unknown event during HReset
+- [DPM] Support delay UFP flow after startup (Compatibility)
+  - CONFIG_USB_PD_UFP_FLOW_DELAY
+- [DPM] Enable delay DFP flow after HardReset (Compatibility)
+  - CONFIG_USB_PD_DFP_FLOW_DELAY_RESET
+- [DPM] Random flow delay (Compatibility)
+  - CONFIG_USB_PD_RANDOM_FLOW_DELAY
+- [DPM] Support try to pr_swap to Sink if bad power (Mobile)
+  - CONFIG_USB_PD_SRC_TRY_PR_SWAP_IF_BAD_PW
+- [DPM] Keep Partner ID & SVID for inquire 
+  - CONFIG_USB_PD_KEEP_PARTNER_ID
+  - CONFIG_USB_PD_KEEP_SVIDS
+- [DPM] Remove VDM Header in CableVDO variable
+- [DPM] Retry auto pr_swap & dr_swap if communication failed 
+- [DPM] Change attemp get flags rule (get_sink_cap)
+- [TCPM] Change to new TCPM I/F, Old I/F can enable by:
+  - CONFIG_USB_PD_LEGACY_TCPM 
+- Fixed Compiler error for Type-C Only Case
+
 ### v013
 - [SNK] Implement Power Transitions (pSnkStdby)
   - CONFIG_USB_PD_SNK_STANDBY_POWER

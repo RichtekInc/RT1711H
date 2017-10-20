@@ -24,10 +24,9 @@
 
 #include <linux/usb/tcpci.h>
 #include <linux/usb/tcpci_typec.h>
-#include <linux/usb/tcpci_event.h>
 
 #ifdef CONFIG_USB_POWER_DELIVERY
-#include <linux/usb/pd_dpm_core.h>
+#include <linux/usb/tcpci_event.h>
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
 #ifdef CONFIG_DUAL_ROLE_USB_INTF
@@ -374,10 +373,15 @@ int tcpci_set_wake_lock(
 		if (new_lock) {
 			TCPC_DBG("wake_lock=1\r\n");
 			wake_lock(&tcpc->attach_wake_lock);
+			if (tcpc->typec_watchdog)
+				tcpci_set_intrst(tcpc, true);
 		} else {
 			TCPC_DBG("wake_lock=0\r\n");
+			if (tcpc->typec_watchdog)
+				tcpci_set_intrst(tcpc, false);
 			wake_unlock(&tcpc->attach_wake_lock);
 		}
+		return 1;
 	}
 
 	return 0;
@@ -386,6 +390,8 @@ int tcpci_set_wake_lock(
 static inline int tcpci_set_wake_lock_pd(
 	struct tcpc_device *tcpc, bool pd_lock)
 {
+	int ret = 0;
+
 	mutex_lock(&tcpc->access_lock);
 
 	if (pd_lock)
@@ -396,13 +402,13 @@ static inline int tcpci_set_wake_lock_pd(
 	if (tcpc->wake_lock_pd == 0)
 		wake_lock_timeout(&tcpc->dettach_temp_wake_lock, 5 * HZ);
 		
-	tcpci_set_wake_lock(tcpc, tcpc->wake_lock_pd, tcpc->wake_lock_user);
+	ret = tcpci_set_wake_lock(tcpc, tcpc->wake_lock_pd, tcpc->wake_lock_user);
 
 	if (tcpc->wake_lock_pd == 1)
 		wake_unlock(&tcpc->dettach_temp_wake_lock);
 	
-	mutex_unlock(&tcpc->access_lock);	
-	return 0;
+	mutex_unlock(&tcpc->access_lock);
+	return ret;
 }
 
 static inline int tcpci_report_usb_port_attached(struct tcpc_device *tcpc)
@@ -476,6 +482,47 @@ EXPORT_SYMBOL(tcpci_report_usb_port_changed);
  * [BLOCK] TYPEC power control changed
  */
 
+int tcpci_report_power_control_on(struct tcpc_device *tcpc)
+{
+	tcpci_set_wake_lock_pd(tcpc, true);
+
+#ifdef CONFIG_TYPEC_CAP_AUTO_DISCHARGE
+
+#ifdef CONFIG_TCPC_AUTO_DISCHARGE_EXT
+	tcpci_enable_ext_discharge(tcpc, false);
+#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_EXT */
+
+#ifdef CONFIG_TCPC_AUTO_DISCHARGE_IC
+	tcpci_enable_auto_discharge(tcpc, true);
+#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_IC */
+
+	tcpc_disable_timer(tcpc, TYPEC_RT_TIMER_AUTO_DISCHARGE);
+#endif	/* CONFIG_TYPEC_CAP_AUTO_DISCHARGE */
+
+	return 0;
+}
+
+int tcpci_report_power_control_off(struct tcpc_device *tcpc)
+{
+#ifdef CONFIG_USB_POWER_DELIVERY
+#ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
+	tcpci_disable_force_discharge(tcpc);
+#endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
+#endif	/* CONFIG_USB_POWER_DELIVERY */
+
+#ifdef CONFIG_TYPEC_CAP_AUTO_DISCHARGE
+
+#ifdef CONFIG_TCPC_AUTO_DISCHARGE_EXT
+	tcpci_enable_ext_discharge(tcpc, true);
+#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_EXT */
+
+	tcpc_enable_timer(tcpc, TYPEC_RT_TIMER_AUTO_DISCHARGE);
+#endif	/* CONFIG_TYPEC_CAP_AUTO_DISCHARGE */
+
+	tcpci_set_wake_lock_pd(tcpc, false);
+	return 0;
+}
+
 int tcpci_report_power_control(struct tcpc_device *tcpc, bool en)
 {
 	if (tcpc->typec_power_ctrl == en) 
@@ -484,9 +531,9 @@ int tcpci_report_power_control(struct tcpc_device *tcpc, bool en)
 	tcpc->typec_power_ctrl = en;
 
 	if (en)
-		tcpci_set_wake_lock_pd(tcpc, true);
+		tcpci_report_power_control_on(tcpc);
 	else
-		tcpci_set_wake_lock_pd(tcpc, false);
+		tcpci_report_power_control_off(tcpc);
 
 	return 0;
 }

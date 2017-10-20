@@ -24,9 +24,16 @@ int pd_dpm_enable_vconn(pd_port_t *pd_port, bool en);
 int pd_dpm_send_sink_caps(pd_port_t *pd_port);
 int pd_dpm_send_source_caps(pd_port_t *pd_port);
 
+void pd_dpm_inform_cable_id(
+	pd_port_t *pd_port, pd_event_t *pd_event);
+
 /* ---- SNK ---- */
 
-bool pd_dpm_send_request(pd_port_t *pd_port, int mv, int ma);
+bool pd_dpm_update_tcp_request(pd_port_t *pd_port,
+	struct tcp_dpm_pd_request *pd_req);
+
+bool pd_dpm_update_tcp_request_ex(pd_port_t *pd_port,
+	struct tcp_dpm_pd_request_ex *pd_req);
 
 void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_snk_standby_power(pd_port_t *pd_port, pd_event_t *pd_event);
@@ -38,7 +45,6 @@ void pd_dpm_snk_hard_reset(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_src_evaluate_request(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_src_transition_power(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_src_hard_reset(pd_port_t *pd_port);
-void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event);
 
 /* ---- UFP : Evaluate VDM Request ---- */
 
@@ -132,6 +138,11 @@ int pd_dpm_notify_pe_ready(pd_port_t *pd_port, pd_event_t *pd_event);
 int pd_dpm_notify_dfp_delay_done(
 	pd_port_t *pd_port, pd_event_t *pd_event);
 #endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
+
+#ifdef CONFIG_USB_PD_UFP_FLOW_DELAY
+int pd_dpm_notify_ufp_delay_done(
+	pd_port_t *pd_port, pd_event_t *pd_event);
+#endif	/* CONFIG_USB_PD_UFP_FLOW_DELAY */
 
 /* TCPCI - VBUS Control */
 

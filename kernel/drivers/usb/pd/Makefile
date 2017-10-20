@@ -1,7 +1,8 @@
 obj-$(CONFIG_DUAL_ROLE_USB_INTF)	+= tcpci_dual_role.o
 obj-$(CONFIG_TCPC_RT1711)		+= tcpc_rt1711.o
 obj-$(CONFIG_TCPC_RT1711H)		+= tcpc_rt1711h.o
-obj-$(CONFIG_TCPC_CLASS)		+= tcpci_core.o tcpci_typec.o tcpci_alert.o tcpci_timer.o tcpm.o pd_dbg_info.o
+obj-$(CONFIG_TCPC_CLASS)		+= tcpci_core.o tcpci_typec.o tcpci_alert.o tcpci_timer.o \
+					   tcpm.o tcpm_legacy.o pd_dbg_info.o
 obj-$(CONFIG_USB_POWER_DELIVERY)	+= tcpci_event.o \
 					   pd_core.o pd_policy_engine.o pd_process_evt.o \
 					   pd_dpm_core.o pd_dpm_uvdm.o pd_dpm_alt_mode_dp.o\

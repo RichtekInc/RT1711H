@@ -469,25 +469,23 @@ void pd_extract_pdo_power(uint32_t pdo,
 	}
 }
 
-
-uint32_t pd_extract_cable_curr(uint32_t vdo)
+uint32_t pd_get_cable_curr_lvl(pd_port_t *pd_port) 
 {
-	uint32_t cable_curr;
+	return PD_VDO_CABLE_CURR(
+		pd_port->cable_vdos[VDO_DISCOVER_ID_CABLE]);
+}
 
-	switch (PD_VDO_CABLE_CURR(vdo)) {
+uint32_t pd_get_cable_current_limit(pd_port_t *pd_port)
+{
+	switch (pd_get_cable_curr_lvl(pd_port)) {
 	case CABLE_CURR_1A5:
-		cable_curr = 1500;
-		break;
+		return 1500;
 	case CABLE_CURR_5A:
-		cable_curr = 5000;
-		break;
+		return 5000;
 	default:
 	case CABLE_CURR_3A:
-		cable_curr = 3000;
-		break;
+		return 3000;
 	}
-
-	return cable_curr;
 }
 
 void pd_reset_svid_data(pd_port_t *pd_port)
@@ -515,9 +513,12 @@ int pd_reset_protocol_layer(pd_port_t *pd_port)
 	pd_port->during_swap = 0;
 	pd_port->dpm_ack_immediately = 0;
 
+#ifdef CONFIG_USB_PD_DFP_FLOW_DELAY
 #ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_RESET
-	pd_port->dpm_dfp_flow_delay_done = 0;
+	if (pd_port->pd_prev_connected)
+		pd_port->dpm_dfp_flow_delay_done = 0;
 #endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_RESET */
+#endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
 #ifdef CONFIG_USB_PD_DFP_READY_DISCOVER_ID
 	pd_port->vconn_return = false;
@@ -685,7 +686,7 @@ int pd_handle_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
 	pd_port->state_machine = state_machine;
 
 	pd_reset_protocol_layer(pd_port);
-	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_RECV_SRESET);
+	pd_notify_tcp_event_buf_reset(pd_port, TCP_DPM_RET_DROP_RECV_SRESET);
 	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_ACCEPT);
 }
 
@@ -747,7 +748,7 @@ int pd_send_soft_reset(pd_port_t *pd_port, uint8_t state_machine)
 	pd_port->state_machine = state_machine;
 
 	pd_reset_protocol_layer(pd_port);
-	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_SRESET);
+	pd_notify_tcp_event_buf_reset(pd_port, TCP_DPM_RET_DROP_SENT_SRESET);
 	return pd_send_ctrl_msg(pd_port, TCPC_TX_SOP, PD_CTRL_SOFT_RESET);
 }
 
@@ -760,7 +761,6 @@ int pd_send_hard_reset(pd_port_t *pd_port)
 
 	pd_port->hard_reset_counter++;
 	pd_notify_pe_send_hard_reset(pd_port);
-	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_HRESET);
 	ret = tcpci_transmit(tcpc_dev, TCPC_TX_HARD_RESET, 0, NULL);
 	if (ret)
 		return ret;
@@ -771,6 +771,7 @@ int pd_send_hard_reset(pd_port_t *pd_port)
 		return 0;
 	}
 #endif
+
 	return 0;
 }
 
@@ -778,8 +779,8 @@ int pd_send_bist_mode2(pd_port_t *pd_port)
 {
 	int ret = 0;
 
-	pd_update_dpm_request_state(pd_port, DPM_REQ_ERR_SEND_BIST);
-
+	pd_notify_tcp_event_buf_reset(pd_port, TCP_DPM_RET_DROP_SEND_BIST);
+	
 #ifdef CONFIG_USB_PD_TRANSMIT_BIST2
 	TCPC_DBG("BIST_MODE_2\r\n");
 	ret = tcpci_transmit(
@@ -810,9 +811,9 @@ int pd_send_svdm_request(pd_port_t *pd_port,
 		uint32_t timer_id)
 {
 	int ret;
-	uint32_t payload[VDO_MAX_SIZE];
+	uint32_t payload[PD_DATA_OBJ_SIZE];
 
-	PD_BUG_ON(cnt >= (VDO_MAX_SIZE-1));
+	PD_BUG_ON(cnt > VDO_MAX_NR);
 
 	payload[0] = VDO_S(svid, CMDT_INIT, vdm_cmd, obj_pos);
 	memcpy(&payload[1], data_obj, sizeof(uint32_t) * cnt);
@@ -830,9 +831,9 @@ int pd_reply_svdm_request(pd_port_t *pd_port, pd_event_t *pd_event,
 				uint8_t reply, uint8_t cnt, uint32_t *data_obj)
 {
 	uint32_t vdo;
-	uint32_t payload[VDO_MAX_SIZE];
+	uint32_t payload[PD_DATA_OBJ_SIZE];
 
-	PD_BUG_ON(cnt >= (VDO_MAX_SIZE-1));
+	PD_BUG_ON(cnt > VDO_MAX_NR);
 	PD_BUG_ON(pd_event->pd_msg == NULL);
 
 	vdo = pd_event->pd_msg->payload[0];
@@ -900,9 +901,4 @@ int pd_update_connect_state(pd_port_t *pd_port, uint8_t state)
 
 	pd_port->pd_connect_state = state;
 	return tcpci_notify_pd_state(pd_port->tcpc_dev, state);
-}
-
-void pd_update_dpm_request_state(pd_port_t *pd_port, uint8_t state)
-{
-	/* TODO */
 }
