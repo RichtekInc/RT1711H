@@ -542,8 +542,6 @@ static const pe_state_actions_t pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_snk_send_soft_reset),
 	PE_STATE_ACTIONS(pe_snk_soft_reset),
 
-
-
 	/* drs dfp activity */
 	PE_STATE_ACTIONS(pe_drs_dfp_ufp_evaluate_dr_swap),
 	PE_STATE_ACTIONS(pe_drs_dfp_ufp_accept_dr_swap),

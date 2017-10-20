@@ -44,7 +44,7 @@
 
 /* #define DEBUG_GPIO	66 */
 
-#define RT1711H_DRV_VERSION	"1.1.6_G"
+#define RT1711H_DRV_VERSION	"1.1.7_G"
 
 struct rt1711_chip {
 	struct i2c_client *client;
@@ -720,14 +720,19 @@ static inline int rt1711h_init_cc_params(
 #ifdef CONFIG_USB_POWER_DELIVERY
 #ifdef CONFIG_USB_PD_SNK_DFT_NO_GOOD_CRC
 	uint8_t en, sel;
+	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
 
-	if (cc_res == TYPEC_CC_VOLT_SNK_DFT) {
+	if (cc_res == TYPEC_CC_VOLT_SNK_DFT) {	/* 0.55 */
 		en = 0;
 		sel = 0x81;
-	} else {
+	} else if (chip->chip_id >= RT1715_DID_D) {	/* 0.35 & 0.75 */
+		en = 1;
+		sel = 0x81;
+	} else {	/* 0.4 & 0.7 */
 		en = 1;
 		sel = 0x80;
 	}
+
 	rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZEN, en);
 	if (rv == 0)
 		rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZSEL, sel);
@@ -740,6 +745,7 @@ static inline int rt1711h_init_cc_params(
 static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 {
 	int ret;
+	bool retry_discard_old = false;
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
 
 	RT1711_INFO("\n");
@@ -789,7 +795,10 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 		rt1711h_set_clock_gating(tcpc, true);
 
 	if (!(tcpc->tcpc_flags & TCPC_FLAGS_RETRY_CRC_DISCARD))
-		rt1711_i2c_write8(tcpc, RT1711H_REG_PHY_CTRL1, 0xB1);
+		retry_discard_old = true;
+
+	rt1711_i2c_write8(tcpc, RT1711H_REG_PHY_CTRL1,
+		RT1711H_REG_PHY_CTRL1_SET(retry_discard_old, 7, 0, 1));
 
 	tcpci_alert_status_clear(tcpc, 0xffffffff);
 
@@ -810,7 +819,7 @@ static inline int rt1711_fault_status_vconn_ov(struct tcpc_device *tcpc)
 		return ret;
 
 	ret &= ~RT1711H_REG_DISCHARGE_EN;
-	return rt1711_i2c_write8(tcpc, RT1711H_REG_BMC_CTRL, ret);	
+	return rt1711_i2c_write8(tcpc, RT1711H_REG_BMC_CTRL, ret);
 }
 
 int rt1711_fault_status_clear(struct tcpc_device *tcpc, uint8_t status)

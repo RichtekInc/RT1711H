@@ -2,6 +2,17 @@
 
 ## Changelog
 
+### v017
+- [TCPC] Fix tcpc_timer deadlock warning
+- [TCPC] Add option for Attach Wake lock Timeout
+  - CONFIG_TCPC_ATTACH_WAKE_LOCK_TOUT
+- [TCPC] Add debug info pre-string
+  - CONFIG_TCPC_DBG_PRESTR	
+- [TYPEC] Alert TYPEC state change after pr_swap
+- [PE] Fixed receive tx_failed during HardReset/ReadyState	
+- [RT1711] Optimize CCNoise Counter
+- [RT1715] Optimize RXDZ setting
+
 ### v016
 - [CONFIG] Change force discharge config name
   - New: CONFIG_TYPEC_CAP_FORCE_DISCHARGE 

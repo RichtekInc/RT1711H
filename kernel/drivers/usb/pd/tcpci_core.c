@@ -29,7 +29,7 @@
 #include <linux/usb/tcpm.h>
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.6_G"
+#define TCPC_CORE_VERSION		"1.1.7_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
