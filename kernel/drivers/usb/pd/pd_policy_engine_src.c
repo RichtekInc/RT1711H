@@ -245,7 +245,7 @@ void pe_src_vdm_identity_acked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 void pe_src_vdm_identity_naked_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
-	
+
 	pd_put_dpm_ack_event(pd_port);
 	pd_free_pd_event(pd_port, pd_event);
 }

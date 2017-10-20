@@ -369,8 +369,6 @@ enum dpm_cap_dr_check_prefer {
 #define DPM_CAP_DR_SWAP_REJECT_AS_UFP		(1<<25)
 
 #define DPM_CAP_DP_PREFER_MF				(1<<29)
-#define DPM_CAP_SNK_PREFER_LOW_VOLTAGE		(1<<30)
-#define DPM_CAP_SNK_IGNORE_MISMATCH_CURRENT	(1<<31)
 
 extern int tcpm_shutdown(struct tcpc_device *tcpc_dev);
 
@@ -403,7 +401,7 @@ extern int tcpm_typec_change_role(
 
 #define PD_DATA_OBJ_SIZE		(7)
 #define PDO_MAX_NR				(PD_DATA_OBJ_SIZE)
-#define VDO_MAX_NR				(PD_DATA_OBJ_SIZE-1) 
+#define VDO_MAX_NR				(PD_DATA_OBJ_SIZE-1)
 #define VDO_MAX_SVID_NR			(VDO_MAX_NR*2)
 
 #define VDO_DISCOVER_ID_IDH			0
@@ -459,7 +457,7 @@ struct tcp_dpm_event;
 enum {
 	TCP_DPM_RET_SUCCESS = 0,
 	TCP_DPM_RET_SENT = 0,
-	
+
 	TCP_DPM_RET_DENIED_UNKNOWM,
 	TCP_DPM_RET_DENIED_NOT_READY,
 	TCP_DPM_RET_DENIED_NO_SUPPORT,
@@ -468,8 +466,8 @@ enum {
 	TCP_DPM_RET_DENIED_SAME_ROLE,
 	TCP_DPM_RET_DENIED_INVALID_REQUEST,
 	TCP_DPM_RET_DENIED_WRONG_DATA_ROLE,
-	
-	TCP_DPM_RET_DROP_CC_DETACH,	
+
+	TCP_DPM_RET_DROP_CC_DETACH,
 	TCP_DPM_RET_DROP_SENT_SRESET,
 	TCP_DPM_RET_DROP_RECV_SRESET,
 	TCP_DPM_RET_DROP_SENT_HRESET,
@@ -495,6 +493,7 @@ enum {
 
 	TCP_DPM_EVT_REQUEST,
 	TCP_DPM_EVT_REQUEST_EX,
+	TCP_DPM_EVT_REQUEST_AGAIN,
 	TCP_DPM_EVT_BIST_CM2,
 
 	TCP_DPM_EVT_VDM_COMMAND,
@@ -518,7 +517,7 @@ enum {
 	TCP_DPM_EVT_UVDM,
 #endif	/* CONFIG_USB_PD_UVDM */
 
-	TCP_DPM_EVT_IMMEDIATELY,	
+	TCP_DPM_EVT_IMMEDIATELY,
 	TCP_DPM_EVT_HARD_RESET = TCP_DPM_EVT_IMMEDIATELY,
 	TCP_DPM_EVT_ERROR_RECOVERY,
 
@@ -540,7 +539,7 @@ struct tcp_dpm_pd_request {
 
 struct tcp_dpm_pd_request_ex {
 	uint8_t pos;
-	
+
 	union {
 		uint32_t max;
 		uint32_t max_uw;
@@ -551,7 +550,7 @@ struct tcp_dpm_pd_request_ex {
 		uint32_t oper;
 		uint32_t oper_uw;
 		uint32_t oper_ma;
-	};	
+	};
 };
 
 #ifdef CONFIG_USB_PD_ALT_MODE
@@ -577,7 +576,7 @@ typedef struct tcp_dpm_event {
 		struct tcp_dpm_pd_request pd_req;
 		struct tcp_dpm_pd_request_ex pd_req_ex;
 
-#ifdef CONFIG_USB_PD_ALT_MODE		
+#ifdef CONFIG_USB_PD_ALT_MODE
 		struct tcp_dpm_dp_data dp_data;
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
@@ -640,9 +639,9 @@ extern int tcpm_dpm_pd_get_source_cap(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb);
 extern int tcpm_dpm_pd_get_sink_cap(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb);
-extern int tcpm_dpm_pd_request(struct tcpc_device *tcpc, 
+extern int tcpm_dpm_pd_request(struct tcpc_device *tcpc,
 	int mv, int ma, tcp_dpm_event_cb event_cb);
-extern int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc, 
+extern int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc,
 	uint8_t pos, uint32_t max, uint32_t oper, tcp_dpm_event_cb event_cb);
 extern int tcpm_dpm_pd_bist_cm2(
 	struct tcpc_device *tcpc, tcp_dpm_event_cb event_cb);
@@ -722,7 +721,7 @@ extern int tcpm_inquire_dp_dfp_u_state(
 extern int tcpm_dpm_dp_status_update(struct tcpc_device *tcpc,
 	uint32_t dp_status, uint32_t mask, tcp_dpm_event_cb event_cb);
 
-extern int tcpm_dpm_dp_config(struct tcpc_device *tcpc, 
+extern int tcpm_dpm_dp_config(struct tcpc_device *tcpc,
 	uint32_t dp_config, uint32_t mask, tcp_dpm_event_cb event_cb);
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
 #endif	/* CONFIG_USB_PD_ALT_MODE */
@@ -738,7 +737,7 @@ extern int tcpm_dpm_dp_config(struct tcpc_device *tcpc,
 	(hdr & 0x7FFF)
 
 extern int tcpm_dpm_send_uvdm(
-	struct tcpc_device *tcpc, uint8_t cnt, 
+	struct tcpc_device *tcpc, uint8_t cnt,
 	uint32_t *data, bool wait_resp, tcp_dpm_event_cb event_cb);
 
 #endif	/* CONFIG_USB_PD_UVDM */
@@ -746,6 +745,45 @@ extern int tcpm_dpm_send_uvdm(
 /* Notify TCPM */
 
 extern int tcpm_notify_vbus_stable(struct tcpc_device *tcpc_dev);
+
+/* Charging Policy: Select PDO */
+
+enum dpm_charging_policy {
+	/* VSafe5V only */
+	DPM_CHARGING_POLICY_VSAFE5V = 0,
+
+	/* Direct charge <Variable PDO only> */
+	DPM_CHARGING_POLICY_DIRECT_CHARGE = 1,
+
+	/* Custom defined Policy */
+	DPM_CHARGING_POLICY_CUSTOM = 2,
+
+	/* Max Power */
+	DPM_CHARGING_POLICY_MAX_POWER = 3,
+
+	DPM_CHARGING_POLICY_IGNORE_MISMATCH_CURR = 1 << 4,
+	DPM_CHARGING_POLICY_PREFER_LOW_VOLTAGE = 1 << 5,
+	DPM_CHARGING_POLICY_PREFER_HIGH_VOLTAGE = 1 << 6,
+
+	DPM_CHARGING_POLICY_MAX_POWER_LV =
+		DPM_CHARGING_POLICY_MAX_POWER |
+		DPM_CHARGING_POLICY_PREFER_LOW_VOLTAGE,
+	DPM_CHARGING_POLICY_MAX_POWER_LVIC =
+		DPM_CHARGING_POLICY_MAX_POWER_LV |
+		DPM_CHARGING_POLICY_IGNORE_MISMATCH_CURR,
+
+	DPM_CHARGING_POLICY_MAX_POWER_HV =
+		DPM_CHARGING_POLICY_MAX_POWER |
+		DPM_CHARGING_POLICY_PREFER_HIGH_VOLTAGE,
+	DPM_CHARGING_POLICY_MAX_POWER_HVIC =
+		DPM_CHARGING_POLICY_MAX_POWER_HV |
+		DPM_CHARGING_POLICY_IGNORE_MISMATCH_CURR,
+};
+
+extern int tcpm_set_pd_charging_policy(
+	struct tcpc_device *tcpc, uint8_t policy);
+
+extern uint8_t tcpm_inquire_pd_charging_policy(struct tcpc_device *tcpc);
 
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 

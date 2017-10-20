@@ -269,7 +269,7 @@ struct tcpc_device {
 	struct mutex typec_lock;
 	struct mutex timer_lock;
 	struct semaphore timer_enable_mask_lock;
-	struct spinlock timer_tick_lock;
+	spinlock_t timer_tick_lock;
 	atomic_t pending_event;
 	uint64_t timer_tick;
 	uint64_t timer_enable_mask;
@@ -308,7 +308,7 @@ struct tcpc_device {
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 #ifdef CONFIG_TYPEC_CAP_ROLE_SWAP
-	bool typec_during_role_swap;
+	uint8_t typec_during_role_swap;
 #endif	/* CONFIG_TYPEC_CAP_ROLE_SWAP */
 
 #ifdef CONFIG_TYPEC_CAP_AUTO_DISCHARGE
@@ -348,7 +348,7 @@ struct tcpc_device {
 
 	pd_msg_t pd_msg_buffer[PD_MSG_BUF_SIZE];
 	pd_event_t pd_event_ring_buffer[PD_EVENT_BUF_SIZE];
-	
+
 	uint8_t tcp_event_count;
 	uint8_t tcp_event_head_index;
 	tcp_dpm_event_t tcp_event_ring_buffer[TCP_EVENT_BUF_SIZE];
@@ -364,6 +364,10 @@ struct tcpc_device {
 	uint8_t pd_transmit_state;
 	int pd_wait_vbus_once;
 
+#ifdef CONFIG_USB_PD_ALT_MODE_RTDC
+	bool pd_during_direct_charge;
+#endif	/* CONFIG_USB_PD_ALT_MODE_RTDC */
+
 #ifdef CONFIG_USB_PD_RETRY_CRC_DISCARD
 	bool pd_discard_pending;
 #endif	/* CONFIG_USB_PD_RETRY_CRC_DISCARD */
@@ -372,7 +376,7 @@ struct tcpc_device {
 #ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
 	bool pd_force_discharge;
 #endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
-#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */	
+#endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
 
 	pd_port_t pd_port;
 #endif /* CONFIG_USB_POWER_DELIVERY */

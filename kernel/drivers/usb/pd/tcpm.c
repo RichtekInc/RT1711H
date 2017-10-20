@@ -32,14 +32,14 @@ int tcpm_shutdown(struct tcpc_device *tcpc_dev)
 	if (tcpc_dev->typec_power_ctrl)
 		tcpci_disable_vbus_control(tcpc_dev);
 #endif	/* CONFIG_TCPC_SHUTDOWN_VBUS_DISABLE */
-	
+
 	if (tcpc_dev->ops->deinit)
 		tcpc_dev->ops->deinit(tcpc_dev);
-	
+
 	return 0;
 }
 
-int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev, 
+int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev,
 	uint8_t *cc1, uint8_t *cc2, bool from_ic)
 {
 	int rv = 0;
@@ -60,7 +60,7 @@ int tcpm_inquire_vbus_level(
 {
 	int rv = 0;
 	uint16_t power_status = 0;
-	
+
 	if (from_ic) {
 		rv = tcpci_get_power_status(tcpc_dev, &power_status);
 		if (rv < 0)
@@ -68,7 +68,7 @@ int tcpm_inquire_vbus_level(
 
 		tcpci_vbus_level_init(tcpc_dev, power_status);
 	}
-		
+
 	return tcpc_dev->vbus_level;
 }
 
@@ -107,7 +107,7 @@ uint8_t tcpm_inquire_typec_local_rp(
 	default:
 	case TYPEC_CC_RP_DFT:
 		level = 0;
-		break;		
+		break;
 	}
 
 	return level;
@@ -117,7 +117,7 @@ int tcpm_typec_set_wake_lock(
 	struct tcpc_device *tcpc, bool user_lock)
 {
 	int ret;
-	
+
 	mutex_lock(&tcpc->access_lock);
 	ret = tcpci_set_wake_lock(
 		tcpc, tcpc->wake_lock_pd, user_lock);
@@ -134,10 +134,11 @@ int tcpm_typec_set_usb_sink_curr(
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
 	mutex_lock(&pd_port->pd_lock);
-	
+
 	if (pd_port->pd_prev_connected)
-		force_sink_vbus = false;	
+		force_sink_vbus = false;
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
 	tcpc_dev->typec_usb_sink_curr = curr;
@@ -146,7 +147,7 @@ int tcpm_typec_set_usb_sink_curr(
 		force_sink_vbus = false;
 
 	if (force_sink_vbus) {
-		tcpci_sink_vbus(tcpc_dev, 
+		tcpci_sink_vbus(tcpc_dev,
 			TCP_VBUS_CTRL_TYPEC, TCPC_VBUS_SINK_5V, -1);
 	}
 
@@ -236,7 +237,8 @@ uint8_t tcpm_inquire_pd_vconn_role(
 uint8_t tcpm_inquire_cable_current(
 	struct tcpc_device *tcpc_dev)
 {
-	pd_port_t* pd_port = &tcpc_dev->pd_port;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+
 	if (pd_port->power_cable_present)
 		return pd_get_cable_curr_lvl(pd_port)+1;
 
@@ -245,36 +247,34 @@ uint8_t tcpm_inquire_cable_current(
 
 uint32_t tcpm_inquire_dpm_flags(struct tcpc_device *tcpc_dev)
 {
-	pd_port_t* pd_port = &tcpc_dev->pd_port;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
 
-	return pd_port->dpm_flags;	
+	return pd_port->dpm_flags;
 }
 
 uint32_t tcpm_inquire_dpm_caps(struct tcpc_device *tcpc_dev)
 {
-	pd_port_t* pd_port = &tcpc_dev->pd_port;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
 
 	return pd_port->dpm_caps;
 }
 
 void tcpm_set_dpm_flags(struct tcpc_device *tcpc_dev, uint32_t flags)
 {
-	pd_port_t* pd_port = &tcpc_dev->pd_port;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	pd_port->dpm_flags = flags;
 	mutex_unlock(&pd_port->pd_lock);
-	return;
 }
 
 void tcpm_set_dpm_caps(struct tcpc_device *tcpc_dev, uint32_t caps)
 {
-	pd_port_t* pd_port = &tcpc_dev->pd_port;
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
 
 	mutex_lock(&pd_port->pd_lock);
 	pd_port->dpm_caps = caps;
 	mutex_unlock(&pd_port->pd_lock);
-	return;
 }
 
 /* Inquire TCPC to get PD Information */
@@ -284,16 +284,16 @@ int tcpm_inquire_pd_contract(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
 
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if ((mv == NULL) || (ma == NULL))
 		return TCPM_ERROR_PARAMETER;
-	
+
 	mutex_lock(&pd_port->pd_lock);
 	if (pd_port->explicit_contract) {
 		*mv = pd_port->request_v;
@@ -301,7 +301,7 @@ int tcpm_inquire_pd_contract(
 	} else
 		ret = TCPM_ERROR_NO_EXPLICIT_CONTRACT;
 	mutex_unlock(&pd_port->pd_lock);
-	
+
 	return ret;
 
 }
@@ -312,7 +312,7 @@ int tcpm_inquire_cable_inform(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
 
@@ -324,12 +324,12 @@ int tcpm_inquire_cable_inform(
 
 	mutex_lock(&pd_port->pd_lock);
 	if (pd_port->power_cable_present) {
-		memcpy(vdos, pd_port->cable_vdos, 
+		memcpy(vdos, pd_port->cable_vdos,
 			sizeof(uint32_t) * VDO_MAX_NR);
 	} else
 		ret = TCPM_ERROR_NO_POWER_CABLE;
 	mutex_unlock(&pd_port->pd_lock);
-	
+
 	return ret;
 }
 EXPORT_SYMBOL(tcpm_inquire_cable_inform);
@@ -346,13 +346,13 @@ int tcpm_inquire_pd_partner_inform(
 
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if (vdos == NULL)
 		return TCPM_ERROR_PARAMETER;
 
 	mutex_lock(&pd_port->pd_lock);
 	if (pd_port->partner_id_present) {
-		memcpy(vdos, pd_port->partner_vdos, 
+		memcpy(vdos, pd_port->partner_vdos,
 			sizeof(uint32_t) * VDO_MAX_NR);
 	} else
 		ret = TCPM_ERROR_NO_PARTNER_INFORM;
@@ -370,16 +370,16 @@ int tcpm_inquire_pd_source_cap(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
-	
+
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if (cap == NULL)
 		return TCPM_ERROR_PARAMETER;
-	
+
 	mutex_lock(&pd_port->pd_lock);
 	if (pd_port->remote_src_cap.nr) {
 		cap->cnt = pd_port->remote_src_cap.nr;
@@ -398,16 +398,16 @@ int tcpm_inquire_pd_sink_cap(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
-	
+
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if (cap == NULL)
 		return TCPM_ERROR_PARAMETER;
-	
+
 	mutex_lock(&pd_port->pd_lock);
 	if (pd_port->remote_snk_cap.nr) {
 		cap->cnt = pd_port->remote_snk_cap.nr;
@@ -461,7 +461,7 @@ int tcpm_dpm_pd_power_swap(
 		.event_id = TCP_DPM_EVT_PR_SWAP_AS_SNK + role,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_power_swap);
@@ -473,7 +473,7 @@ int tcpm_dpm_pd_data_swap(
 		.event_id = TCP_DPM_EVT_DR_SWAP_AS_UFP + role,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_data_swap);
@@ -485,7 +485,7 @@ int tcpm_dpm_pd_vconn_swap(
 		.event_id = TCP_DPM_EVT_VCONN_SWAP_OFF + role,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_vconn_swap);
@@ -497,7 +497,7 @@ int tcpm_dpm_pd_goto_min(
 		.event_id = TCP_DPM_EVT_GOTOMIN,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_goto_min);
@@ -509,7 +509,7 @@ int tcpm_dpm_pd_soft_reset(
 		.event_id = TCP_DPM_EVT_SOFTRESET,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_soft_reset);
@@ -521,7 +521,7 @@ int tcpm_dpm_pd_get_source_cap(
 		.event_id = TCP_DPM_EVT_GET_SOURCE_CAP,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_get_source_cap);
@@ -533,12 +533,12 @@ int tcpm_dpm_pd_get_sink_cap(
 		.event_id = TCP_DPM_EVT_GET_SINK_CAP,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_get_sink_cap);
 
-int tcpm_dpm_pd_request(struct tcpc_device *tcpc, 
+int tcpm_dpm_pd_request(struct tcpc_device *tcpc,
 	int mv, int ma, tcp_dpm_event_cb event_cb)
 {
 	tcp_dpm_event_t tcp_event = {
@@ -553,7 +553,7 @@ int tcpm_dpm_pd_request(struct tcpc_device *tcpc,
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_request);
 
-int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc, 
+int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc,
 	uint8_t pos, uint32_t max, uint32_t oper, tcp_dpm_event_cb event_cb)
 {
 	tcp_dpm_event_t tcp_event = {
@@ -565,11 +565,9 @@ int tcpm_dpm_pd_request_ex(struct tcpc_device *tcpc,
 
 	if (oper > max)
 		return TCPM_ERROR_PARAMETER;
-	else {
-		tcp_event.tcp_dpm_data.pd_req_ex.max = max;
-		tcp_event.tcp_dpm_data.pd_req_ex.oper = oper;
-	}
-	
+
+	tcp_event.tcp_dpm_data.pd_req_ex.max = max;
+	tcp_event.tcp_dpm_data.pd_req_ex.oper = oper;
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_request_ex);
@@ -581,7 +579,7 @@ int tcpm_dpm_pd_bist_cm2(
 		.event_id = TCP_DPM_EVT_BIST_CM2,
 		.event_cb = event_cb,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_pd_bist_cm2);
@@ -638,16 +636,16 @@ int tcpm_inquire_dp_ufp_u_state(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
-	
+
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if (state == NULL)
 		return TCPM_ERROR_PARAMETER;
-	
+
 	mutex_lock(&pd_port->pd_lock);
 	*state = pd_port->dp_ufp_u_state;
 	mutex_unlock(&pd_port->pd_lock);
@@ -656,13 +654,13 @@ int tcpm_inquire_dp_ufp_u_state(
 }
 EXPORT_SYMBOL(tcpm_inquire_dp_ufp_u_state);
 
-int tcpm_dpm_dp_attention(struct tcpc_device *tcpc, 
+int tcpm_dpm_dp_attention(struct tcpc_device *tcpc,
 	uint32_t dp_status, uint32_t mask, tcp_dpm_event_cb event_cb)
 {
 	tcp_dpm_event_t tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_ATTENTION,
 		.event_cb = event_cb,
-		
+
 		.tcp_dpm_data.dp_data.val = dp_status,
 		.tcp_dpm_data.dp_data.mask = mask,
 	};
@@ -678,16 +676,16 @@ int tcpm_inquire_dp_dfp_u_state(
 {
 	int ret = TCPM_SUCCESS;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
-	
+
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
-	
+
 	if (state == NULL)
 		return TCPM_ERROR_PARAMETER;
-	
+
 	mutex_lock(&pd_port->pd_lock);
 	*state = pd_port->dp_dfp_u_state;
 	mutex_unlock(&pd_port->pd_lock);
@@ -702,7 +700,7 @@ int tcpm_dpm_dp_status_update(struct tcpc_device *tcpc,
 	tcp_dpm_event_t tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_STATUS_UPDATE,
 		.event_cb = event_cb,
-		
+
 		.tcp_dpm_data.dp_data.val = dp_status,
 		.tcp_dpm_data.dp_data.mask = mask,
 	};
@@ -711,17 +709,17 @@ int tcpm_dpm_dp_status_update(struct tcpc_device *tcpc,
 }
 EXPORT_SYMBOL(tcpm_dpm_dp_status_update);
 
-int tcpm_dpm_dp_config(struct tcpc_device *tcpc, 
+int tcpm_dpm_dp_config(struct tcpc_device *tcpc,
 	uint32_t dp_config, uint32_t mask, tcp_dpm_event_cb event_cb)
 {
 	tcp_dpm_event_t tcp_event = {
 		.event_id = TCP_DPM_EVT_DP_CONFIG,
 		.event_cb = event_cb,
-		
+
 		.tcp_dpm_data.dp_data.val = dp_config,
 		.tcp_dpm_data.dp_data.mask = mask,
 	};
-	
+
 	return tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
 }
 EXPORT_SYMBOL(tcpm_dpm_dp_config);
@@ -734,17 +732,17 @@ int tcpm_dpm_send_uvdm(struct tcpc_device *tcpc,
 	uint8_t cnt, uint32_t *data, bool wait_resp, tcp_dpm_event_cb event_cb)
 {
 	struct tcp_dpm_uvdm_data *uvdm_data;
-	
+
 	tcp_dpm_event_t tcp_event = {
 		.event_id = TCP_DPM_EVT_UVDM,
 		.event_cb = event_cb,
 	};
-	
+
 	if (cnt > PD_DATA_OBJ_SIZE)
 		return TCPM_ERROR_PARAMETER;
 
 	uvdm_data = &tcp_event.tcp_dpm_data.uvdm_data;
-	
+
 	uvdm_data->cnt = cnt;
 	uvdm_data->wait_resp = wait_resp;
 	memcpy(uvdm_data->vdos, data, sizeof(uint32_t) * cnt);
@@ -758,22 +756,22 @@ int tcpm_put_tcp_dpm_event(
 {
 	bool ret;
 	pd_port_t *pd_port = &tcpc->pd_port;
-	
+
 	if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		return TCPM_ERROR_UNATTACHED;
 
 	if (!pd_port->pd_prev_connected)
 		return TCPM_ERROR_NO_PD_CONNECTED;
 
-	if (event->event_id >= TCP_DPM_EVT_IMMEDIATELY) {
+	if (event->event_id >= TCP_DPM_EVT_IMMEDIATELY)
 		ret = pd_put_tcp_pd_event(pd_port, event->event_id);
-	} else
+	else
 		ret = pd_put_deferred_tcp_event(tcpc, event);
-	
+
 	if (!ret)
 		return TCPM_ERROR_PUT_EVENT;
 
-	return TCPM_SUCCESS; 
+	return TCPM_SUCCESS;
 }
 EXPORT_SYMBOL(tcpm_put_tcp_dpm_event);
 
@@ -788,5 +786,30 @@ int tcpm_notify_vbus_stable(
 	return TCPM_SUCCESS;
 }
 EXPORT_SYMBOL(tcpm_notify_vbus_stable);
+
+uint8_t tcpm_inquire_pd_charging_policy(struct tcpc_device *tcpc)
+{
+	pd_port_t *pd_port = &tcpc->pd_port;
+
+	return pd_port->dpm_charging_policy;
+}
+EXPORT_SYMBOL(tcpm_inquire_pd_charging_policy);
+
+int tcpm_set_pd_charging_policy(struct tcpc_device *tcpc, uint8_t policy)
+{
+	tcp_dpm_event_t tcp_event = {
+		.event_id = TCP_DPM_EVT_REQUEST_AGAIN,
+	};
+
+	pd_port_t *pd_port = &tcpc->pd_port;
+
+	mutex_lock(&pd_port->pd_lock);
+	pd_port->dpm_charging_policy = policy;
+	mutex_unlock(&pd_port->pd_lock);
+
+	tcpm_put_tcp_dpm_event(tcpc, &tcp_event);
+	return 0;
+}
+EXPORT_SYMBOL(tcpm_set_pd_charging_policy);
 
 #endif /* CONFIG_USB_POWER_DELIVERY */

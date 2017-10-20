@@ -18,7 +18,7 @@
 #include <linux/usb/tcpci.h>
 #include <linux/usb/pd_policy_engine.h>
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 typedef struct __pe_state_transition {
 	uint8_t curr_state; /*state, msg, or cmd */
@@ -39,7 +39,7 @@ typedef struct __pe_state_reaction {
 		.state_transition = state##_state_transition,\
 	}
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 static inline bool pd_check_pe_state_ready(pd_port_t *pd_port)
 {
@@ -86,7 +86,7 @@ bool pd_process_dpm_msg_vconn_swap(
 bool pd_process_recv_hard_reset(
 		pd_port_t *pd_port, pd_event_t *pd_event, uint8_t hreset_state);
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 #define PE_TRANSIT_STATE(pd_port, state)	\
 	(pd_port->pe_state_next = state)
@@ -116,7 +116,7 @@ bool pd_process_recv_hard_reset(
 	PE_TRANSIT_POWER_STATE(pd_port, \
 	PE_SNK_SEND_SOFT_RESET, PE_SRC_SEND_SOFT_RESET)
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 #define PE_MAKE_STATE_TRANSIT(state)	\
 		pd_make_pe_state_transit(\

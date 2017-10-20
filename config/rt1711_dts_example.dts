@@ -9,6 +9,14 @@
 			rt-tcpc,rp_level = <0>; /* 0: Default, 1: 1.5, 2: 3.0 */
 			rt-tcpc,notifier_supply_num = <1>; /* the number of notifier supply */
 			pd-data {
+				/*
+					VSAFE5V = 0, DIRECT_CHARGE = 1, CUSTOM = 2,
+					MAX_POWER = 0x03,
+					MAX_POWER_LV = 0x23, MAX_POWER_LVIC = 0x33
+					MAX_POWER_HV = 0x43, MAX_POWER_HVIC = 0x53
+				*/
+				pd,charging_policy= <0x33>;
+
 				pd,source-pdo-size = <1>;
 				pd,source-pdo-data = <0x00019032>; /* 5V, 500 mA */
 				pd,sink-pdo-size = <2>;
@@ -53,9 +61,6 @@
 				dr_check = <0>;
 				// dr_reject_as_dfp;
 				// dr_reject_as_ufp;
-
-				snk_prefer_low_voltage;
-				snk_ignore_mismatch_current;
 			};
 			displayport {
 				/* connection type = "both", "ufp_d", "dfp_d" */

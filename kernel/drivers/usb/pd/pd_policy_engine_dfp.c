@@ -67,7 +67,7 @@ void pe_dfp_cbl_vdm_identity_acked_entry(
 
 	pd_disable_timer(pd_port, PD_TIMER_VDM_RESPONSE);
 	pd_dpm_inform_cable_id(pd_port, pd_event);
-	
+
 	vdm_put_dpm_notified_event(pd_port);
 	pd_free_pd_event(pd_port, pd_event);
 }

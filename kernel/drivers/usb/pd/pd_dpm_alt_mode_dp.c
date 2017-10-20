@@ -73,7 +73,6 @@ static inline bool dp_update_dp_connected_both(
 
 /* DP : DFP_U */
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
-
 #if DP_DBG_ENABLE
 static const char * const dp_dfp_u_state_name[] = {
 	"dp_dfp_u_none",
@@ -360,11 +359,11 @@ static inline uint8_t dp_dfp_u_select_mode(
 	}
 
 	/*
-	dp_mode = svid_data->remote_mode.mode_vdo[0];
-	dp_local_mode = svid_data->local_mode.mode_vdo[0];
-
-	cap_match = DP_DFP_U_CHECK_ROLE_CAP_MATCH(dp_mode, dp_local_mode);
-	return cap_match ? 1 : 0;*/
+	 * dp_mode = svid_data->remote_mode.mode_vdo[0];
+	 * dp_local_mode = svid_data->local_mode.mode_vdo[0];
+	 * cap_match = DP_DFP_U_CHECK_ROLE_CAP_MATCH(dp_mode, dp_local_mode),
+	 * return cap_match ? 1 : 0;
+	 */
 	return remote_index + 1;
 }
 
@@ -553,7 +552,7 @@ static inline bool dp_dfp_u_update_dp_connected(
 				dp_connected, dp_local_connected);
 
 		if (pd_port->dp_dfp_u_state == DP_DFP_U_STATUS_UPDATE) {
-			pd_put_tcp_vdm_event(pd_port, 
+			pd_put_tcp_vdm_event(pd_port,
 				TCP_DPM_EVT_DP_STATUS_UPDATE);
 		} else {
 			valid_connected = true;

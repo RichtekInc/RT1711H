@@ -91,8 +91,8 @@ int tcpm_get_source_cap(
 {
 	if (cap == NULL)
 		return tcpm_dpm_pd_get_source_cap(tcpc_dev, NULL);
-	else
-		return tcpm_inquire_pd_source_cap(tcpc_dev, cap);
+
+	return tcpm_inquire_pd_source_cap(tcpc_dev, cap);
 }
 EXPORT_SYMBOL(tcpm_get_source_cap);
 
@@ -101,8 +101,8 @@ int tcpm_get_sink_cap(
 {
 	if (cap == NULL)
 		return tcpm_dpm_pd_get_sink_cap(tcpc_dev, NULL);
-	else
-		return tcpm_inquire_pd_sink_cap(tcpc_dev, cap);
+
+	return tcpm_inquire_pd_sink_cap(tcpc_dev, cap);
 }
 EXPORT_SYMBOL(tcpm_get_sink_cap);
 
@@ -128,8 +128,8 @@ int tcpm_discover_cable(struct tcpc_device *tcpc_dev, uint32_t *vdos)
 {
 	if (vdos == NULL)
 		return tcpm_dpm_vdm_discover_cable(tcpc_dev, NULL);
-	else
-		return tcpm_inquire_cable_inform(tcpc_dev, vdos);
+
+	return tcpm_inquire_cable_inform(tcpc_dev, vdos);
 }
 EXPORT_SYMBOL(tcpm_discover_cable);
 
@@ -138,8 +138,8 @@ int tcpm_vdm_request_id(
 {
 	if (vdos == NULL)
 		return tcpm_dpm_vdm_discover_id(tcpc_dev, NULL);
-	else
-		return tcpm_inquire_pd_partner_inform(tcpc_dev, vdos);
+
+	return tcpm_inquire_pd_partner_inform(tcpc_dev, vdos);
 }
 EXPORT_SYMBOL(tcpm_vdm_request_id);
 
@@ -172,7 +172,7 @@ EXPORT_SYMBOL(tcpm_dp_configuration);
 #endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_UVDM
-int tcpm_send_uvdm(struct tcpc_device *tcpc_dev, 
+int tcpm_send_uvdm(struct tcpc_device *tcpc_dev,
 	uint8_t cnt, uint32_t *data, bool wait_resp)
 {
 	return tcpm_dpm_send_uvdm(tcpc_dev, cnt, data, wait_resp, NULL);

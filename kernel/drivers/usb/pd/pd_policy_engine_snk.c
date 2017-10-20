@@ -27,6 +27,10 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	uint8_t rx_cap = PD_RX_CAP_PE_STARTUP;
 
+#ifdef CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
+	uint8_t msg_id_last = pd_port->msg_id_rx[TCPC_TX_SOP];
+#endif	/* CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP */
+
 	pd_port->request_i = -1;
 	pd_port->request_v = TCPC_VBUS_SINK_5V;
 	pd_port->state_machine = PE_STATE_MACHINE_SINK;
@@ -49,6 +53,10 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 			rx_cap = PD_RX_CAP_PE_SEND_WAIT_CAP;
 		}
 
+#ifdef CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
+		pd_port->msg_id_pr_swap_last = msg_id_last;
+#endif	/* CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP */
+
 		pd_put_pe_event(pd_port, PD_PE_RESET_PRL_COMPLETED);
 		pd_free_pd_event(pd_port, pd_event);
 		break;
@@ -60,7 +68,7 @@ void pe_snk_startup_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 void pe_snk_discovery_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 #ifdef CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW
-	/* iSafe0mA: Maximum current a Sink 
+	/* iSafe0mA: Maximum current a Sink
 		is allowed to draw when VBUS is driven to vSafe0V*/
 	if (pd_port->tcpc_dev->pd_wait_hard_reset_complete)
 		pd_dpm_sink_vbus(pd_port, false);
@@ -87,6 +95,10 @@ void pe_snk_wait_for_capabilities_entry(
 
 void pe_snk_wait_for_capabilities_exit(pd_port_t *pd_port, pd_event_t *pd_event)
 {
+#ifdef CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
+	pd_port->msg_id_pr_swap_last = 0xff;
+#endif	/* CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP */
+
 	pd_disable_timer(pd_port, PD_TIMER_SINK_WAIT_CAP);
 }
 

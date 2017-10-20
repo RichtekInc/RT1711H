@@ -19,7 +19,7 @@
 #include <linux/device.h>
 #include <linux/version.h>
 #include <linux/slab.h>
-#include <linux/list.h> 
+#include <linux/list.h>
 
 #include <linux/usb/tcpci.h>
 #include <linux/usb/tcpci_typec.h>
@@ -29,7 +29,7 @@
 #include <linux/usb/tcpm.h>
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.4_G"
+#define TCPC_CORE_VERSION		"1.1.5_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -154,9 +154,9 @@ static ssize_t tcpc_show_property(struct device *dev,
 			snprintf(buf, 256, "%s\n", "3.0");
 		break;
 	case TCPC_DESC_PD_TEST:
-		snprintf(buf, 256, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n", 
+		snprintf(buf, 256, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 			"1: pr_swap", "2: dr_swap", "3: vconn_swap",
-			"4: soft reset", "5: hard reset", 
+			"4: soft reset", "5: hard reset",
 			"6: get_src_cap", "7: get_sink_cap",
 			"8: discover_id", "9: discover_cable");
 		break;

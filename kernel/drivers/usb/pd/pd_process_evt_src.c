@@ -213,7 +213,7 @@ static inline bool pd_process_ctrl_msg(
 			PE_DBG("Port Partner Request First\r\n");
 			pd_port->pe_state_curr = PE_SRC_READY;
 			pd_disable_timer(
-				pd_port, PD_TIMER_SENDER_RESPONSE);			
+				pd_port, PD_TIMER_SENDER_RESPONSE);
 		}
 		break;
 	}

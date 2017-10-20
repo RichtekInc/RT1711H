@@ -444,12 +444,11 @@ static inline bool pd_process_timer_msg(
 		} else if (pd_port->hard_reset_counter <= PD_HARD_RESET_COUNT) {
 			PE_TRANSIT_STATE(pd_port, PE_SNK_HARD_RESET);
 			return true;
-		} else if(pd_port->pd_prev_connected) {
+		} else if (pd_port->pd_prev_connected) {
 			PE_TRANSIT_STATE(pd_port, PE_ERROR_RECOVERY);
 			return true;
-		} else {
-			pd_report_typec_only_charger(pd_port);
 		}
+		pd_report_typec_only_charger(pd_port);
 		break;
 #endif	/* CONFIG_USB_PD_DBG_IGRONE_TIMEOUT */
 

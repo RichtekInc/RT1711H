@@ -185,9 +185,14 @@ static int tcpci_alert_recv_msg(struct tcpc_device *tcpc_dev)
 	pd_msg_t *pd_msg;
 	enum tcpm_transmit_type type;
 
+	const uint32_t alert_rx =
+		TCPC_REG_ALERT_RX_STATUS | TCPC_REG_ALERT_RX_BUF_OVF;
+
 	pd_msg = pd_alloc_msg(tcpc_dev);
-	if (pd_msg == NULL)
-		return -1;	/* TODO */
+	if (pd_msg == NULL) {
+		tcpci_alert_status_clear(tcpc_dev, alert_rx);
+		return -1;
+	}
 
 	retval = tcpci_get_message(tcpc_dev,
 		pd_msg->payload, &pd_msg->msg_hdr, &type);
@@ -204,7 +209,18 @@ static int tcpci_alert_recv_msg(struct tcpc_device *tcpc_dev)
 
 static int tcpci_alert_rx_overflow(struct tcpc_device *tcpc_dev)
 {
+	int rv;
+	uint32_t alert_status;
+
 	TCPC_INFO("RX_OVERFLOW\r\n");
+
+	rv = tcpci_get_alert_status(tcpc_dev, &alert_status);
+	if (rv)
+		return rv;
+
+	if (alert_status & TCPC_REG_ALERT_RX_STATUS)
+		return tcpci_alert_recv_msg(tcpc_dev);
+
 	return 0;
 }
 
@@ -390,25 +406,28 @@ int tcpci_set_wake_lock(
 static inline int tcpci_set_wake_lock_pd(
 	struct tcpc_device *tcpc, bool pd_lock)
 {
-	int ret = 0;
+	uint8_t wake_lock_pd;
 
 	mutex_lock(&tcpc->access_lock);
 
+	wake_lock_pd = tcpc->wake_lock_pd;
+
 	if (pd_lock)
-		tcpc->wake_lock_pd++;
-	else if (tcpc->wake_lock_pd > 0)
-		tcpc->wake_lock_pd--;
+		wake_lock_pd++;
+	else if (wake_lock_pd > 0)
+		wake_lock_pd--;
 
-	if (tcpc->wake_lock_pd == 0)
+	if (wake_lock_pd == 0)
 		wake_lock_timeout(&tcpc->dettach_temp_wake_lock, 5 * HZ);
-		
-	ret = tcpci_set_wake_lock(tcpc, tcpc->wake_lock_pd, tcpc->wake_lock_user);
 
-	if (tcpc->wake_lock_pd == 1)
+	tcpci_set_wake_lock(tcpc, wake_lock_pd, tcpc->wake_lock_user);
+
+	if (wake_lock_pd == 1)
 		wake_unlock(&tcpc->dettach_temp_wake_lock);
-	
+
+	tcpc->wake_lock_pd = wake_lock_pd;
 	mutex_unlock(&tcpc->access_lock);
-	return ret;
+	return 0;
 }
 
 static inline int tcpci_report_usb_port_attached(struct tcpc_device *tcpc)
@@ -525,7 +544,7 @@ int tcpci_report_power_control_off(struct tcpc_device *tcpc)
 
 int tcpci_report_power_control(struct tcpc_device *tcpc, bool en)
 {
-	if (tcpc->typec_power_ctrl == en) 
+	if (tcpc->typec_power_ctrl == en)
 		return 0;
 
 	tcpc->typec_power_ctrl = en;
@@ -537,4 +556,3 @@ int tcpci_report_power_control(struct tcpc_device *tcpc, bool en)
 
 	return 0;
 }
-

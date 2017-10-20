@@ -349,10 +349,10 @@ static inline int tcpci_enable_watchdog(struct tcpc_device *tcpc, bool en)
 #ifdef CONFIG_TCPC_WATCHDOG_EN
 	if (tcpc->typec_watchdog == en)
 		return 0;
-	
+
 	mutex_lock(&tcpc->access_lock);
 	tcpc->typec_watchdog = en;
-	
+
 	if (tcpc->ops->set_watchdog)
 		tcpc->ops->set_watchdog(tcpc, en);
 
@@ -504,7 +504,7 @@ static inline int tcpci_enable_ext_discharge(
 		tcp_noti.en_state.en = en;
 		TCPC_DBG("EXT-Discharge: %d\r\n", en);
 		ret = srcu_notifier_call_chain(
-			&tcpc->evt_nh, TCP_NOTIFY_EXT_DISCHARGE, &tcp_noti);		
+			&tcpc->evt_nh, TCP_NOTIFY_EXT_DISCHARGE, &tcp_noti);
 	}
 
 	mutex_unlock(&tcpc->access_lock);
@@ -517,7 +517,7 @@ static inline int tcpci_enable_auto_discharge(
 	struct tcpc_device *tcpc, bool en)
 {
 	int ret = 0;
-	
+
 #ifdef CONFIG_TYPEC_CAP_AUTO_DISCHARGE
 #ifdef CONFIG_TCPC_AUTO_DISCHARGE_IC
 	if (tcpc->typec_auto_discharge != en) {
@@ -525,7 +525,7 @@ static inline int tcpci_enable_auto_discharge(
 		if (tcpc->ops->set_auto_discharge)
 			ret = tcpc->ops->set_auto_discharge(tcpc, en);
 	}
-#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_IC */	
+#endif	/* CONFIG_TCPC_AUTO_DISCHARGE_IC */
 #endif	/* CONFIG_TYPEC_CAP_AUTO_DISCHARGE */
 
 	return ret;
@@ -711,7 +711,7 @@ static inline int tcpci_disable_force_discharge(
 	struct tcpc_device *tcpc)
 {
 	int ret = 0;
-	
+
 #ifdef CONFIG_USB_PD_SRC_FORCE_DISCHARGE
 #ifdef CONFIG_TCPC_FORCE_DISCHARGE_IC
 	if (tcpc->pd_force_discharge) {
@@ -720,12 +720,12 @@ static inline int tcpci_disable_force_discharge(
 			ret = tcpc->ops->set_force_discharge(tcpc, false, 0);
 	}
 #endif	/* CONFIG_TCPC_FORCE_DISCHARGE_IC */
-	
+
 #ifdef CONFIG_TCPC_FORCE_DISCHARGE_EXT
 	ret = tcpci_enable_ext_discharge(tcpc, false);
 #endif	/* CONFIG_TCPC_FORCE_DISCHARGE_EXT */
 #endif	/* CONFIG_USB_PD_SRC_FORCE_DISCHARGE */
-	
+
 	return ret;
 }
 

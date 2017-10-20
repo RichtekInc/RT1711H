@@ -35,6 +35,8 @@ bool pd_dpm_update_tcp_request(pd_port_t *pd_port,
 bool pd_dpm_update_tcp_request_ex(pd_port_t *pd_port,
 	struct tcp_dpm_pd_request_ex *pd_req);
 
+bool pd_dpm_update_tcp_request_again(pd_port_t *pd_port);
+
 void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_snk_standby_power(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event);
@@ -243,7 +245,7 @@ extern int dc_dfp_notify_pe_ready(pd_port_t *pd_port,
 
 extern bool dc_dfp_notify_uvdm(pd_port_t *pd_port,
 			svdm_svid_data_t *svid_data, bool ack);
-extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port, 
+extern bool dc_ufp_notify_uvdm(pd_port_t *pd_port,
 			svdm_svid_data_t *svid_data);
 
 #endif /* CONFIG_USB_PD_ALT_MODE_RTDC */

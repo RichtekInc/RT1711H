@@ -43,8 +43,6 @@ DECL_PE_STATE_TRANSITION(PD_UFP_VDM_CMD) = {
 	VDM_CMD_INIT_STATE(CMD_DISCOVER_MODES, PE_UFP_VDM_GET_MODES),
 	VDM_CMD_INIT_STATE(CMD_ENTER_MODE, PE_UFP_VDM_EVALUATE_MODE_ENTRY),
 	VDM_CMD_INIT_STATE(CMD_EXIT_MODE, PE_UFP_VDM_MODE_EXIT),
-	/* CHECK IT LATER */
-	VDM_CMD_INIT_STATE(CMD_ATTENTION, PE_UFP_VDM_ATTENTION_REQUEST),
 
 #ifdef CONFIG_USB_PD_ALT_MODE
 	VDM_CMD_INIT_STATE(CMD_DP_STATUS, PE_UFP_VDM_DP_STATUS_UPDATE),
@@ -715,7 +713,7 @@ static inline uint32_t tcpc_update_bits(
 
 static inline void pd_parse_tcp_dpm_evt_dp_status(pd_port_t *pd_port)
 {
-	struct tcp_dpm_dp_data *dp_data = 
+	struct tcp_dpm_dp_data *dp_data =
 		&pd_port->tcp_event.tcp_dpm_data.dp_data;
 
 	pd_port->mode_svid = USB_SID_DISPLAYPORT;
@@ -727,7 +725,7 @@ static inline void pd_parse_tcp_dpm_evt_dp_status(pd_port_t *pd_port)
 
 static inline void pd_parse_tcp_dpm_evt_dp_config(pd_port_t *pd_port)
 {
-	struct tcp_dpm_dp_data *dp_data = 
+	struct tcp_dpm_dp_data *dp_data =
 		&pd_port->tcp_event.tcp_dpm_data.dp_data;
 
 	pd_port->mode_svid = USB_SID_DISPLAYPORT;
@@ -741,12 +739,12 @@ static inline void pd_parse_tcp_dpm_evt_dp_config(pd_port_t *pd_port)
 #ifdef CONFIG_USB_PD_UVDM
 static inline void pd_parse_tcp_dpm_evt_uvdm(pd_port_t *pd_port)
 {
-	struct tcp_dpm_uvdm_data *uvdm_data = 
+	struct tcp_dpm_uvdm_data *uvdm_data =
 		&pd_port->tcp_event.tcp_dpm_data.uvdm_data;
-	
+
 	pd_port->uvdm_cnt = uvdm_data->cnt;
 	pd_port->uvdm_wait_resp = uvdm_data->wait_resp;
-	memcpy(pd_port->uvdm_data, 
+	memcpy(pd_port->uvdm_data,
 		uvdm_data->vdos, sizeof(uint32_t) * uvdm_data->cnt);
 }
 #endif	/* CONFIG_USB_PD_UVDM */
@@ -758,21 +756,21 @@ static inline void pd_parse_tcp_dpm_evt_from_tcpm(
 	case TCP_DPM_EVT_DP_ATTENTION:
 		pd_parse_tcp_dpm_evt_dp_status(pd_port);
 		break;
-	
-#ifdef CONFIG_USB_PD_ALT_MODE_DFP	
+
+#ifdef CONFIG_USB_PD_ALT_MODE_DFP
 	case TCP_DPM_EVT_DP_STATUS_UPDATE:
 		pd_parse_tcp_dpm_evt_dp_status(pd_port);
-		break;		
+		break;
 	case TCP_DPM_EVT_DP_CONFIG:
 		pd_parse_tcp_dpm_evt_dp_config(pd_port);
 		break;
-#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */	
-	
+#endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
+
 #ifdef CONFIG_USB_PD_UVDM
 	case TCP_DPM_EVT_UVDM:
 		pd_parse_tcp_dpm_evt_uvdm(pd_port);
 		break;
-#endif	/* CONFIG_USB_PD_UVDM */		
+#endif	/* CONFIG_USB_PD_UVDM */
 	}
 }
 
@@ -809,7 +807,7 @@ static inline bool pd_process_tcp_msg(
 
 	if (pd_event->msg_sec == PD_TCP_FROM_TCPM)
 		pd_parse_tcp_dpm_evt_from_tcpm(pd_port, pd_event);
-	
+
 	PE_TRANSIT_STATE(pd_port, new_state);
 	pd_notify_current_tcp_event_result(pd_port, TCP_DPM_RET_SENT);
 	return true;

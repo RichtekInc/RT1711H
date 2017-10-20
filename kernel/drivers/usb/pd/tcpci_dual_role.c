@@ -68,10 +68,10 @@ static	int tcpc_dual_role_prop_is_writeable(
 
 	switch (prop) {
 	case DUAL_ROLE_PROP_PR:
-#ifdef CONFIG_USB_POWER_DELIVERY		
+#ifdef CONFIG_USB_POWER_DELIVERY
 	case DUAL_ROLE_PROP_DR:
 	case DUAL_ROLE_PROP_VCONN_SUPPLY:
-#endif	/* CONFIG_USB_POWER_DELIVERY */		
+#endif	/* CONFIG_USB_POWER_DELIVERY */
 		if (tcpc->dual_role_supported_modes ==
 			DUAL_ROLE_SUPPORTED_MODES_DFP_AND_UFP)
 			retval = 1;
@@ -97,16 +97,16 @@ static int tcpc_dual_role_set_prop_pr(
 	case DUAL_ROLE_PROP_PR_SNK:
 		role = PD_ROLE_SINK;
 		break;
-	default:	
+	default:
 		return 0;
 	}
 
 	if (val == tcpc->dual_role_pr) {
 		pr_info("%s wrong role (%d->%d)\n",
 			__func__, tcpc->dual_role_pr, val);
-		return 0;	
+		return 0;
 	}
-	
+
 	ret = tcpm_dpm_pd_power_swap(tcpc, role, NULL);
 	pr_info("%s power role swap (%d->%d): %d\n",
 		__func__, tcpc->dual_role_pr, val, ret);
@@ -114,9 +114,9 @@ static int tcpc_dual_role_set_prop_pr(
 	if (ret == TCPM_ERROR_NO_PD_CONNECTED) {
 		ret = tcpm_typec_role_swap(tcpc);
 		pr_info("%s typec role swap (%d->%d): %d\n",
-			__func__, tcpc->dual_role_pr, val, ret);		
+			__func__, tcpc->dual_role_pr, val, ret);
 	}
-	
+
 	return ret;
 }
 
@@ -136,17 +136,17 @@ static int tcpc_dual_role_set_prop_dr(
 	default:
 		return 0;
 	}
-	
+
 	if (val == tcpc->dual_role_dr) {
 		pr_info("%s wrong role (%d->%d)\n",
 			__func__, tcpc->dual_role_dr, val);
-		return 0;	
+		return 0;
 	}
 
 	ret = tcpm_dpm_pd_data_swap(tcpc, role, NULL);
 	pr_info("%s data role swap (%d->%d): %d\n",
 		__func__, tcpc->dual_role_dr, val, ret);
-	
+
 	return ret;
 }
 
@@ -195,19 +195,19 @@ static int tcpc_dual_role_set_prop_pr(
 	case DUAL_ROLE_PROP_PR_SNK:
 		role = PD_ROLE_SINK;
 		break;
-	default:	
+	default:
 		return 0;
 	}
-	
+
 	if (val == tcpc->dual_role_pr) {
 		pr_info("%s wrong role (%d->%d)\n",
 			__func__, tcpc->dual_role_pr, val);
 		return 0;
 	}
-	
+
 	ret = tcpm_typec_role_swap(tcpc);
 	pr_info("%s typec role swap (%d->%d): %d\n",
-		__func__, tcpc->dual_role_pr, val, ret);		
+		__func__, tcpc->dual_role_pr, val, ret);
 
 	return ret;
 }

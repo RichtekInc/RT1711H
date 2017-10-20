@@ -2,6 +2,18 @@
 
 ## Changelog
 
+### v015
+- [LINUX] Fix Coding Style
+- [RT1711] Optimize I2C access
+- [TYPEC] Modify TypeC Role Swap Rule (Compatibility)
+- [PE] Ignore repeat pd_ready after pr_swap
+  - CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
+- [DPM] Implement Charging Policy
+- [VDM] Ignore VDM Attention if act as UFP
+- [VDM] Stop reply or send VDM message if RX Busy
+  - CONFIG_USB_PD_STOP_SEND_VDM_IF_RX_BUSY
+  - CONFIG_USB_PD_STOP_REPLY_VDM_IF_RX_BUSY
+
 ### v014
 - [Config] Suggest disable WatchDog & INTRST
 - [RT1711] Sync rt1711h device driver revision to 14

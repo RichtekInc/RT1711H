@@ -485,9 +485,9 @@ void pe_power_ready_entry(pd_port_t *pd_port, pd_event_t *pd_event)
 		pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_UFP);
 	else
 		pd_set_rx_enable(pd_port, PD_RX_CAP_PE_READY_DFP);
-	
+
 #ifdef CONFIG_USB_PD_UFP_FLOW_DELAY
-	if (pd_port->data_role == PD_ROLE_UFP && 
+	if (pd_port->data_role == PD_ROLE_UFP &&
 		(!pd_port->dpm_ufp_flow_delay_done)) {
 		DPM_DBG("Delay UFP Flow\r\n");
 		pd_restart_timer(pd_port, PD_TIMER_UFP_FLOW_DELAY);
@@ -772,12 +772,12 @@ pe_state_action_fcn_t pe_get_exit_action(uint8_t pe_state)
 static inline void print_state(
 	pd_port_t *pd_port, bool vdm_evt, uint8_t state)
 {
-	/* 
+	/*
 	 * Source (P, Provider), Sink (C, Consumer)
 	 * DFP (D), UFP (U)
 	 * Vconn Source (Y/N)
 	 */
-		
+
 #if PE_DBG_ENABLE
 	PE_DBG("%s -> %s (%c%c%c)\r\n",
 		vdm_evt ? "VDM" : "PD", pe_state_name[state],
@@ -877,17 +877,17 @@ static inline bool pd_try_get_tcp_deferred_event(
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	case PE_DBG_READY:
 #endif	/* CONFIG_USB_PD_CUSTOM_DBGACC */
-		ret = true;		
+		ret = true;
 	}
 
 	if (!ret)
 		return ret;
-	
+
 	if (!pd_get_deferred_tcp_event(tcpc_dev, &pd_port->tcp_event))
 		return false;
 
 	pd_event->event_type = PD_EVT_TCP_MSG;
-	pd_event->msg = pd_port->tcp_event.event_id; 
+	pd_event->msg = pd_port->tcp_event.event_id;
 	pd_event->msg_sec = PD_TCP_FROM_TCPM;
 	pd_event->pd_msg = NULL;
 
@@ -895,7 +895,7 @@ static inline bool pd_try_get_tcp_deferred_event(
 		*vdm_evt = true;
 		pd_port->reset_vdm_state = true;
 	}
-	
+
 	return true;
 }
 
@@ -904,7 +904,7 @@ static inline bool pd_try_get_vdm_event(
 {
 	bool vdm_evt = false;
 	pd_port_t *pd_port = &tcpc_dev->pd_port;
-	
+
 	switch (pd_port->pe_pd_state) {
 	case PE_SNK_READY:
 	case PE_SRC_READY:
@@ -936,7 +936,7 @@ static inline bool pd_try_get_next_event(
 
 	if (pd_try_get_tcp_deferred_event(tcpc_dev, pd_event, vdm_evt))
 		return true;
-	
+
 	return false;
 }
 

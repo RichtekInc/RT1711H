@@ -36,22 +36,22 @@ config TCPC_RT1711H
 	  Driver
 
 config USB_PD_VBUS_STABLE_TOUT
-    	int "PD VBUS Stable Timeout"
-    	depends on USB_POWER_DELIVERY
-    	range 0 1000                       # >= 0,  <= 1000
-    	default 125
-    	help
+	int "PD VBUS Stable Timeout"
+	depends on USB_POWER_DELIVERY
+	range 0 1000                       # >= 0,  <= 1000
+	default 125
+	help
           Setup a timeout value (ms)
 	  for
 	  VBUS change
 	  stable
 
 config USB_PD_VBUS_PRESENT_TOUT
-    	int "PD VBUS Present Timeout"
-    	depends on USB_POWER_DELIVERY
-    	range 0 1000                       # >= 0,  <= 1000
-    	default 20
-    	help
+	int "PD VBUS Present Timeout"
+	depends on USB_POWER_DELIVERY
+	range 0 1000                       # >= 0,  <= 1000
+	default 20
+	help
           Setup a timeout value (ms)
 	  for
 	  VBUS present

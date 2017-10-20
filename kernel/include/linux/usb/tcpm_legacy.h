@@ -70,4 +70,4 @@ extern int tcpm_send_uvdm(struct tcpc_device *tcpc_dev,
 
 #endif	/* CONFIG_USB_PD_LEGACY_TCPM */
 #endif	/* CONFIG_USB_POWER_DELIVERY */
-#endif 	/* TCPM_LEGACY_H_ */
+#endif	/* TCPM_LEGACY_H_ */

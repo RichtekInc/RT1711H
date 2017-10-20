@@ -40,7 +40,7 @@
 #endif /* #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)) */
 
 /* #define DEBUG_GPIO	66 */
-#define RT1711_DRV_VERSION	"1.1.3_G" 
+#define RT1711_DRV_VERSION	"1.1.3_G"
 
 #define RT1711_REDUCE_I2C_ACCESS_TIME_READ
 #define RT1711_REDUCE_I2C_ACCESS_TIME_WRITE
@@ -1126,7 +1126,7 @@ static int rt1711_check_i2c(struct i2c_client *i2c)
 		return ret;
 	data = 1;
 	rt1711_write_device(i2c, RT1711_REG_SWRESET, 1, &data);
-	msleep(5);
+	msleep(20);
 	return 0;
 }
 

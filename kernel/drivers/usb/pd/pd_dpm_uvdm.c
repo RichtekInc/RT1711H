@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  */
- 
+
 #include <linux/usb/tcpci.h>
 #include <linux/usb/pd_policy_engine.h>
 #include <linux/usb/pd_dpm_core.h>

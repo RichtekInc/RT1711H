@@ -95,7 +95,7 @@ static inline void rt_set_bit(int nr, uint64_t *addr)
 	raw_local_irq_restore(flags);
 }
 
-const char *tcpc_timer_name[] = {
+static const char *const tcpc_timer_name[] = {
 #ifdef CONFIG_USB_POWER_DELIVERY
 	"PD_TIMER_BIST_CONT_MODE",
 	"PD_TIMER_DISCOVER_ID",
@@ -131,7 +131,8 @@ const char *tcpc_timer_name[] = {
 	"TYPEC_RT_TIMER_PE_IDLE",
 	"TYPEC_RT_TIMER_SAFE0V_DELAY",
 	"TYPEC_RT_TIMER_SAFE0V_TOUT",
-	"TYPEC_RT_TIMER_ROLE_SWAP",
+	"TYPEC_RT_TIMER_ROLE_SWAP_START",
+	"TYPEC_RT_TIMER_ROLE_SWAP_STOP",
 	"TYPEC_RT_TIMER_LEGACY",
 	"TYPEC_RT_TIMER_NOT_LEGACY",
 	"TYPEC_RT_TIMER_AUTO_DISCHARGE",
@@ -147,7 +148,8 @@ const char *tcpc_timer_name[] = {
 #else
 	"TYPEC_RT_TIMER_SAFE0V_DELAY",
 	"TYPEC_RT_TIMER_SAFE0V_TOUT",
-	"TYPEC_RT_TIMER_ROLE_SWAP",
+	"TYPEC_RT_TIMER_ROLE_SWAP_START",
+	"TYPEC_RT_TIMER_ROLE_SWAP_STOP",
 	"TYPEC_RT_TIMER_LEGACY",
 	"TYPEC_RT_TIMER_NOT_LEGACY",
 	"TYPEC_RT_TIMER_AUTO_DISCHARGE",
@@ -200,7 +202,7 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_RANGE(660, 1000),	/* PD_TIMER_SRC_RECOVER */
 
 	/* PD_TIMER (out of spec) */
-	PD_TIMER_VSAFE0V_DLY_TOUT,		/* PD_TIMER_VSAFE0V_DELAY */
+	PD_TIMER_VSAFE0V_DLY_TOUT,	/* PD_TIMER_VSAFE0V_DELAY */
 	TIMEOUT_VAL(650),		/* PD_TIMER_VSAFE0V_TOUT */
 	TIMEOUT_VAL(3),			/* PD_TIMER_DISCARD */
 	/* PD_TIMER_VBUS_STABLE */
@@ -209,8 +211,8 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TIMEOUT_VAL(CONFIG_USB_PD_VBUS_PRESENT_TOUT),
 	/* PD_TIMER_UVDM_RESPONSE */
 	TIMEOUT_VAL(CONFIG_USB_PD_UVDM_TOUT),
-	TIMEOUT_VAL(30), 		/* PD_TIMER_DFP_FLOW_DELAY */
-	TIMEOUT_VAL(300), 		/* PD_TIMER_UFP_FLOW_DELAY */
+	TIMEOUT_VAL(30),		/* PD_TIMER_DFP_FLOW_DELAY */
+	TIMEOUT_VAL(300),		/* PD_TIMER_UFP_FLOW_DELAY */
 	TIMEOUT_VAL_US(3000),   /* PD_PE_VDM_POSTPONE */
 
 	/* TYPEC-RT-TIMER */
@@ -218,9 +220,10 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
 	TIMEOUT_VAL(650),		/* TYPEC_RT_TIMER_SAFE0V_TOUT */
 	/* TYPEC_RT_TIMER_ROLE_SWAP */
+	TIMEOUT_VAL(20),
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
-	TIMEOUT_VAL(50),				/* TYPEC_RT_TIMER_LEGACY */
-	TIMEOUT_VAL(5000),				/* TYPEC_RT_TIMER_NOT_LEGACY */
+	TIMEOUT_VAL(50),	/* TYPEC_RT_TIMER_LEGACY */
+	TIMEOUT_VAL(5000),	/* TYPEC_RT_TIMER_NOT_LEGACY */
 	/* TYPEC_RT_TIMER_AUTO_DISCHARGE */
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_AUTO_DISCHARGE_TOUT),
 
@@ -240,11 +243,12 @@ static const uint32_t tcpc_timer_timeout[PD_TIMER_NR] = {
 	TYPEC_RT_TIMER_SAFE0V_DLY_TOUT,	/* TYPEC_RT_TIMER_SAFE0V_DELAY */
 	TIMEOUT_VAL(650),			/* TYPEC_RT_TIMER_SAFE0V_TOUT */
 	/* TYPEC_RT_TIMER_ROLE_SWAP */
+	TIMEOUT_VAL(20),
 	TIMEOUT_VAL(CONFIG_TYPEC_CAP_ROLE_SWAP_TOUT),
-	TIMEOUT_VAL(50),				/* TYPEC_RT_TIMER_LEGACY */
-	TIMEOUT_VAL(5000),				/* TYPEC_RT_TIMER_NOT_LEGACY */
+	TIMEOUT_VAL(50),	/* TYPEC_RT_TIMER_LEGACY */
+	TIMEOUT_VAL(5000),	/* TYPEC_RT_TIMER_NOT_LEGACY */
 	/* TYPEC_RT_TIMER_AUTO_DISCHARGE */
-	TIMEOUT_VAL(CONFIG_TYPEC_CAP_AUTO_DISCHARGE_TOUT),	
+	TIMEOUT_VAL(CONFIG_TYPEC_CAP_AUTO_DISCHARGE_TOUT),
 
 	/* TYPEC-TRY-TIMER */
 	TIMEOUT_RANGE(75, 150),		/* TYPEC_TRY_TIMER_DRP_TRY */
@@ -287,11 +291,11 @@ static inline void on_pe_timer_timeout(
 		{
 			uint16_t power_status;
 			int vbus_level = tcpc_dev->vbus_level;
-			
+
 			tcpci_get_power_status(tcpc_dev, &power_status);
 			tcpci_vbus_level_init(tcpc_dev, power_status);
-		
-			TCPC_INFO("VSafe0V TOUT: now:%d, org:%d\r\n", 
+
+			TCPC_INFO("VSafe0V TOUT: now:%d, org:%d\r\n",
 				tcpc_dev->vbus_level, vbus_level);
 
 			if (!tcpci_check_vbus_valid(tcpc_dev))
@@ -338,7 +342,7 @@ static inline void on_pe_timer_timeout(
 {				\
 	spin_lock(&tcpc_dev->timer_tick_lock);			\
 	rt_set_bit(index, (uint64_t *)&tcpc_dev->timer_tick);	\
-	spin_unlock(&tcpc_dev->timer_tick_lock);				\
+	spin_unlock(&tcpc_dev->timer_tick_lock);		\
 	wake_up_interruptible(&tcpc_dev->timer_wait_que);	\
 } while (0)
 
@@ -679,9 +683,19 @@ static enum hrtimer_restart tcpc_timer_rt_vsafe0v_tout(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static enum hrtimer_restart tcpc_timer_rt_role_swap(struct hrtimer *timer)
+static enum hrtimer_restart tcpc_timer_rt_role_swap_start(struct hrtimer *timer)
 {
-	int index = TYPEC_RT_TIMER_ROLE_SWAP;
+	int index = TYPEC_RT_TIMER_ROLE_SWAP_START;
+	struct tcpc_device *tcpc_dev =
+		container_of(timer, struct tcpc_device, tcpc_timer[index]);
+
+	TCPC_TIMER_TRIGGER();
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart tcpc_timer_rt_role_swap_stop(struct hrtimer *timer)
+{
+	int index = TYPEC_RT_TIMER_ROLE_SWAP_STOP;
 	struct tcpc_device *tcpc_dev =
 		container_of(timer, struct tcpc_device, tcpc_timer[index]);
 
@@ -803,7 +817,7 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[PD_TIMER_SOURCE_TRANSITION] = tcpc_timer_source_transition,
 	[PD_TIMER_SRC_RECOVER] = tcpc_timer_src_recover,
 	[PD_TIMER_VSAFE0V_DELAY] = tcpc_timer_vsafe0v_delay,
-	[PD_TIMER_VSAFE0V_TOUT] = tcpc_timer_vsafe0v_tout,	
+	[PD_TIMER_VSAFE0V_TOUT] = tcpc_timer_vsafe0v_tout,
 	[PD_TIMER_DISCARD] = tcpc_timer_pd_discard,
 	[PD_TIMER_VBUS_STABLE] = tcpc_timer_vbus_stable,
 	[PD_TIMER_VBUS_PRESENT] = tcpc_timer_vbus_present,
@@ -815,7 +829,8 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 	[TYPEC_RT_TIMER_PE_IDLE] = tcpc_timer_rt_pe_idle,
 	[TYPEC_RT_TIMER_SAFE0V_DELAY] = tcpc_timer_rt_vsafe0v_delay,
 	[TYPEC_RT_TIMER_SAFE0V_TOUT] = tcpc_timer_rt_vsafe0v_tout,
-	[TYPEC_RT_TIMER_ROLE_SWAP] = tcpc_timer_rt_role_swap,
+	[TYPEC_RT_TIMER_ROLE_SWAP_START] = tcpc_timer_rt_role_swap_start,
+	[TYPEC_RT_TIMER_ROLE_SWAP_STOP] = tcpc_timer_rt_role_swap_stop,
 	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 	[TYPEC_RT_TIMER_NOT_LEGACY] = tcpc_timer_rt_not_legacy,
 	[TYPEC_RT_TIMER_AUTO_DISCHARGE] = tcpc_timer_rt_auto_discharge,
@@ -831,7 +846,8 @@ static tcpc_hrtimer_call tcpc_timer_call[PD_TIMER_NR] = {
 #else
 	[TYPEC_RT_TIMER_SAFE0V_DELAY] = tcpc_timer_rt_vsafe0v_delay,
 	[TYPEC_RT_TIMER_SAFE0V_TOUT] = tcpc_timer_rt_vsafe0v_tout,
-	[TYPEC_RT_TIMER_ROLE_SWAP] = tcpc_timer_rt_role_swap,
+	[TYPEC_RT_TIMER_ROLE_SWAP_START] = tcpc_timer_rt_role_swap_start,
+	[TYPEC_RT_TIMER_ROLE_SWAP_STOP] = tcpc_timer_rt_role_swap_stop,
 	[TYPEC_RT_TIMER_LEGACY] = tcpc_timer_rt_legacy,
 	[TYPEC_RT_TIMER_NOT_LEGACY] = tcpc_timer_rt_not_legacy,
 	[TYPEC_RT_TIMER_AUTO_DISCHARGE] = tcpc_timer_rt_auto_discharge,

@@ -117,7 +117,7 @@ static inline void print_dpm_msg_event(uint8_t msg)
 		PE_EVT_INFO("dpm_%s\r\n", pd_dpm_msg_name[msg]);
 }
 
-static const char *tcp_dpm_evt_name[] = {
+static const char *const tcp_dpm_evt_name[] = {
 	/* TCP_DPM_EVT_PD_COMMAND */
 	"pr_swap_snk",
 	"pr_swap_src",
@@ -131,6 +131,7 @@ static const char *tcp_dpm_evt_name[] = {
 	"get_snk_cap",
 	"request",
 	"request_ex",
+	"request_again",
 	"bist_cm2",
 
 	/* TCP_DPM_EVT_VDM_COMMAND */
@@ -141,14 +142,14 @@ static const char *tcp_dpm_evt_name[] = {
 	"enter_mode",
 	"exit_mode",
 	"attention",
-	
+
 #ifdef CONFIG_USB_PD_ALT_MODE
 	"dp_atten",
 #ifdef CONFIG_USB_PD_ALT_MODE_DFP
 	"dp_status",
 	"dp_config",
 #endif	/* CONFIG_USB_PD_ALT_MODE_DFP */
-#endif	/* CONFIG_USB_PD_ALT_MODE */	
+#endif	/* CONFIG_USB_PD_ALT_MODE */
 
 #ifdef CONFIG_USB_PD_UVDM
 	"uvdm",
@@ -161,9 +162,8 @@ static const char *tcp_dpm_evt_name[] = {
 
 static inline void print_tcp_event(uint8_t msg)
 {
-	if(msg < TCP_DPM_EVT_NR) {
+	if (msg < TCP_DPM_EVT_NR)
 		PE_EVT_INFO("tcp_event(%s)\r\n", tcp_dpm_evt_name[msg]);
-	}
 }
 #endif
 
@@ -202,7 +202,7 @@ static inline void print_event(pd_port_t *pd_port, pd_event_t *pd_event)
 #endif
 }
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 bool pd_make_pe_state_transit(pd_port_t *pd_port,
 	uint8_t curr_state, const pe_state_reaction_t *state_reaction)
@@ -258,7 +258,7 @@ bool pd_make_pe_state_transit_force(pd_port_t *pd_port,
 	return true;
 }
 
-/*-----------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 bool pd_process_protocol_error(
 	pd_port_t *pd_port, pd_event_t *pd_event)
@@ -364,7 +364,7 @@ bool pd_process_ctrl_msg_dr_swap(
 {
 	bool accept = false;
 
-	if(pd_port->modal_operation) {
+	if (pd_port->modal_operation) {
 		PE_TRANSIT_HARD_RESET_STATE(pd_port);
 		return true;
 	}
@@ -374,10 +374,10 @@ bool pd_process_ctrl_msg_dr_swap(
 
 	if (pd_port->dpm_caps & DPM_CAP_LOCAL_DR_DATA) {
 		if (pd_port->data_role == PD_ROLE_DFP) {
-			accept = (pd_port->dpm_caps & 
+			accept = (pd_port->dpm_caps &
 				DPM_CAP_DR_SWAP_REJECT_AS_UFP) == 0;
 		} else {
-			accept = (pd_port->dpm_caps & 
+			accept = (pd_port->dpm_caps &
 				DPM_CAP_DR_SWAP_REJECT_AS_DFP) == 0;
 		}
 	}
@@ -464,7 +464,7 @@ bool pd_process_recv_hard_reset(
 }
 
 /*-----------------------------------------------------------------------------
- * tcp_event 
+ * tcp_event
  *---------------------------------------------------------------------------*/
 
 static inline int pd_handle_tcp_event_pr_swap(
@@ -504,7 +504,7 @@ static inline int pd_handle_tcp_event_dr_swap(
 
 	if (!pd_check_pe_state_ready(pd_port))
 		return TCP_DPM_RET_DENIED_NOT_READY;
-	
+
 	pd_port->during_swap = false;
 	pd_port->state_machine = PE_STATE_MACHINE_DR_SWAP;
 
@@ -528,9 +528,9 @@ static inline int pd_handle_tcp_event_vconn_swap(
 	if (!(pd_port->dpm_caps & DPM_CAP_LOCAL_VCONN_SUPPLY))
 		return TCP_DPM_RET_DENIED_LOCAL_CAP;
 
-	if(!pd_check_pe_state_ready(pd_port))
+	if (!pd_check_pe_state_ready(pd_port))
 		return TCP_DPM_RET_DENIED_NOT_READY;
-	
+
 	pd_port->state_machine = PE_STATE_MACHINE_VCONN_SWAP;
 	PE_TRANSIT_STATE(pd_port, PE_VCS_SEND_SWAP);
 	return TCP_DPM_RET_SENT;
@@ -573,7 +573,7 @@ static inline int pd_handle_tcp_event_get_source_cap(pd_port_t *pd_port)
 			PE_TRANSIT_STATE(pd_port, PE_DR_SRC_GET_SOURCE_CAP);
 			return TCP_DPM_RET_SENT;
 		}
-		
+
 		return TCP_DPM_RET_DENIED_LOCAL_CAP;
 #endif	/* CONFIG_USB_PD_PR_SWAP */
 	}
@@ -604,25 +604,31 @@ static inline int pd_handle_tcp_event_get_sink_cap(pd_port_t *pd_port)
 
 static inline int pd_handle_tcp_event_request(pd_port_t *pd_port)
 {
-	bool ret;
+	bool ret = false;
 	tcp_dpm_event_t *tcp_event = &pd_port->tcp_event;
 
 	if (pd_port->pe_state_curr != PE_SNK_READY)
 		return TCP_DPM_RET_DENIED_NOT_READY;
 
-	if (tcp_event->event_id == TCP_DPM_EVT_REQUEST) {
+	switch (tcp_event->event_id) {
+	case TCP_DPM_EVT_REQUEST:
 		ret = pd_dpm_update_tcp_request(
 			pd_port, &tcp_event->tcp_dpm_data.pd_req);
-	} else {
+		break;
+	case TCP_DPM_EVT_REQUEST_EX:
 		ret = pd_dpm_update_tcp_request_ex(
 			pd_port, &tcp_event->tcp_dpm_data.pd_req_ex);
+		break;
+	case TCP_DPM_EVT_REQUEST_AGAIN:
+		ret = pd_dpm_update_tcp_request_again(pd_port);
+		break;
 	}
-	
+
 	if (!ret)
 		return TCP_DPM_RET_DENIED_INVALID_REQUEST;
 
 	PE_TRANSIT_STATE(pd_port, PE_SNK_SELECT_CAPABILITY);
-	return TCP_DPM_RET_SENT;	
+	return TCP_DPM_RET_SENT;
 }
 
 static inline int pd_handle_tcp_event_bist_cm2(pd_port_t *pd_port)
@@ -652,17 +658,17 @@ static inline int pd_process_tcp_dpm_event(
 	pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	int ret = TCP_DPM_RET_DENIED_UNKNOWM;
-	
+
 	switch (pd_event->msg) {
 	case TCP_DPM_EVT_PR_SWAP_AS_SNK:
 	case TCP_DPM_EVT_PR_SWAP_AS_SRC:
-		ret = pd_handle_tcp_event_pr_swap(pd_port, 
+		ret = pd_handle_tcp_event_pr_swap(pd_port,
 			pd_event->msg - TCP_DPM_EVT_PR_SWAP_AS_SNK);
 		break;
 
 	case TCP_DPM_EVT_DR_SWAP_AS_UFP:
 	case TCP_DPM_EVT_DR_SWAP_AS_DFP:
-		ret = pd_handle_tcp_event_dr_swap(pd_port, 
+		ret = pd_handle_tcp_event_dr_swap(pd_port,
 			pd_event->msg - TCP_DPM_EVT_DR_SWAP_AS_UFP);
 		break;
 
@@ -690,9 +696,10 @@ static inline int pd_process_tcp_dpm_event(
 
 	case TCP_DPM_EVT_REQUEST:
 	case TCP_DPM_EVT_REQUEST_EX:
+	case TCP_DPM_EVT_REQUEST_AGAIN:
 		ret = pd_handle_tcp_event_request(pd_port);
 		break;
-		
+
 	case TCP_DPM_EVT_BIST_CM2:
 		ret = pd_handle_tcp_event_bist_cm2(pd_port);
 		break;
@@ -709,8 +716,6 @@ static inline int pd_process_tcp_dpm_event(
 	pd_notify_current_tcp_event_result(pd_port, ret);
 	return ret == TCP_DPM_RET_SENT;
 }
-
-/*-----------------------------------------------------------------------------*/
 
 /*
  *
@@ -739,11 +744,20 @@ static inline bool pe_is_valid_pd_msg(
 				PE_INFO("Repeat soft_reset\r\n");
 				return false;
 			}
-
 			return true;
+
 		case PD_CTRL_GOOD_CRC:
 			PE_DBG("Discard_CRC\r\n");
 			return true;
+
+#ifdef CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP
+		case PD_CTRL_PS_RDY:
+			if (pd_port->msg_id_pr_swap_last == msg_id) {
+				PE_INFO("Repeat ps_rdy\r\n");
+				return false;
+			}
+			break;
+#endif	/* CONFIG_USB_PD_IGNORE_PS_RDY_AFTER_PR_SWAP */
 		}
 	}
 
@@ -891,7 +905,7 @@ static inline bool pe_exit_idle_state(
 #ifdef CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP
 	pd_port->dpm_dfp_flow_delay_done = false;
 #else
-	pd_port->dpm_dfp_flow_delay_done = true;	
+	pd_port->dpm_dfp_flow_delay_done = true;
 #endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY_STARTUP */
 #endif	/* CONFIG_USB_PD_DFP_FLOW_DELAY */
 
@@ -987,7 +1001,7 @@ bool pd_process_event(pd_port_t *pd_port, pd_event_t *pd_event, bool vdm_evt)
 		return pd_process_event_vdm(pd_port, pd_event);
 
 	if (pd_event->event_type == PD_EVT_TCP_MSG)
-		return pd_process_tcp_dpm_event(pd_port, pd_event); 
+		return pd_process_tcp_dpm_event(pd_port, pd_event);
 
 #ifdef CONFIG_USB_PD_CUSTOM_DBGACC
 	if (pd_port->custom_dbgacc)
