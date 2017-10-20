@@ -2,6 +2,23 @@
 
 ## Changelog
 
+### v013
+- [SNK] Implement Power Transitions (pSnkStdby)
+  - CONFIG_USB_PD_SNK_STANDBY_POWER
+- [SNK] Modify HardReset Transitions (iSafe0mA)
+  - CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW
+- [PE] Provide shutdown flow
+  - CONFIG_TCPC_SHUTDOWN_CC_DETACH
+  - CONFIG_TCPC_SHUTDOWN_VBUS_DISABLE
+- [TYPEC] Improve Legacy Cable Support
+- [TYPEC] Modify attach_wake_lock timing.
+- [DPM] Provide set attach_wake_lock function
+- [DPM] Provide set usb sink current function
+- [RT1711] Provide I2C low reset function 
+  - CONFIG_TCPC_I2CRST_EN
+- [RT1711] Change init_cc_params for Noise margin
+- [DTS] Suggest enable NoSuspend flag
+
 ### v012
 - [PE] Fixed Cable VDO index wrong.
 - [PE] Using PD_BUG_ON instead of BUG_ON()

@@ -96,6 +96,8 @@ typedef struct __svdm_svid_ops {
 		svdm_svid_data_t *svid_data);
 	int (*notify_pe_ready)(pd_port_t *pd_port,
 		svdm_svid_data_t *svid_data, pd_event_t *pd_event);
+	bool (*notify_pe_shutdown)(pd_port_t *pd_port,
+		svdm_svid_data_t *svid_data);
 
 #ifdef CONFIG_USB_PD_UVDM
 	bool (*dfp_notify_uvdm)(pd_port_t *pd_port,
@@ -180,6 +182,23 @@ static inline int svdm_notify_pe_ready(
 
 			if (ret != 0)
 				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static inline bool svdm_notify_pe_shutdown(
+	pd_port_t *pd_port)
+{
+	int i;
+	svdm_svid_data_t *svid_data;
+
+	for (i = 0; i < pd_port->svid_data_cnt; i++) {
+		svid_data = &pd_port->svid_data[i];
+		if (svid_data->ops && svid_data->ops->notify_pe_shutdown) {
+			svid_data->ops->notify_pe_shutdown(
+				pd_port, svid_data);
 		}
 	}
 

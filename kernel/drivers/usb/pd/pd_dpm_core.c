@@ -107,9 +107,8 @@ int dpm_check_supported_modes(void)
 }
 
 /*-----------------------------------------------------------------------------
-/ DPM Init
-/-----------------------------------------------------------------------------
-*/
+ * DPM Init
+ *---------------------------------------------------------------------------*/
 
 static void pd_dpm_update_pdos_flags(pd_port_t *pd_port, uint32_t pdo)
 {
@@ -550,6 +549,50 @@ void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event)
 		pd_put_dpm_notify_event(pd_port, req_info.pos);
 }
 
+void pd_dpm_snk_standby_power(pd_port_t *pd_port, pd_event_t *pd_event)
+{
+#ifdef CONFIG_USB_PD_SNK_STANDBY_POWER
+	/* 
+		pSnkStdby : Maximum power consumption while in Sink Standby. (2.5W)
+		I1 = (pSnkStdby/VBUS)
+		I2 = (pSnkStdby/VBUS) + cSnkBulkPd(DVBUS/Dt)
+		STANDBY_UP = I1 < I2, STANDBY_DOWN = I1 > I2
+	*/
+
+	uint8_t type;
+	int ma = -1;
+	int standby_curr = 2500000 / pd_port->request_v;
+
+	if (pd_port->request_v_new > pd_port->request_v) {
+		/* Case2 Increasing the Voltage */
+		/* Case3 Increasing the Voltage and Current */
+		/* Case4 Increasing the Voltage and Decreasing the Curren */
+		ma = standby_curr;
+		type = TCP_VBUS_CTRL_STANDBY_UP;
+	} else if (pd_port->request_v_new < pd_port->request_v) {
+		/* Case5 Decreasing the Voltage and Increasing the Current */
+		/* Case7 Decreasing the Voltage */
+		/* Case8 Decreasing the Voltage and the Current*/
+		ma = standby_curr;
+		type = TCP_VBUS_CTRL_STANDBY_DOWN;
+	} else if (pd_port->request_i_new < pd_port->request_i){
+		/* Case6 Decreasing the Current, t1 i = new */
+		ma = pd_port->request_i_new;
+		type = TCP_VBUS_CTRL_STANDBY;
+	}
+	
+	if (ma >= 0) {
+		tcpci_sink_vbus(
+			pd_port->tcpc_dev, type, pd_port->request_v, ma);
+	}
+#else
+#ifdef CONFIG_USB_PD_SNK_GOTOMIN
+	tcpci_sink_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_REQUEST,
+		pd_port->request_v, pd_port->request_i_new);
+#endif	/* CONFIG_USB_PD_SNK_GOTOMIN */
+#endif	/* CONFIG_USB_PD_SNK_STANDBY_POWER */	
+}
+
 void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	tcpci_sink_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_REQUEST,
@@ -561,8 +604,21 @@ void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event)
 
 void pd_dpm_snk_hard_reset(pd_port_t *pd_port, pd_event_t *pd_event)
 {
-	tcpci_sink_vbus(pd_port->tcpc_dev,
-		TCP_VBUS_CTRL_HRESET, TCPC_VBUS_SINK_0V, 0);
+	/* 
+		tSnkHardResetPrepare : 
+		Time allotted for the Sink power electronics to prepare for a Hard Reset
+	*/
+
+	int mv = 0, ma = 0;
+
+#ifdef CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW
+	if (!pd_port->pd_prev_connected) {
+		ma = -1;
+		mv = TCPC_VBUS_SINK_5V;
+	}
+#endif	/* CONFIG_USB_PD_SNK_HRESET_KEEP_DRAW */	
+
+	tcpci_sink_vbus(pd_port->tcpc_dev, TCP_VBUS_CTRL_HRESET, mv, ma);
 	pd_put_pe_event(pd_port, PD_PE_POWER_ROLE_AT_DEFAULT);
 }
 
@@ -668,7 +724,7 @@ void pd_dpm_src_inform_cable_vdo(pd_port_t *pd_port, pd_event_t *pd_event)
 
 	if (pd_event->pd_msg)
 		memcpy(pd_port->cable_vdos, pd_event->pd_msg->payload, size);
-	
+
 	pd_put_dpm_ack_event(pd_port);
 }
 
@@ -1372,6 +1428,7 @@ void pd_dpm_prs_evaluate_swap(pd_port_t *pd_port, uint8_t role)
 
 void pd_dpm_prs_turn_off_power_sink(pd_port_t *pd_port)
 {
+	/* iSnkSwapStdby : 2.5mA */
 	tcpci_sink_vbus(pd_port->tcpc_dev,
 		TCP_VBUS_CTRL_PR_SWAP, TCPC_VBUS_SINK_0V, 0);
 }
@@ -1674,7 +1731,7 @@ int pd_dpm_notify_pe_startup(pd_port_t *pd_port)
 		flags |= DPM_FLAGS_CHECK_UFP_ID;
 
 	pd_port->dpm_flags = flags;
-	pd_port->dpm_dfp_retry_cnt = 2;
+	pd_port->dpm_dfp_retry_cnt = CONFIG_USB_PD_DFP_FLOW_RETRY_MAX;
 
 	svdm_notify_pe_startup(pd_port);
 	return 0;

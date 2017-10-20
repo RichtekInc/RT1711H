@@ -68,7 +68,7 @@
 #define PE_EVT_INFO_VDM_DIS		0
 #define PE_DBG_RESET_VDM_DIS	1
 
-#define PD_BUG_ON(x)
+#define PD_BUG_ON(x)	WARN_ON(x)
 
 struct tcpc_device;
 
@@ -164,6 +164,7 @@ struct tcpc_ops {
 	int (*set_cc)(struct tcpc_device *tcpc, int pull);
 	int (*set_polarity)(struct tcpc_device *tcpc, int polarity);
 	int (*set_vconn)(struct tcpc_device *tcpc, int enable);
+	int (*deinit)(struct tcpc_device *tcpc);
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
@@ -213,6 +214,8 @@ struct tcpc_device {
 	void *drv_data;
 	struct tcpc_desc desc;
 	struct device dev;
+	bool wake_lock_user;
+	uint8_t wake_lock_pd;
 	struct wake_lock attach_wake_lock;
 	struct wake_lock dettach_temp_wake_lock;
 
@@ -256,9 +259,10 @@ struct tcpc_device {
 	bool typec_cable_only;
 	bool typec_power_ctrl;
 
+	int typec_usb_sink_curr;
+
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	bool typec_legacy_cable;
-	bool typec_legacy_polling;
 	uint8_t typec_legacy_cable_suspect;
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 

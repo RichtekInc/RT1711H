@@ -161,6 +161,17 @@ int dp_dfp_u_notify_pe_ready(
 	return 1;
 }
 
+bool dp_notify_pe_shutdown(
+	pd_port_t *pd_port, svdm_svid_data_t *svid_data)
+{
+	if (svid_data->active_mode) {
+		pd_send_vdm_enter_mode(pd_port, TCPC_TX_SOP,
+			svid_data->svid, svid_data->active_mode);
+	}
+
+	return true;
+}
+
 bool dp_dfp_u_notify_discover_id(pd_port_t *pd_port,
 	svdm_svid_data_t *svid_data, pd_event_t *pd_event, bool ack)
 {

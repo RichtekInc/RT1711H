@@ -23,6 +23,19 @@
 
 /* Inquire TCPC status */
 
+int tcpm_shutdown(struct tcpc_device *tcpc_dev)
+{
+#ifdef CONFIG_TCPC_SHUTDOWN_VBUS_DISABLE
+	if (tcpc_dev->typec_power_ctrl)
+		tcpci_disable_vbus_control(tcpc_dev);
+#endif	/* CONFIG_TCPC_SHUTDOWN_VBUS_DISABLE */
+	
+	if (tcpc_dev->ops->deinit)
+		tcpc_dev->ops->deinit(tcpc_dev);
+	
+	return 0;
+}
+
 int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev, 
 	uint8_t *cc1, uint8_t *cc2, bool from_ic)
 {
@@ -113,6 +126,50 @@ uint8_t tcpm_inquire_request_result(
 	return req_state;
 #endif
 	/* TODO */
+	return 0;
+}
+
+int tcpm_typec_set_wake_lock(
+	struct tcpc_device *tcpc, bool user_lock)
+{
+	int ret;
+	
+	mutex_lock(&tcpc->access_lock);
+	ret = tcpci_set_wake_lock(
+		tcpc, tcpc->wake_lock_pd, user_lock);
+	tcpc->wake_lock_user = user_lock;
+	mutex_unlock(&tcpc->access_lock);
+
+	return ret;
+}
+
+int tcpm_typec_set_usb_sink_curr(
+	struct tcpc_device *tcpc_dev, int curr)
+{
+	bool force_sink_vbus = true;
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+	pd_port_t *pd_port = &tcpc_dev->pd_port;
+	mutex_lock(&pd_port->pd_lock);
+	
+	if (pd_port->pd_prev_connected)
+		force_sink_vbus = false;	
+#endif	/* CONFIG_USB_POWER_DELIVERY */
+
+	tcpc_dev->typec_usb_sink_curr = curr;
+
+	if (tcpc_dev->typec_remote_rp_level != TYPEC_CC_VOLT_SNK_DFT)
+		force_sink_vbus = false;
+
+	if (force_sink_vbus) {
+		tcpci_sink_vbus(tcpc_dev, 
+			TCP_VBUS_CTRL_TYPEC, TCPC_VBUS_SINK_5V, -1);
+	}
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+	mutex_unlock(&pd_port->pd_lock);
+#endif	/* CONFIG_USB_POWER_DELIVERY */
+
 	return 0;
 }
 

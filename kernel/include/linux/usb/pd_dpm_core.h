@@ -29,6 +29,7 @@ int pd_dpm_send_source_caps(pd_port_t *pd_port);
 bool pd_dpm_send_request(pd_port_t *pd_port, int mv, int ma);
 
 void pd_dpm_snk_evaluate_caps(pd_port_t *pd_port, pd_event_t *pd_event);
+void pd_dpm_snk_standby_power(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_snk_transition_power(pd_port_t *pd_port, pd_event_t *pd_event);
 void pd_dpm_snk_hard_reset(pd_port_t *pd_port, pd_event_t *pd_event);
 

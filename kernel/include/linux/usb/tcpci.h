@@ -42,6 +42,8 @@
 
 /* provide to TCPC interface */
 extern int tcpci_report_usb_port_changed(struct tcpc_device *tcpc);
+extern int tcpci_set_wake_lock(
+	struct tcpc_device *tcpc, bool pd_lock, bool user_lock);
 extern int tcpci_report_power_control(struct tcpc_device *tcpc, bool en);
 extern int tcpc_typec_init(struct tcpc_device *tcpc, uint8_t typec_role);
 extern void tcpc_typec_deinit(struct tcpc_device *tcpc);
@@ -160,8 +162,10 @@ static inline int tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 #endif /* CONFIG_USB_PD_DBG_ALWAYS_LOCAL_RP */
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
-	if (pull == TYPEC_CC_DRP && tcpc->typec_legacy_cable)
+	if (pull == TYPEC_CC_DRP && tcpc->typec_legacy_cable) {
 		pull = TYPEC_CC_RP_1_5;
+		TCPC_DBG("LC->Toggling\r\n");
+	}
 #endif /* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
 	if (pull & TYPEC_CC_DRP) {
@@ -399,9 +403,13 @@ static inline int tcpci_sink_vbus(
 				break;
 			default:
 			case TYPEC_CC_VOLT_SNK_DFT:
-				ma = CONFIG_TYPEC_SNK_CURR_DFT;
+				ma = tcpc->typec_usb_sink_curr;
 				break;
 			}
+#if CONFIG_TYPEC_SNK_CURR_LIMIT > 0
+		if (ma > CONFIG_TYPEC_SNK_CURR_LIMIT)
+			ma = CONFIG_TYPEC_SNK_CURR_LIMIT;
+#endif	/* CONFIG_TYPEC_SNK_CURR_LIMIT */
 		} else
 			ma = 0;
 	}
@@ -428,7 +436,7 @@ static inline int tcpci_disable_vbus_control(struct tcpc_device *tcpc)
 	tcpci_sink_vbus(tcpc, TCP_VBUS_CTRL_REMOVE, TCPC_VBUS_SINK_0V, 0);
 	tcpci_source_vbus(tcpc, TCP_VBUS_CTRL_REMOVE, TCPC_VBUS_SOURCE_0V, 0);
 	return 0;
-#endif
+#endif	/* CONFIG_TYPEC_USE_DIS_VBUS_CTRL */
 }
 
 #ifdef CONFIG_USB_POWER_DELIVERY

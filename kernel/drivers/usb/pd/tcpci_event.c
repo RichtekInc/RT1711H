@@ -353,7 +353,6 @@ static inline bool __pd_put_pe_event(
 	return __pd_put_event(tcpc_dev, &evt, false);
 }
 
-
 void pd_put_cc_detached_event(struct tcpc_device *tcpc_dev)
 {
 	mutex_lock(&tcpc_dev->access_lock);
@@ -410,7 +409,6 @@ void pd_put_sent_hard_reset_event(struct tcpc_device *tcpc_dev)
 		TCPC_DBG("[HReset] Unattached\r\n");
 	mutex_unlock(&tcpc_dev->access_lock);
 }
-
 
 bool pd_put_pd_msg_event(struct tcpc_device *tcpc_dev, pd_msg_t *pd_msg)
 {

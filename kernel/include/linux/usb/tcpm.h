@@ -152,6 +152,9 @@ enum {
 	TCP_VBUS_CTRL_HRESET = TCP_VBUS_CTRL_PD,
 	TCP_VBUS_CTRL_PR_SWAP = 3,
 	TCP_VBUS_CTRL_REQUEST = 4,
+	TCP_VBUS_CTRL_STANDBY = 5,
+	TCP_VBUS_CTRL_STANDBY_UP = 6,
+	TCP_VBUS_CTRL_STANDBY_DOWN = 7,
 
 	TCP_VBUS_CTRL_PD_DETECT = (1 << 7),
 
@@ -163,6 +166,15 @@ enum {
 
 	TCP_VBUS_CTRL_PD_REQUEST =
 		TCP_VBUS_CTRL_REQUEST | TCP_VBUS_CTRL_PD_DETECT,
+
+	TCP_VBUS_CTRL_PD_STANDBY =
+		TCP_VBUS_CTRL_STANDBY | TCP_VBUS_CTRL_PD_DETECT,
+
+	TCP_VBUS_CTRL_PD_STANDBY_UP =
+		TCP_VBUS_CTRL_STANDBY_UP | TCP_VBUS_CTRL_PD_DETECT,
+
+	TCP_VBUS_CTRL_PD_STANDBY_DOWN =
+		TCP_VBUS_CTRL_STANDBY_DOWN | TCP_VBUS_CTRL_PD_DETECT,
 };
 
 struct tcp_ny_vbus_state {
@@ -380,6 +392,8 @@ enum dpm_cap_dr_check_prefer {
 #define DPM_CAP_SNK_PREFER_LOW_VOLTAGE		(1<<30)
 #define DPM_CAP_SNK_IGNORE_MISMATCH_CURRENT	(1<<31)
 
+extern int tcpm_shutdown(struct tcpc_device *tcpc_dev);
+
 extern int tcpm_inquire_remote_cc(struct tcpc_device *tcpc_dev,
 	uint8_t *cc1, uint8_t *cc2, bool from_ic);
 extern int tcpm_inquire_vbus_level(struct tcpc_device *tcpc_dev, bool from_ic);
@@ -387,6 +401,12 @@ extern bool tcpm_inquire_cc_polarity(struct tcpc_device *tcpc_dev);
 extern uint8_t tcpm_inquire_typec_attach_state(struct tcpc_device *tcpc_dev);
 extern uint8_t tcpm_inquire_typec_role(struct tcpc_device *tcpc_dev);
 extern uint8_t tcpm_inquire_typec_local_rp(struct tcpc_device *tcpc_dev);
+
+extern int tcpm_typec_set_wake_lock(
+	struct tcpc_device *tcpc, bool user_lock);
+
+extern int tcpm_typec_set_usb_sink_curr(
+	struct tcpc_device *tcpc_dev, int curr);
 
 extern int tcpm_typec_set_rp_level(
 	struct tcpc_device *tcpc_dev, uint8_t level);

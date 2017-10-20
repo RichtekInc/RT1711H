@@ -19,7 +19,7 @@
 #include <linux/device.h>
 #include <linux/version.h>
 #include <linux/slab.h>
-#include <linux/list.h>
+#include <linux/list.h> 
 
 #include <linux/usb/tcpci.h>
 #include <linux/usb/tcpci_typec.h>
@@ -28,7 +28,7 @@
 #include "pd_dpm_prv.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"1.1.2_G"
+#define TCPC_CORE_VERSION		"1.1.3_G"
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);

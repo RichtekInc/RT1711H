@@ -395,10 +395,6 @@ typedef struct __pe_state_actions {
  * Policy Engine General State Activity
  */
 
-/*
-extern int rt1711_set_bist_carrier_mode(
-	struct tcpc_device *tcpc_dev, uint8_t pattern);
-*/
 static void pe_idle_reset_data(pd_port_t *pd_port)
 {
 	pd_reset_pe_timer(pd_port);
@@ -680,7 +676,7 @@ static const pe_state_actions_t pe_state_actions[] = {
 	PE_STATE_ACTIONS(pe_idle2),
 };
 
-static void pe_exit_action_disable_sender_response(
+static inline void pe_exit_action_disable_sender_response(
 		pd_port_t *pd_port, pd_event_t *pd_event)
 {
 	pd_disable_timer(pd_port, PD_TIMER_SENDER_RESPONSE);

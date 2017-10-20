@@ -113,6 +113,7 @@ RT_REG_DECL(RT1711H_REG_SWRESET, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711H_REG_TTCPC_FILTER, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711H_REG_DRP_TOGGLE_CYCLE, 1, RT_VOLATILE, {});
 RT_REG_DECL(RT1711H_REG_DRP_DUTY_CTRL, 1, RT_VOLATILE, {});
+RT_REG_DECL(RT1711H_REG_BMCIO_RXDZEN, 1, RT_VOLATILE, {});
 
 static const rt_register_map_t rt1711_chip_regmap[] = {
 	RT_REG(TCPC_V10_REG_VID),
@@ -158,6 +159,7 @@ static const rt_register_map_t rt1711_chip_regmap[] = {
 	RT_REG(RT1711H_REG_TTCPC_FILTER),
 	RT_REG(RT1711H_REG_DRP_TOGGLE_CYCLE),
 	RT_REG(RT1711H_REG_DRP_DUTY_CTRL),
+	RT_REG(RT1711H_REG_BMCIO_RXDZEN),
 };
 #define RT1711_CHIP_REGMAP_SIZE ARRAY_SIZE(rt1711_chip_regmap)
 
@@ -703,10 +705,18 @@ static inline int rt1711h_init_cc_params(
 
 #ifdef CONFIG_USB_POWER_DELIVERY
 #ifdef CONFIG_USB_PD_SNK_DFT_NO_GOOD_CRC
-	if (cc_res == TYPEC_CC_VOLT_SNK_DFT)
-		rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZSEL, 0x81);
-	else
-		rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZSEL, 0x80);
+	uint8_t en, sel;
+
+	if (cc_res == TYPEC_CC_VOLT_SNK_DFT) {
+		en = 0;
+		sel = 0x81;
+	} else {
+		en = 1;
+		sel = 0x80;
+	}
+	rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZEN, en);
+	if (rv == 0)
+		rv = rt1711_i2c_write8(tcpc, RT1711H_REG_BMCIO_RXDZSEL, sel);
 #endif	/* CONFIG_USB_PD_SNK_DFT_NO_GOOD_CRC */
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
@@ -729,6 +739,12 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	/* CK_300K from 320K, SHIPPING off, AUTOIDLE enable, TIMEOUT = 32ms */
 	rt1711_i2c_write8(tcpc, RT1711H_REG_IDLE_CTRL,
 		RT1711H_REG_IDLE_SET(0, 1, 1, 2));
+
+#ifdef CONFIG_TCPC_I2CRST_EN
+	rt1711_i2c_write8(tcpc, 
+		RT1711H_REG_I2CRST_CTRL, 
+		RT1711H_REG_I2CRST_SET(true, 0x0f));
+#endif	/* CONFIG_TCPC_I2CRST_EN */
 
 	/* UFP Both RD setting */
 	/* DRP = 0, RpVal = 0 (Default), Rd, Rd */
@@ -1003,6 +1019,26 @@ int rt1711h_set_intrst(struct tcpc_device *tcpc_dev, bool en)
 }
 #endif	/* CONFIG_TCPC_INTRST_EN */
 
+static int rt1711_tcpc_deinit(struct tcpc_device *tcpc_dev)
+{
+#ifdef CONFIG_TCPC_SHUTDOWN_CC_DETACH
+	rt1711_set_cc(tcpc_dev, TYPEC_CC_DRP);
+	rt1711_set_cc(tcpc_dev, TYPEC_CC_OPEN);
+
+	rt1711_i2c_write8(tcpc_dev, 
+		RT1711H_REG_I2CRST_CTRL, 
+		RT1711H_REG_I2CRST_SET(true, 4));
+
+	rt1711_i2c_write8(tcpc_dev, 
+		RT1711H_REG_INTRST_CTRL, 
+		RT1711H_REG_INTRST_SET(true, 0));
+#else
+	rt1711_i2c_write8(tcpc_dev, RT1711H_REG_SWRESET, 1);
+#endif	/* CONFIG_TCPC_SHUTDOWN_CC_DETACH */
+
+	return 0;
+}
+
 #ifdef CONFIG_USB_POWER_DELIVERY
 static int rt1711_set_msg_header(
 	struct tcpc_device *tcpc, int power_role, int data_role)
@@ -1143,6 +1179,7 @@ static struct tcpc_ops rt1711_tcpc_ops = {
 	.set_cc = rt1711_set_cc,
 	.set_polarity = rt1711_set_polarity,
 	.set_vconn = rt1711_set_vconn,
+	.deinit = rt1711_tcpc_deinit,
 
 #ifdef CONFIG_TCPC_LOW_POWER_MODE
 	.set_low_power_mode = rt1711_set_low_power_mode,
@@ -1464,11 +1501,17 @@ static int rt1711_i2c_resume(struct device *dev)
 static void rt1711_shutdown(struct i2c_client *client)
 {
 	struct rt1711_chip *chip = i2c_get_clientdata(client);
+	struct tcpc_device *tcpc = chip->tcpc;
 
 	/* Please reset IC here */
-	if (chip != NULL && chip->irq)
-		disable_irq(chip->irq);
-	i2c_smbus_write_byte_data(client, RT1711H_REG_SWRESET, 0x01);
+	if (chip != NULL) {
+		if (chip->irq)
+			disable_irq(chip->irq);
+		tcpm_shutdown(tcpc);
+	} else {
+		i2c_smbus_write_byte_data(
+			client, RT1711H_REG_SWRESET, 0x01);	
+	}
 }
 
 static int rt1711_pm_suspend_runtime(struct device *device)

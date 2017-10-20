@@ -177,6 +177,8 @@ static inline void print_event(pd_port_t *pd_port, pd_event_t *pd_event)
 #endif
 }
 
+/*-----------------------------------------------------------------------------*/
+
 bool pd_make_pe_state_transit(pd_port_t *pd_port,
 	uint8_t curr_state, const pe_state_reaction_t *state_reaction)
 {
@@ -230,6 +232,8 @@ bool pd_make_pe_state_transit_force(pd_port_t *pd_port,
 	PE_TRANSIT_STATE(pd_port, force_state);
 	return true;
 }
+
+/*-----------------------------------------------------------------------------*/
 
 bool pd_process_protocol_error(
 	pd_port_t *pd_port, pd_event_t *pd_event)
@@ -322,9 +326,8 @@ bool pd_process_data_msg_bist(
 }
 
 /*-----------------------------------------------------------------------------
-// DRP (Data Role Swap)
-//-----------------------------------------------------------------------------
-*/
+ * DRP (Data Role Swap)
+ *---------------------------------------------------------------------------*/
 
 bool pd_process_ctrl_msg_dr_swap(
 		pd_port_t *pd_port, pd_event_t *pd_event)
@@ -381,11 +384,9 @@ bool pd_process_dpm_msg_dr_swap(
 	return true;
 }
 
-/*
-//-----------------------------------------------------------------------------
-// DRP (Power Role Swap)
-//-----------------------------------------------------------------------------
-*/
+/*-----------------------------------------------------------------------------
+ * DRP (Power Role Swap)
+ *---------------------------------------------------------------------------*/
 
 bool pd_process_ctrl_msg_pr_swap(
 		pd_port_t *pd_port, pd_event_t *pd_event)
@@ -438,11 +439,9 @@ bool pd_process_dpm_msg_pr_swap(
 	return true;
 }
 
-/*
-//-----------------------------------------------------------------------------
-// DRP (Vconn Swap)
-//-----------------------------------------------------------------------------
-*/
+/*-----------------------------------------------------------------------------
+ * DRP (Vconn Role Swap)
+ *---------------------------------------------------------------------------*/
 
 bool pd_process_ctrl_msg_vconn_swap(
 	pd_port_t *pd_port, pd_event_t *pd_event)
@@ -473,6 +472,8 @@ bool pd_process_dpm_msg_vconn_swap(
 	return true;
 }
 
+/*-----------------------------------------------------------------------------*/
+
 bool pd_process_recv_hard_reset(
 		pd_port_t *pd_port, pd_event_t *pd_event, uint8_t hreset_state)
 {
@@ -488,6 +489,8 @@ bool pd_process_recv_hard_reset(
 	PE_TRANSIT_STATE(pd_port, hreset_state);
 	return true;
 }
+
+/*-----------------------------------------------------------------------------*/
 
 bool pd_process_dpm_msg_pw_request(
 	pd_port_t *pd_port, pd_event_t *pd_event)
@@ -517,7 +520,7 @@ bool pd_process_dpm_msg_gotomin(
 	if (pd_port->pe_state_curr != PE_SRC_READY)
 		return false;
 
-	if (!(pd_port->dpm_flags & DPM_CAP_LOCAL_GIVE_BACK))
+	if (!(pd_port->dpm_flags & DPM_FLAGS_PARTNER_GIVE_BACK))
 		return false;
 
 	PE_TRANSIT_STATE(pd_port, PE_SRC_TRANSITION_SUPPLY);
@@ -633,12 +636,15 @@ bool pd_process_event_dpm_pd_request(
 		return false;
 	}
 
-	if (!ret)
+	if (!ret) {
 		/* TODO: Notify DPM, Policy Engine Reject this request ...  */
 		PE_DBG("Reject DPM PD Request\r\n");
+	}
+
 	return ret;
 }
 
+/*-----------------------------------------------------------------------------*/
 
 /*
  *
@@ -865,6 +871,7 @@ static inline bool pe_is_trap_in_idle_state(
 
 	if (!trap)
 		trap = !pe_exit_idle_state(pd_port, pd_event);
+
 	return trap;
 }
 

@@ -10,7 +10,7 @@
 			rt-tcpc,notifier_supply_num = <1>; /* the number of notifier supply */
 			pd-data {
 				pd,source-pdo-size = <1>;
-				pd,source-pdo-data = <0x00019032>; /*<0x019014>;*/
+				pd,source-pdo-data = <0x00019032>; /* 5V, 500 mA */
 				pd,sink-pdo-size = <2>;
 				pd,sink-pdo-data = <0x000190c8 0x000190c8> ;   /* 0x0002d0c8 : 9V, 2A<0x04019032 0x04019064> */
 
@@ -34,7 +34,7 @@
 				// local_usb_suspend;
 				// local_high_cap;
 				// local_give_back;
-				// local_no_suspend;
+				local_no_suspend;
 				local_vconn_supply;
 
 				// attemp_discover_cable_dfp;
@@ -46,7 +46,7 @@
 				pr_check = <0>;
 				// pr_reject_as_source;
 				// pr_reject_as_sink;
-				pr_check_gp_source;
+				// pr_check_gp_source;
 				// pr_check_gp_sink;
 
 				/* 0: disable, 1: prefer_ufp, 2: prefer_dfp */
